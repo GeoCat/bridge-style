@@ -42,23 +42,26 @@ Here is an example of how to export the symbology of the currently selected QGIS
 
 The `warnings` variable will contain a list of strings with the issues found during the conversion.
 
+Conversion can be performed outside of QGIS, just using the library as a standalone element. Each format has its own Python package, which contains two modules: `togeostyler` and `fromgeostyler`, each of them with a `convert` method to do the conversion work. It returns the converted style as a string, and a list of strings with issues found during the conversion (such as unsupported symbology elements that could not be correctly converted).
 
-Conversion can be performed outside of QGIS, just using the library as a standalone element. Here's how to convert a Geostyler file into a SLD file.
+Here's, for instance, how to convert a Geostyler file into a SLD file.
 
 ```python
 from bridgestyle import sld
 input_file = "/my/path/input.geostyler"
 output_file = "/my/path/output.sld"
 
-#we load the geostyler code from the input file
+#We load the geostyler code from the input file
 with open(input_file) as f:
 	geostyler = json.load(f)
 
-'''we pass it to the fromGeostyler method. There is one such method for each 
-supported format, which takes a Python object representing the Geostyler json object
-and returns a string with the style in the destination format	
 '''
-converted = sld.fromGeostyler(geostyler)
+We pass it to the fromgeostyler.convert method from the sld package.
+There is one such module and function for each  supported format, which 
+takes a Python object representing the Geostyler json object and returns 
+a string with the style in the destination format	
+'''
+converted, warnings = sld.fromgeostyler.convert(geostyler)
 
 #we save the resulting string in the destination file
 with open(output_file) as f:

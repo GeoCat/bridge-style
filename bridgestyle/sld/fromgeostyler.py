@@ -1,5 +1,4 @@
 import os
-from qgis.core import *
 from xml.etree.ElementTree import Element, SubElement
 from xml.etree import ElementTree
 from xml.dom import minidom

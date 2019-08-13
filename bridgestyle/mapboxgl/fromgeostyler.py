@@ -1,16 +1,18 @@
+import os
+import math
 import json
 
 _warnings = []
 
 def convert(geostyler):
-	global _warnings
-	_warnings = []
+    global _warnings
+    _warnings = []
     layers = processLayer(geostyler)
     obj = {
         "version": 8,
         "name": geostyler["name"],
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-        "sources": {geostyler["name"]: {"TODO:Configure this!!!",""}}
+        "sources": {geostyler["name"]: {"TODO:Configure this!!!",""}},
         "layers": layers,
         "sprite": "spriteSheet",
     }
@@ -25,42 +27,80 @@ def _toZoomLevel(scale):
 def processLayer(layer):
     allLayers = []
     
-    for rule in geostyler["rules"]:
+    for rule in layer["rules"]:
         layers = processRule(rule, layer["name"])
         allLayers.append(layers)
 
     return allLayers
 
 def processRule(rule, source):
-	filt = convertExpression(rule.get("filter", None))
-	minzoom = None
-	maxzoom = None
-	if "scaleDenominator" in rule:
+    filt = convertExpression(rule.get("filter", None))
+    minzoom = None
+    maxzoom = None
+    if "scaleDenominator" in rule:
         scale = rule["scaleDenominator"]
         if "max" in scale:
-            maxzoom =  = _toZoomLevel(scale["max"])
+            maxzoom = _toZoomLevel(scale["max"])
         if "min" in scale:
-            minzoom =  = _toZoomLevel(scale["min"])            
+            minzoom = _toZoomLevel(scale["min"])            
     name = rule.get("name", "rule")
-	layers = [processSymbolizer(s) for s in rule["symbolizers"]]
-	for i, lay in enumerate(layers):
-		if filt is not None:
-			lay["filter"] = filt
-		lay["source"] = source
-		lay["id"] = name + ":" + str(i)
-		if minzoom is not None:
-			lay["minzoom"] = minzoom
-		if maxzoom is not None:
-			lay["maxzoom"] = maxzoom
-	return layers
+    layers = [processSymbolizer(s) for s in rule["symbolizers"]]
+    for i, lay in enumerate(layers):
+        if filt is not None:
+            lay["filter"] = filt
+        lay["source"] = source
+        lay["id"] = name + ":" + str(i)
+        if minzoom is not None:
+            lay["minzoom"] = minzoom
+        if maxzoom is not None:
+            lay["maxzoom"] = maxzoom
+    return layers
 
-operators = {"PropertyName", "get"} #TODO
+func = {"PropertyName": "get",
+             "Or", 
+             "And", 
+             "PropertyIsEqualTo": "==",
+             "PropertyIsNotEqualTo", "!=",
+             "PropertyIsLessThanOrEqualTo": "<=", 
+             "PropertyIsGreaterThanOrEqualTo": ">=",
+             "PropertyIsLessThan": "<", 
+             "PropertyIsGreaterThan": ">", 
+             "Add": "+", 
+             "Sub": "-", 
+             "Mul": "*", 
+             "Div": "/", 
+             "Not": "!",
+             "toRadians": None,
+             "toDegrees"; None,
+             "floor": "floor",
+             "ceil": "ceil",             
+             "if_then_else": "case",             
+             "Concatenate": "concat",
+             "strSubstr": None,
+             "strToLower": "downcase",
+             "strToUpper": "upcase",
+             "strReplace": None,                        
+             "acos": "acos",
+             "asin": "asin",
+             "atan": "atan",
+             "atan2": "atan2",
+             "sin": "sin",
+             "cos": "cos",
+             "tan": "tan",
+             "log": "ln",
+             "strCapitalize",             
+             "min": "min",
+             "max": "max"} #TODO
 
 def convertExpression(exp):
-	if exp is None:
+    if exp is None:
         return None
     if isinstance(exp, list):
-        exp[0] = operators.get(exp[0], exp[0])
+        funcName = func.get(exp[0], None)
+        if funcName is None:
+            _warnings.append("Unsupported expression function for mapbox conversion: '%s'" % exp[0])
+        else:
+            exp[0] = funcName
     return exp
 
 def processSymbolizer(sl):
@@ -91,13 +131,13 @@ def _symbolProperty(sl, name):
         return None
 
 def _textSymbolizer(sl):
-	layout = {}
+    layout = {}
     paint = {} 
-	color = _symbolProperty(sl, "color")
+    color = _symbolProperty(sl, "color")
     fontFamily = _symbolProperty(sl, "font")
     label = _symbolProperty(sl, "label")
     size = _symbolProperty(sl, "size")
-	if "offset" in sl:
+    if "offset" in sl:
         offset = sl["offset"]
         offsetx = _processProperty(offset[0])
         offsety = _processProperty(offset[1])
@@ -123,7 +163,7 @@ def _textSymbolizer(sl):
     if str(qgisLayer.customProperty("labeling/scaleVisibility")).lower() == "true":
         layer["minzoom"]  = _toZoomLevel(float(qgisLayer.customProperty("labeling/scaleMin")))
         layer["maxzoom"]  = _toZoomLevel(float(qgisLayer.customProperty("labeling/scaleMax")))
-	'''
+    '''
 
     return {"type": "symbol", "paint": paint, "layout": layout}
 
@@ -139,15 +179,15 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
 
     paint = {}
     if graphicStroke is not None:
-    	pass #TODO
+        pass #TODO
 
-   	paint["line-offset"] = offset
+    paint["line-offset"] = offset
     if color is None:
-    	paint["visibility"] = "none"
-	else:
-		paint["line-width"] = width
-		paint["line-opacity"] = opacity
-		paint["line-color"] = color                
+        paint["visibility"] = "none"
+    else:
+        paint["line-width"] = width
+        paint["line-opacity"] = opacity
+        paint["line-color"] = color                
     if dasharray is not None:
         paint["line-dasharray"] = dasharray
     if offset is not None:
@@ -178,15 +218,12 @@ def _markSymbolizer(sl):
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")
     
-    paint["circle-radius"] = ["/", size, "2.0"]
-    mark = Element("Mark")
-    _addSubElement(mark, "WellKnownName", shape)
-    fill = SubElement(mark, "Fill")
+    paint["circle-radius"] = ["/", size, "2.0"]    
     paint["circle-color"] = color
-	paint["circle-opacity"] = opacity
-	paint["circle-stroke-width"] = outlineWidth
-	paint["circle-stroke-color"] = outlineColor
-	
+    paint["circle-opacity"] = opacity
+    paint["circle-stroke-width"] = outlineWidth
+    paint["circle-stroke-color"] = outlineColor
+    
     return {"type": "circle", "paint": paint}
 
 def _fillSymbolizer(sl):
@@ -195,14 +232,16 @@ def _fillSymbolizer(sl):
     color =  sl.get("color", None)
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
-    	#TODO
+        pass#TODO
     paint["fill-opacity"] = opacity
     if color is not None:                
         paint["fill-color"] = color
 
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
-		#TODO
-		pass
+        pass#TODO        
 
     return {"type": "fill", "paint": paint}
+
+def _rasterSymbolizer(sl):
+    return {"type": "raster"} #TODO
