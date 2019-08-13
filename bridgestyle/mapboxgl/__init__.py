@@ -1,8 +1,9 @@
-from .mapboxgl import processLayer
+from . import togeostyler 
+from . import fromgeostyler
 
 def toGeostyler(style):
-	return style #TODO
+	return togeostyler.convert(style) #TODO
 
 def fromGeostyler(style):
-	mb, warnings = processLayer(style)
-    return json.dumps(mb)
+	mb, warnings = fromgeostyler.convert(style)
+    return mb

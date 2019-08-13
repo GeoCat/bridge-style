@@ -1,19 +1,15 @@
 import os
 import zipfile
 import json
-from xml.dom import minidom
-from bridgestyle.qgis.geostyler import layerAsGeostyler
-from bridgestyle.sld import sld
-from bridgestyle.mapboxgl import mapboxgl
-from xml.etree import ElementTree
+from bridgestyle import qgis
+from bridgestyle import sld
+from bridgestyle import mapboxgl
 
 def layerStyleAsSld(layer):
-    geostyler, icons, warnings = layerAsGeostyler(layer)
-    xml, sldWarnings = sld.processLayer(geostyler)
-    sldstring = ElementTree.tostring(xml, encoding='utf8', method='xml').decode()
-    dom = minidom.parseString(sldstring)
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    sldString, sldWarnings = sld.fromgeostyler.convert(geostyler)        
     warnings.extend(sldWarnings)
-    return dom.toprettyxml(indent="  "), icons, warnings    
+    return sldString, icons, warnings
 
 def saveLayerStyleAsSld(layer, filename):
     sldstring, icons, warnings = layerStyleAsSld(layer)       
@@ -31,18 +27,17 @@ def saveLayerStyleAsZippedSld(layer, filename):
     return warnings
 
 def layerStyleAsMapbox(layer):
-    geostyler, icons, warnings = layerAsGeostyler(layer)
-    mbox, mbWarnings = mapboxgl.processLayer(geostyler)
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
     warnings.extend(mbWarnings)
-    return json.dumps(mbox), icons, warnings
+    return mbox, icons, warnings
 
 def layerStyleAsMapboxFolder(layer, folder):
-    geostyler, icons, warnings = layerAsGeostyler(layer)
-    mbox, mbWarnings = mapbox.processLayer(geostyler)
-    s = json.dumps(mbox)
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)    
     filename = os.path.join(folder, "style.mapbox")
     with open(filename, "w") as f:
-        f.write(s)
+        f.write(mbox)
     saveSpritesSheet(icons, folder)
     return warnings
     

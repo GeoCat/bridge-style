@@ -12,7 +12,7 @@ except:
 _usedIcons = {}
 _warnings = []
 
-def layerAsGeostyler(layer):
+def convert(layer):
     global _usedIcons
     _usedIcons = {}
     global _warnings

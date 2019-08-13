@@ -3,12 +3,12 @@ from qgis.core import *
 from xml.etree.ElementTree import Element, SubElement
 from xml.etree import ElementTree
 from xml.dom import minidom
-from geocatbridgecommons import log
+
 import zipfile
 
 _warnings = []
 
-def processLayer(geostyler):
+def convert(geostyler):
     global _warnings
     _warnings = []
     attribs = {
@@ -31,7 +31,9 @@ def processLayer(geostyler):
     for rule in geostyler["rules"]:
         featureTypeStyle.append(processRule(rule))
     
-    return root, _warnings
+    sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
+    dom = minidom.parseString(sldstring)    
+    return dom.toprettyxml(indent="  "), _warnings
 
 def processRule(rule):    
     ruleElement = Element("Rule")

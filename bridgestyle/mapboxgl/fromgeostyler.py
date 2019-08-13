@@ -2,7 +2,7 @@ import json
 
 _warnings = []
 
-def processLayer(geostyler):
+def convert(geostyler):
 	global _warnings
 	_warnings = []
     layers = processLayer(geostyler)

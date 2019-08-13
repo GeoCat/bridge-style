@@ -1,12 +1,9 @@
-from .sld import processLayer
-from xml.dom import minidom
-from xml.etree import ElementTree
+from . import togeostyler 
+from . import fromgeostyler
 
 def toGeostyler(style):
-    return style #TODO
+	return togeostyler.convert(style) #TODO
 
 def fromGeostyler(style):
-    xml, warnings = processLayer(style)
-    sld = ElementTree.tostring(xml, encoding='utf8', method='xml').decode()
-    dom = minidom.parseString(sld)
-    return dom.toprettyxml(indent="  ")
+	sld, warnings = fromgeostyler.convert(style)
+    return sld
