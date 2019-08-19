@@ -66,37 +66,37 @@ functions = {"radians": "toRadians",
              "max": "max"
              } #TODO
 
-def walkExpression(node):
+def walkExpression(node, layer):
     if node.nodeType() == QgsExpressionNode.ntBinaryOperator:
-        exp = handleBinary(node)
+        exp = handleBinary(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntUnaryOperator:
-        exp = handleUnary(node)
+        exp = handleUnary(node, layer)
     #elif node.nodeType() == QgsExpressionNode.ntInOperator:
         #filt = handle_in(node)
     elif node.nodeType() == QgsExpressionNode.ntFunction:
-        exp = handleFunction(node)
+        exp = handleFunction(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntLiteral:
         exp = handleLiteral(node)
     elif node.nodeType() == QgsExpressionNode.ntColumnRef:
-        exp = handleColumnRef(node)
+        exp = handleColumnRef(node, layer)
     #elif node.nodeType() == QgsExpression.ntCondition:
     #    filt = handle_condition(nod)
     return exp
 
-def handleBinary(node):
+def handleBinary(node, layer):
     op = node.op()
     retOp = binaryOps[op]
     left = node.opLeft()
     right = node.opRight()
-    retLeft = walkExpression(left)
-    retRight = walkExpression(right)
+    retLeft = walkExpression(left, layer)
+    retRight = walkExpression(right, layer)
     return [retOp, retLeft, retRight]
 
-def handleUnary(node):
+def handleUnary(node, layer):
     op = node.op()
     operand = node.operand()
     retOp = unaryOps[op]
-    retOperand = walkExpression(operand)
+    retOperand = walkExpression(operand, layer)
     return [retOp, retOperand]
 
 def handleLiteral(node):
@@ -109,10 +109,15 @@ def handleLiteral(node):
         val = "null"
     return val
 
-def handleColumnRef(node):
+def handleColumnRef(node, layer):
+    if layer is not None:
+        attrName = node.name().casefold()
+        for field in layer.fields():
+            if field.name().casefold() == attrName:
+                return ["PropertyName", field.name()]
     return ["PropertyName", node.name()]
 
-def handleFunction(node):
+def handleFunction(node, layer):
     fnIndex = node.fnIndex()
     func = QgsExpression.Functions()[fnIndex].name()
     if func == "$geometry":
@@ -123,7 +128,7 @@ def handleFunction(node):
         if args is not None:
             args = args.list()
             for arg in args:
-                elems.append(walkExpression(arg))
+                elems.append(walkExpression(arg, layer))
         return elems
     else:
         raise UnsupportedExpressionException("Unsupported function in expression: '%s'" % func)    

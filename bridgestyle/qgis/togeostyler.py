@@ -12,6 +12,13 @@ except:
 _usedIcons = {}
 _warnings = []
 
+class ExpressionConverter():
+    layer = None
+    def walkExpression(self, node):
+        return walkExpression(node, self.layer)
+
+_expressionConverter = ExpressionConverter()
+
 def convert(layer):
     global _usedIcons
     _usedIcons = {}
@@ -21,6 +28,8 @@ def convert(layer):
     return geostyler, _usedIcons, _warnings
 
 def processLayer(layer):
+    _expressionConverter.layer = layer
+
     if layer.type() == layer.VectorLayer:
         rules = []
         renderer = layer.renderer()
@@ -133,7 +142,7 @@ def processLabeling(layer):
     offsetX = _labelingProperty(settings, None, "xOffset")
     offsetY = _labelingProperty(settings, None, "yOffset")
     exp = settings.getLabelExpression()
-    label = walkExpression(exp.rootNode())
+    label = _expressionConverter.walkExpression(exp.rootNode())
     symbolizer.update({"color": color,
                         "offset": [offsetX, offsetY],
                         "font": font,
@@ -164,7 +173,7 @@ def processExpression(expstr):
     try:
         if expstr:
             exp = QgsExpression(expstr)
-            return walkExpression(exp.rootNode())
+            return _expressionConverter.walkExpression(exp.rootNode())
         else:
             return None
     except UnsupportedExpressionException as e:
