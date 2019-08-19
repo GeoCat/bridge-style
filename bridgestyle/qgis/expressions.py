@@ -121,7 +121,7 @@ def handleFunction(node, layer):
     fnIndex = node.fnIndex()
     func = QgsExpression.Functions()[fnIndex].name()
     if func == "$geometry":
-        return ["PropertyName", "the_geom"]
+        return ["PropertyName", "geom"]
     elif func in functions:        
         elems = [functions[func]]
         args = node.args()
