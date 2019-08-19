@@ -12,14 +12,14 @@ def convert(geostyler):
         "version": 8,
         "name": geostyler["name"],
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-        "sources": {geostyler["name"]: {"TODO:Configure this!!!",""}},
+        "sources": {geostyler["name"]: "TODO:Configure this!!!"},
         "layers": layers,
         "sprite": "spriteSheet",
     }
     
     obj["sprite"] = "spriteSheet"
     
-    return json.dumps(obj), _warnings
+    return json.dumps(obj, indent=4), _warnings
 
 def _toZoomLevel(scale):
     return int(math.log(1000000000 / scale, 2))
@@ -96,12 +96,18 @@ def convertExpression(exp):
     if exp is None:
         return None
     if isinstance(exp, list):
-        funcName = func.get(exp[0], None)
+        funcName = func.get(exp[0], None)        
         if funcName is None:
             _warnings.append("Unsupported expression function for mapbox conversion: '%s'" % exp[0])
-        else:
-            exp[0] = funcName
-    return exp
+            return None
+        else:            
+            convertedExp = [funcName]
+            for arg in exp[1:]:
+                convertedExp.append(convertExpression(arg))
+            return convertedExp
+    else:
+        return exp
+
 
 def processSymbolizer(sl):
     symbolizerType = sl["kind"]
@@ -179,7 +185,8 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
 
     paint = {}
     if graphicStroke is not None:
-        pass #TODO
+        _warnings.append("Marker lines not supported for Mapbox GL conversion")
+        #TODO
 
     paint["line-offset"] = offset
     if color is None:
@@ -218,6 +225,7 @@ def _markSymbolizer(sl):
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")
     
+    paint = {}
     paint["circle-radius"] = ["/", size, "2.0"]    
     paint["circle-color"] = color
     paint["circle-opacity"] = opacity
@@ -232,7 +240,8 @@ def _fillSymbolizer(sl):
     color =  sl.get("color", None)
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
-        pass#TODO
+        _warnings.append("Marker fills not supported for Mapbox GL conversion")
+        #TODO
     paint["fill-opacity"] = opacity
     if color is not None:                
         paint["fill-color"] = color
