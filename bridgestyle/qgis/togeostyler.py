@@ -278,7 +278,7 @@ def _createSymbolizer(sl, opacity):
         symbolizer = _fontMarkerSymbolizer(sl, opacity)
 
     if symbolizer is None:
-        _warning.append("Symbol layer type not supported: '%s'" % type(sl))
+        _warnings.append("Symbol layer type not supported: '%s'" % type(sl))
     return symbolizer
 
 
