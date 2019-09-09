@@ -190,7 +190,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     dasharray = _symbolProperty(sl, "dasharray")
     cap = _symbolProperty(sl, "cap")
     join = _symbolProperty(sl, "join")
-    offset = _symbolProperty(sl, "offset")
+    offset = _symbolProperty(sl, "perpendicularOffset")
 
     root = Element("LineSymbolizer")
     symbolizers = [root]
