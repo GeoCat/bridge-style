@@ -273,7 +273,9 @@ def _createSymbolizer(sl, opacity):
     elif isinstance(sl, QgsSimpleFillSymbolLayer):
         symbolizer = _simpleFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsPointPatternFillSymbolLayer):
-        symbolizer = _pointPatternFillSymbolizer(sl, opacity)       
+        symbolizer = _pointPatternFillSymbolizer(sl, opacity)
+    elif isinstance(sl, QgsLinePatternFillSymbolLayer):
+        symbolizer = _linePatternFillSymbolizer(sl, opacity)        
     elif isinstance(sl, QgsSvgMarkerSymbolLayer):
         symbolizer = _svgMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsRasterMarkerSymbolLayer):
@@ -435,14 +437,15 @@ def _markGraphic(sl):
 
 FIXED_PATTERN_SIZE = 10
 
-def _markFillPattern(shape, color):    
+def _markFillPattern(shape, color, size=FIXED_PATTERN_SIZE, strokeWidth=1, rotation=0):    
     shape = wknReplacements.get(shape, shape)
     return {"kind": "Mark",
             "color": color,
             "wellKnownName": shape,
-            "size": FIXED_PATTERN_SIZE,
+            "size": size,
             "strokeColor": color,
-            "strokeWidth": 1
+            "strokeWidth": strokeWidth,
+            "rotate": rotation
             } 
 
 def _iconGraphic(sl, color=None):    
@@ -459,6 +462,16 @@ def _iconGraphic(sl, color=None):
 def _baseFillSymbolizer(sl, opacity):
     return {"kind": "Fill",
             "opacity": opacity}
+
+def _linePatternFillSymbolizer(sl, opacity):
+    symbolizer = _baseFillSymbolizer(sl, opacity)
+    color = sl.color().name()
+    strokeWidth = _symbolProperty(sl, "line_width")
+    size = _symbolProperty(sl, "distance", QgsSymbolLayer.PropertyLineDistance)
+    rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyLineAngle)
+    subSymbolizer = _markFillPattern("horline", color, size, strokeWidth, rotation)
+    symbolizer["graphicFill"] = [subSymbolizer]
+    return symbolizer
 
 def _pointPatternFillSymbolizer(sl, opacity):    
     symbolizer = _baseFillSymbolizer(sl, opacity)
