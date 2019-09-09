@@ -46,14 +46,17 @@ def processRule(rule, source):
     name = rule.get("name", "rule")
     layers = [processSymbolizer(s) for s in rule["symbolizers"]]
     for i, lay in enumerate(layers):
-        if filt is not None:
-            lay["filter"] = filt
-        lay["source"] = source
-        lay["id"] = name + ":" + str(i)
-        if minzoom is not None:
-            lay["minzoom"] = minzoom
-        if maxzoom is not None:
-            lay["maxzoom"] = maxzoom
+        try: 
+            if filt is not None:
+                lay["filter"] = filt
+            lay["source"] = source
+            lay["id"] = name + ":" + str(i)
+            if minzoom is not None:
+                lay["minzoom"] = minzoom
+            if maxzoom is not None:
+                lay["maxzoom"] = maxzoom
+        except Exception as e:
+             _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
     return layers
 
 func = {"PropertyName": "get",
@@ -110,23 +113,29 @@ def convertExpression(exp):
 
 
 def processSymbolizer(sl):
-    symbolizerType = sl["kind"]
-    if symbolizerType == "Icon":
-        symbolizer = _iconSymbolizer(sl)
-    if symbolizerType == "Line":
-        symbolizer = _lineSymbolizer(sl)            
-    if symbolizerType == "Fill":
-        symbolizer = _fillSymbolizer(sl)
-    if symbolizerType == "Mark":
-        symbolizer = _markSymbolizer(sl)
-    if symbolizerType == "Text":
-        symbolizer = _textSymbolizer(sl)
-    if symbolizerType == "Raster":
-        symbolizer = _rasterSymbolizer(sl)        
+    try:
+
+        symbolizerType = sl["kind"]
+        if symbolizerType == "Icon":
+            symbolizer = _iconSymbolizer(sl)
+        if symbolizerType == "Line":
+            symbolizer = _lineSymbolizer(sl)            
+        if symbolizerType == "Fill":
+            symbolizer = _fillSymbolizer(sl)
+        if symbolizerType == "Mark":
+            symbolizer = _markSymbolizer(sl)
+        if symbolizerType == "Text":
+            symbolizer = _textSymbolizer(sl)
+        if symbolizerType == "Raster":
+            symbolizer = _rasterSymbolizer(sl)        
     
-    geom = _geometryFromSymbolizer(sl)
-    if geom is not None:
-        _warnings.append("Derived geometries are not supported in mapbox gl")
+        geom = _geometryFromSymbolizer(sl)
+        if geom is not None:
+            _warnings.append("Derived geometries are not supported in mapbox gl")
+
+    except Exception as e: 
+        _warnings.append("Style rule has unexpected type: '%s'" % (str(sl)))
+        return None
 
     return symbolizer
 

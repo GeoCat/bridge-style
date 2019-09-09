@@ -69,23 +69,27 @@ def _createSymbolizers(symbolizers):
     return sldSymbolizers
 
 def _createSymbolizer(sl):
-    symbolizerType = sl["kind"]
-    if symbolizerType == "Icon":
-        symbolizer = _iconSymbolizer(sl)
-    if symbolizerType == "Line":
-        symbolizer = _lineSymbolizer(sl)            
-    if symbolizerType == "Fill":
-        symbolizer = _fillSymbolizer(sl)
-    if symbolizerType == "Mark":
-        symbolizer = _markSymbolizer(sl)
-    if symbolizerType == "Text":
-        symbolizer = _textSymbolizer(sl)
-    if symbolizerType == "Raster":
-        symbolizer = _rasterSymbolizer(sl)        
-    
-    geom = _geometryFromSymbolizer(sl)
-    if geom is not None:
-        symbolizer.insert(0, geom)
+    try:
+        symbolizerType = sl["kind"]
+        if symbolizerType == "Icon":
+            symbolizer = _iconSymbolizer(sl)
+        if symbolizerType == "Line":
+            symbolizer = _lineSymbolizer(sl)            
+        if symbolizerType == "Fill":
+            symbolizer = _fillSymbolizer(sl)
+        if symbolizerType == "Mark":
+            symbolizer = _markSymbolizer(sl)
+        if symbolizerType == "Text":
+            symbolizer = _textSymbolizer(sl)
+        if symbolizerType == "Raster":
+            symbolizer = _rasterSymbolizer(sl)        
+        
+        geom = _geometryFromSymbolizer(sl)
+        if geom is not None:
+            symbolizer.insert(0, geom)
+    except Exception as e: 
+        _warnings.append("Style rule has unexpected type: '%s'" % str(sl))
+        return None
 
     return symbolizer
 
@@ -284,6 +288,7 @@ def _markGraphic(sl):
 
 def _svgGraphic(sl):
     path = os.path.basename(sl["image"])
+    color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")
     mark = Element("Mark")
