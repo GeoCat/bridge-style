@@ -26,6 +26,22 @@ def saveLayerStyleAsZippedSld(layer, filename):
     z.close()
     return warnings
 
+def saveLayerStyleAsMapfile(layer):
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mapfile, mapfileWarnings = mapfile.fromgeostyler.convert(geostyler)
+    warnings.extend(mbWarnings)
+    return mapfile, icons, warnings
+
+def saveLayerStyleAsMapfileFolder(layer, folder):
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mapfile, mapfileWarnings = mapfile.fromgeostyler.convert(geostyler)
+    warnings.extend(mbWarnings)
+    filename = os.path.join(folder, layer.name() + ".mapbox")
+    with open(filename, "w") as f:
+        f.write(mapfile)
+    #TODO: save icons
+    return warnings
+
 def layerStyleAsMapbox(layer):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
     mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
@@ -34,7 +50,8 @@ def layerStyleAsMapbox(layer):
 
 def layerStyleAsMapboxFolder(layer, folder):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
-    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)    
+    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
+    warnings.extend(mbWarnings)
     filename = os.path.join(folder, "style.mapbox")
     with open(filename, "w") as f:
         f.write(mbox)
