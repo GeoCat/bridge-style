@@ -145,9 +145,9 @@ def _textSymbolizer(sl):
     size = _symbolProperty(sl, "size")
     if "offset" in sl:
         offset = sl["offset"]
-        offsetx = _processProperty(offset[0])
-        offsety = _processProperty(offset[1])
-        layout["text-offset"] = [offsetX, offsetY]
+        offsetx = convertExpression(offset[0])
+        offsety = convertExpression(offset[1])
+        layout["text-offset"] = [offsetx, offsety]
 
             
     if "haloColor" in sl and "haloSize" in sl:        
@@ -207,7 +207,7 @@ def _geometryFromSymbolizer(sl):
     return geomExpr       
 
 def _iconSymbolizer(sl):
-    path = os.splitext(os.basename(sl["image"])[0])
+    path = os.path.splitext(os.path.basename(sl["image"])[0])
     rotation = _symbolProperty(sl, "rotate")
 
     paint = {}

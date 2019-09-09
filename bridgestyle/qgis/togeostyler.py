@@ -39,9 +39,9 @@ def processLayer(layer):
             pass #show error
         for rule in renderer.rootRule().children():
             rules.append(processRule(rule))
-        labelingSymbolizer = processLabeling(layer)
-        if labelingSymbolizer is not None:
-            rules.append(labelingSymbolizer)
+        labelingRule = processLabeling(layer)
+        if labelingRule is not None:
+            rules.append(labelingRule)
         return  {"name": layer.name(), "rules": rules}
     elif layer.type() == layer.RasterLayer:
         rules = [{"name": layer.name(), "symbolizers": [rasterSymbolizer(layer)]}]
@@ -126,7 +126,7 @@ def processLabeling(layer):
     if not isinstance(labeling, QgsVectorLayerSimpleLabeling):
         _warnings.append("Unsupported labeling class: '%s'" % str(labeling))
         return None
-    symbolizer = {"Kind": "Text"}
+    symbolizer = {"kind": "Text"}
     settings = labeling.settings()
     textFormat = settings.format()    
     size = _labelingProperty(settings, textFormat, "size", QgsPalLayerSettings.Size)
@@ -149,7 +149,7 @@ def processLabeling(layer):
                         "anchor": anchor,
                         "label": label,
                         "size": size})
-    return {"symbolizers": symbolizer}
+    return {"symbolizers": [symbolizer], "name": "labeling"}
 
 def processRule(rule):
     symbolizers = _createSymbolizers(rule.symbol().clone())
