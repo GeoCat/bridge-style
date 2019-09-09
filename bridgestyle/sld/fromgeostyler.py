@@ -161,18 +161,25 @@ def _textSymbolizer(sl):
     fillElem = _addSubElement(root, "Fill")
     _addCssParameter(fontElem, "fill", color)
 
-    if "offset" in sl or "anchor" in sl:
-        placement = _addSubElement(root, "LabelPlacement")        
+    if "offset" in sl:
+        placement = _addSubElement(root, "LabelPlacement")
+        pointPlacement = _addSubElement(placement, "PointPlacement")      
         if "anchor" in sl:
             anchor = sl["anchor"]
             #######
-        if "offset" in sl:
-            displacement = _addSubElement(placement, "Displacement")
-            offset = sl["offset"]
-            offsetx = _processProperty(offset[0])
-            offsety = _processProperty(offset[1])            
-            _addSubElement(displacement, "DisplacementX", offsetx)
-            _addSubElement(displacement, "DisplacementY", offsety)
+        displacement = _addSubElement(pointPlacement, "Displacement")
+        offset = sl["offset"]
+        offsetx = _processProperty(offset[0])
+        offsety = _processProperty(offset[1])            
+        _addSubElement(displacement, "DisplacementX", offsetx)
+        _addSubElement(displacement, "DisplacementY", offsety)
+    if "dist" in sl:
+        placement = _addSubElement(root, "LabelPlacement")
+        linePlacement = _addSubElement(placement, "LinePlacement")
+        dist = _processProperty(offset)
+        _addSubElement(linePlacement, "PerpendicularOffset", dist)
+
+
 
     if "haloColor" in sl and "haloSize" in sl:
         haloElem = _addSubElement(root, "Halo")

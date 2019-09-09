@@ -138,9 +138,15 @@ def processLabeling(layer):
         haloSize = _labelingProperty(settings, buff, "size", QgsPalLayerSettings.BufferSize)
         symbolizer.update({"haloColor": haloColor,
                             "haloSize": haloSize})
-    anchor = quadOffset[settings.quadOffset]
-    offsetX = _labelingProperty(settings, None, "xOffset")
-    offsetY = _labelingProperty(settings, None, "yOffset")
+    if layer.geometryType() == QgsWkbTypes.LineGeometry:
+        offset = _labelingProperty(settings, None, "dist")
+        symbolizer["offset"] = offset
+    else:
+        anchor = quadOffset[settings.quadOffset]
+        offsetX = _labelingProperty(settings, None, "xOffset")
+        offsetY = _labelingProperty(settings, None, "yOffset")
+        symbolizer.update({"offset": [offsetX, offsetY],                        
+                        "anchor": anchor})
     exp = settings.getLabelExpression()
     label = _expressionConverter.walkExpression(exp.rootNode())
     symbolizer.update({"color": color,
