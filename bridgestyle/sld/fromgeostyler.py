@@ -2,6 +2,7 @@ import os
 from xml.etree.ElementTree import Element, SubElement
 from xml.etree import ElementTree
 from xml.dom import minidom
+from .transformations import processTransformation
 
 import zipfile
 
@@ -27,12 +28,16 @@ def convert(geostyler):
     userStyleTitle.text = geostyler["name"]
 
     featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
+    if "transformation" in geostyler:
+        featureTypeStyle.append(processTransformation(geostyler["transformation"]))
     for rule in geostyler["rules"]:
         featureTypeStyle.append(processRule(rule))
     
     sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
     dom = minidom.parseString(sldstring)    
     return dom.toprettyxml(indent="  "), _warnings
+
+
 
 def processRule(rule):    
     ruleElement = Element("Rule")

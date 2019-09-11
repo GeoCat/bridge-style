@@ -25,6 +25,8 @@ def convert(layer):
     global _warnings
     _warnings = []
     geostyler = processLayer(layer)
+    if geostyler is None:
+        geostyler = {"name": layer.name()}
     return geostyler, _usedIcons, _warnings
 
 def processLayer(layer):
@@ -33,21 +35,56 @@ def processLayer(layer):
     if layer.type() == layer.VectorLayer:
         rules = []
         renderer = layer.renderer()
-        if not isinstance(renderer, QgsRuleBasedRenderer):
-            renderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
-        if renderer is None:
-            pass #show error
-        for rule in renderer.rootRule().children():
-            rules.append(processRule(rule))
-        labelingRule = processLabeling(layer)
-        if labelingRule is not None:
-            rules.append(labelingRule)
-        return  {"name": layer.name(), "rules": rules}
+        if isinstance(renderer, QgsHeatmapRenderer):
+            symbolizer, transformation = heatmapRenderer(renderer)
+            rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
+            return  {"name": layer.name(), "rules": rules, "transformation": transformation}
+        else:
+            if not isinstance(renderer, QgsRuleBasedRenderer):
+                renderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
+            if renderer is None:
+                _warnings.append("Unsupported renderer type: %s" % str(renderer))
+                return
+            for rule in renderer.rootRule().children():
+                rules.append(processRule(rule))
+            labelingRule = processLabeling(layer)
+            if labelingRule is not None:
+                rules.append(labelingRule)
+            return  {"name": layer.name(), "rules": rules}
     elif layer.type() == layer.RasterLayer:
         rules = [{"name": layer.name(), "symbolizers": [rasterSymbolizer(layer)]}]
         return  {"name": layer.name(), "rules": rules}
 
-def rasterSymbolizer(layer):    
+def heatmapRenderer(renderer):
+    hmRadius = renderer.radius()
+    colorRamp = renderer.colorRamp()
+    if not isinstance(colorRamp, QgsGradientColorRamp):
+        _warnings.append("Unsupported color ramp class: %s" % str(colorRamp))
+        return    
+    colMap = {}
+    colMap["type"] = "intervals" if colorRamp.isDiscrete() else "ramp"
+    mapEntries = []
+    mapEntries.append({"color": colorRamp.color1().name(), "quantity": 0,
+                            "opacity": colorRamp.color1().alphaF(), "label": ""})
+    for stop in colorRamp.stops():
+        mapEntries.append({"color": stop.color.name(), "quantity": stop.offset,
+                            "opacity": stop.color.alphaF(), "label": ""})
+    mapEntries.append({"color": colorRamp.color2().name(), "quantity": 1,
+                            "opacity": colorRamp.color2().alphaF(), "label": ""})
+    colMap["colorMapEntries"] = mapEntries    
+
+    weightAttr = renderer.weightExpression()
+    radius = renderer.radius()
+    if renderer.radiusUnit() != QgsUnitTypes.RenderPixels:
+        _warnings.append("Radius for heatmap renderer can only be expressed in pixels")
+
+    channel = {"grayChannel": {"sourceChannelName": 1}}
+    symbolizer = {"kind": "Raster", "opacity": 1,
+                 "channelSelection": channel, "colorMap": colMap}
+    transformation = {"type": "vec:Heatmap", "radiusPixels": radius, "weightAttr": weightAttr}
+    return symbolizer, transformation
+
+def rasterSymbolizer(layer):
     renderer = layer.renderer()    
     symbolizer = {"kind": "Raster", "opacity": renderer.opacity(),
                  "channelSelection": channelSelection(renderer)}
@@ -104,6 +141,7 @@ def colorMap(renderer):
             mapEntries.append({"color": c.color.name() , "quantity": c.value,
                             "label": c.label, "opacity": c.color.alphaF()})
     elif isinstance(renderer, QgsMultiBandColorRenderer):
+        _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer)) #TODO
         return None
     else:
         _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer))
@@ -207,14 +245,14 @@ def _handleUnits(value, units):
             return float(value) * MM2PIXEL
     elif units == "RenderMetersInMapUnits":
         if isinstance(value, list):
-            _warning.append("Cannot render in map units when using a data-defined size value: '%s'" % str(value))
+            _warnings.append("Cannot render in map units when using a data-defined size value: '%s'" % str(value))
             return value
         else:
             return str(value) + "m"
     elif units == "Pixel":
         return value
     else:
-        _warning.append("Unsupported units: '%s'" % units)
+        _warnings.append("Unsupported units: '%s'" % units)
         return value
 
 def _labelingProperty(settings, obj, name, propertyConstant=-1):
