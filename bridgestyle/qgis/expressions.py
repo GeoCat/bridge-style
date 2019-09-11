@@ -19,7 +19,7 @@ binaryOps = [
       "Div",
       None, None, None, None]
 
-unaryOps = ["Not", None]
+unaryOps = ["Not", "Sub"]
 
 functions = {"radians": "toRadians",
              "degrees": "toDegrees",
@@ -97,7 +97,10 @@ def handleUnary(node, layer):
     operand = node.operand()
     retOp = unaryOps[op]
     retOperand = walkExpression(operand, layer)
-    return [retOp, retOperand]
+    if retOp is "Sub": #handle the particular case of a minus in a negative number
+        return [retOp, 0, retOperand]
+    else:
+        return [retOp, retOperand]
 
 def handleLiteral(node):
     val = node.value()
