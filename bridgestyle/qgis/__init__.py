@@ -7,6 +7,8 @@ from bridgestyle import sld
 from bridgestyle import mapboxgl
 from bridgestyle import mapserver
 from qgis.core import QgsWkbTypes, QgsMarkerSymbol, QgsSymbol, QgsSVGFillSymbolLayer, QgsSvgMarkerSymbolLayer, QgsRasterLayer, QgsVectorLayer
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
 def layerStyleAsSld(layer):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
@@ -104,7 +106,7 @@ def saveSymbolLayerSprite(symbolLayer):
 
 def saveSpritesSheet(icons, folder):
     sprites = {}
-    for iconPath, sl in icons:
+    for iconPath, sl in icons.items():
         iconName = os.path.splitext(os.path.basename(iconPath))[0]
         sprites[iconName] = saveSymbolLayerSprite(sl)
     if sprites:
@@ -129,8 +131,8 @@ def saveSpritesSheet(icons, folder):
                              "y": 0,
                              "pixelRatio": 1}}
         x = 0
-        for name, sprites in sprites.iteritems():
-            s, s2x = sprites
+        for name, _sprites in sprites.items():
+            s, s2x = _sprites
             painter.drawImage(x, 0, s)
             painter2x.drawImage(x * 2, 0, s2x)
             spritesheet[name] = {"width": s.width(),
