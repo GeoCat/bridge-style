@@ -15,11 +15,13 @@ The library uses Geostyler as intermediate format, and uses a two-step approach:
 
 These are the formats currently supported:
 
-- Geostyler
+- Geostyler.
 
-- SLD. This is mainly targeted at Geoserver users, so it makes use of Geoserver vendor options
+- SLD. This is mainly targeted at Geoserver users, so it makes use of Geoserver vendor options.
 
-- Mapbox GL
+- Mapbox GL.
+
+- Mapserver Mapfiles.
 
 Support for YSLD will be implemented soon.
 
@@ -27,7 +29,7 @@ At the moment, all formats can be exported from QGIS, but the inverse conversion
 
 The library also has some support for being run from GIS applications, so it can convert from the data objects corresponding to map layer and features in those applications into Geostyler. At the moment, there is support for QGIS, and support from ArcGIS is planned an will soon be added.
 
-To see which QGIS symbology features are correctly converted to Geostyler (and then supported in the rest of available formats), see [here](docs/qgis.md): 
+To see which QGIS symbology features are correctly converted to Geostyler (and then supported in the rest of available formats, when possible), see [here](docs/qgis.md): 
 
 ## Example usage
 
