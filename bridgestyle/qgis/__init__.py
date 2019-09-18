@@ -1,9 +1,12 @@
 import os
 import zipfile
 import json
+from shutil import copyfile
 from bridgestyle import qgis
 from bridgestyle import sld
 from bridgestyle import mapboxgl
+from bridgestyle import mapserver
+from qgis.core import QgsWkbTypes, QgsMarkerSymbol, QgsSymbol, QgsSVGFillSymbolLayer, QgsSvgMarkerSymbolLayer, QgsRasterLayer, QgsVectorLayer
 
 def layerStyleAsSld(layer):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
@@ -41,6 +44,36 @@ def layerStyleAsMapboxFolder(layer, folder):
     saveSpritesSheet(icons, folder)
     return warnings
     
+def layerStyleAsMapfile(layer):
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mserver, msWarnings = mapserver.fromgeostyler.convert(geostyler)
+    warnings.extend(msWarnings)
+    filename = os.path.basename(layer.source())
+    filename = os.path.splitext(filename)[0] + ".shp"
+    mserver = mserver.replace("{data}", filename)
+    layerType = "TODO:fill this"
+    if isinstance(layer, QgsRasterLayer):
+        layerType = "raster"
+    elif isinstance(layer, QgsVectorLayer):        
+        layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
+    mserver = mserver.replace("{layertype}", layerType)
+    return mserver, icons, warnings
+    
+
+def layerStyleAsMapfileFolder(layer, layerFilename, folder):
+    geostyler, icons, warnings = qgis.togeostyler.convert(layer)
+    mserver, msWarnings = mapserver.fromgeostyler.convert(geostyler)
+    warnings.extend(msWarnings)    
+    mserver = mserver.replace("{data}", layerFilename)
+    mserver = mserver.replace("{geometrytype}", QgsWkbTypes.geometryDisplayString(layer.geometryType()))
+    filename = os.path.join(folder, "style.map")
+    with open(filename, "w") as f:
+        f.write(mserver)
+    for icon in icons:
+        dst = os.path.join(folder, os.path.basename(icon))
+        copyfile(icon, dst)
+    return warnings    
+
 NO_ICON = "no_icon"
 
 def saveSymbolLayerSprite(symbolLayer):
@@ -49,20 +82,20 @@ def saveSymbolLayerSprite(symbolLayer):
         patternWidth = sl.patternWidth()
         color = sl.svgFillColor()
         outlineColor = sl.svgOutlineColor()
-        sl = QgsSvgMarkerSymbolLayerV2(sl.svgFilePath())
+        sl = QgsSvgMarkerSymbolLayer(sl.svgFilePath())
         sl.setFillColor(color)
         sl.setOutlineColor(outlineColor)
         sl.setSize(patternWidth)
-        sl.setOutputUnit(QgsSymbolV2.Pixel)
+        sl.setOutputUnit(QgsSymbol.Pixel)
     sl2x = sl.clone()
     try:
         sl2x.setSize(sl2x.size() * 2)
     except AttributeError:
         return None, None
-    newSymbol = QgsMarkerSymbolV2()
+    newSymbol = QgsMarkerSymbol()
     newSymbol.appendSymbolLayer(sl)
     newSymbol.deleteSymbolLayer(0)
-    newSymbol2x = QgsMarkerSymbolV2()
+    newSymbol2x = QgsMarkerSymbol()
     newSymbol2x.appendSymbolLayer(sl2x)
     newSymbol2x.deleteSymbolLayer(0)
     img = newSymbol.asImage(QSize(sl.size(), sl.size()))
