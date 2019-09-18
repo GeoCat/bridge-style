@@ -191,7 +191,6 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
         _warnings.append("Marker lines not supported for Mapbox GL conversion")
         #TODO
 
-    paint["line-offset"] = offset
     if color is None:
         paint["visibility"] = "none"
     else:
