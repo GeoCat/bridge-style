@@ -235,7 +235,7 @@ def _markSymbolizer(sl):
         outlineWidth = _symbolProperty(sl, "strokeWidth")
         
         paint = {}
-        paint["circle-radius"] = ["/", size, "2.0"]    
+        paint["circle-radius"] = ["/", size, 2]    
         paint["circle-color"] = color
         paint["circle-opacity"] = opacity
         paint["circle-stroke-width"] = outlineWidth
