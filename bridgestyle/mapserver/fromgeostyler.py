@@ -51,7 +51,7 @@ def processLayer(layer):
         clazz = processRule(rule)
         classes.append(clazz)
 
-    layerData = {"NAME": rule.get("name", ""),
+    layerData = {"NAME": layer.get("name", ""),
                 "DATA": "{data}",
                 "STATUS": "ON",
                 "TYPE": "{layertype}",

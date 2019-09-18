@@ -219,23 +219,30 @@ def _iconSymbolizer(sl):
     return {"type": "symbol", "paint": paint}
 
 def _markSymbolizer(sl):
-    size = _symbolProperty(sl, "size")
-    #rotation = _symbolProperty(sl, "rotate")
-    #outlineDasharray = _symbolProperty(sl, "strokeDasharray")
-    #shape = _symbolProperty(sl, "wellKnownName")
-    opacity = _symbolProperty(sl, "opacity")
-    color = _symbolProperty(sl, "color")
-    outlineColor = _symbolProperty(sl, "strokeColor")
-    outlineWidth = _symbolProperty(sl, "strokeWidth")
-    
-    paint = {}
-    paint["circle-radius"] = ["/", size, "2.0"]    
-    paint["circle-color"] = color
-    paint["circle-opacity"] = opacity
-    paint["circle-stroke-width"] = outlineWidth
-    paint["circle-stroke-color"] = outlineColor
-    
-    return {"type": "circle", "paint": paint}
+    shape = _symbolProperty(sl, "wellKnownName") 
+    if shape.startswith("file://"):
+        svgFilename = shape.split("//")[-1]
+        name = os.path.splitext(svgFilename)[0]        
+        paint = {}
+        paint["icon-image"] = name
+        rotation = _symbolProperty(sl, "rotate")
+        paint["icon-rotate"] = rotation
+        return {"type": "symbol", "paint": paint}
+    else:
+        size = _symbolProperty(sl, "size")
+        opacity = _symbolProperty(sl, "opacity")
+        color = _symbolProperty(sl, "color")
+        outlineColor = _symbolProperty(sl, "strokeColor")
+        outlineWidth = _symbolProperty(sl, "strokeWidth")
+        
+        paint = {}
+        paint["circle-radius"] = ["/", size, "2.0"]    
+        paint["circle-color"] = color
+        paint["circle-opacity"] = opacity
+        paint["circle-stroke-width"] = outlineWidth
+        paint["circle-stroke-color"] = outlineColor
+        
+        return {"type": "circle", "paint": paint}
 
 def _fillSymbolizer(sl):
     paint = {}
