@@ -46,7 +46,8 @@ def processLayer(layer):
                 _warnings.append("Unsupported renderer type: %s" % str(renderer))
                 return
             for rule in renderer.rootRule().children():
-                rules.append(processRule(rule))
+                if rule.active():
+                    rules.append(processRule(rule))
             labelingRule = processLabeling(layer)
             if labelingRule is not None:
                 rules.append(labelingRule)
