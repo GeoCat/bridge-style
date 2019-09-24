@@ -200,7 +200,9 @@ def processRule(rule):
     name = rule.label()
     ruledef = {"name": name,
             "symbolizers": symbolizers}
-    if not(rule.isElse()):
+    if rule.isElse():
+        ruledef["filter"] = "ELSE"
+    else:
         filt = processExpression(rule.filterExpression())
         if filt is not None:
             ruledef["filter"] = filt

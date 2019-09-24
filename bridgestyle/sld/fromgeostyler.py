@@ -51,10 +51,15 @@ def processRule(rule):
         if "min" in scale:
             minScale = SubElement(ruleElement, "MinScaleDenominator")
             maxScale.text = scale["min"]
-    filt = convertExpression(rule.get("filter", None))
-    if filt is not None:
-        filterElement = Element("ogc:Filter")
-        filterElement.append(filt)
+    ruleFilter = rule.get("filter", None)
+    if ruleFilter == "ELSE":
+        filterElement = Element("ElseFilter")            
+        ruleElement.append(filterElement)
+    else:
+        filt = convertExpression(ruleFilter)
+        if filt is not None:
+            filterElement = Element("ogc:Filter")
+            filterElement.append(filt)
         ruleElement.append(filterElement)
     symbolizers = _createSymbolizers(rule["symbolizers"])
     ruleElement.extend(symbolizers)
