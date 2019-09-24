@@ -60,7 +60,7 @@ def processRule(rule):
         if filt is not None:
             filterElement = Element("ogc:Filter")
             filterElement.append(filt)
-        ruleElement.append(filterElement)
+            ruleElement.append(filterElement)
     symbolizers = _createSymbolizers(rule["symbolizers"])
     ruleElement.extend(symbolizers)
     
