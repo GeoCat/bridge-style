@@ -1,7 +1,6 @@
 import os
 import json
 import zipfile
-from qgiscommons2.files import tempFilenameInTempFolder
 from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
