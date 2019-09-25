@@ -177,7 +177,10 @@ def processLabeling(layer):
         symbolizer.update({"haloColor": haloColor,
                             "haloSize": haloSize})
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
+        anchor = quadOffset[settings.quadOffset]
         offset = _labelingProperty(settings, None, "dist")
+        offsetX = offset
+        offsetY = offset
         symbolizer["offset"] = offset
     else:
         anchor = quadOffset[settings.quadOffset]
