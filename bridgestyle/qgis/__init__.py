@@ -67,7 +67,11 @@ def layerStyleAsMapfileFolder(layer, layerFilename, folder):
     mserver, msWarnings = mapserver.fromgeostyler.convert(geostyler)
     warnings.extend(msWarnings)    
     mserver = mserver.replace("{data}", layerFilename)
-    mserver = mserver.replace("{geometrytype}", QgsWkbTypes.geometryDisplayString(layer.geometryType()))
+    if isinstance(layer, QgsRasterLayer):
+        layerType = "raster"
+    elif isinstance(layer, QgsVectorLayer):        
+        layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
+    mserver = mserver.replace("{layertype}", layerType)
     filename = os.path.join(folder, "style.map")
     with open(filename, "w") as f:
         f.write(mserver)
