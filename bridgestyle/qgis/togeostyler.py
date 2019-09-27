@@ -430,6 +430,7 @@ def _basePointSimbolizer(sl, opacity):
 
 wknReplacements = {"regularstar":"star",
                "cross2": "x",
+               "equilateral_triangle": "triangle",
                "rectangle": "square",
                "arrowhead": "shape://oarrow",
                "filledarrowhead": "shape://coarrow",
@@ -442,9 +443,9 @@ wknReplacements = {"regularstar":"star",
                "ccarrow": "shape://ccarrow",
                "vertline": "shape://vertline",
                "horline": "shape://horline",
-               "dot":"shape://dot",
-               "slash":"shape://slash",
-               "backslash":"shape://backslash",
+               "dot": "shape://dot",
+               "slash": "shape://slash",
+               "backslash": "shape://backslash",
                "times": "shape://times"}
 
 def _markGraphic(sl):
