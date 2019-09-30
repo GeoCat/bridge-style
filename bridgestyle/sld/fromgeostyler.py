@@ -131,9 +131,10 @@ def _addSubElement(parent, tag, value=None, attrib={}):
     return sub
 
 def _addVendorOption(parent, name, value):
-    sub = SubElement(parent, "VendorOption", name=name)
-    _addValueToElement(sub, value)
-    return sub    
+    if values is not None:
+        sub = SubElement(parent, "VendorOption", name=name)
+        _addValueToElement(sub, value)
+        return sub    
 
 def _rasterSymbolizer(sl):
     opacity = sl["opacity"]
