@@ -93,9 +93,12 @@ def _createSymbolizer(sl):
     if symbolizerType == "Raster":
         symbolizer = _rasterSymbolizer(sl)        
     
-    geom = _geometryFromSymbolizer(sl)
-    if geom is not None:
-        symbolizer.insert(0, geom)
+    if not isinstance(symbolizer, list):
+        symbolizer = [symbolizer]
+    for s in symbolizer:
+        geom = _geometryFromSymbolizer(sl)
+        if geom is not None:
+            s.insert(0, geom)
 
     return symbolizer
 
@@ -235,7 +238,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
             _addCssParameter(stroke, "stroke-dasharray", dasharray)
     if offset is not None:
         _addSubElement(root, "PerpendicularOffset", offset)
-    return root
+    return symbolizers
     
 def _geometryFromSymbolizer(sl):
     geomExpr = convertExpression(sl.get("geometry", None))
@@ -330,8 +333,11 @@ def _baseFillSymbolizer(sl):
     return root
 
 def _graphicFromSymbolizer(sl):
-    symbolizer = _createSymbolizer(sl)
-    return [graph for graph in symbolizer.iter("Graphic")]
+    symbolizers = _createSymbolizer(sl)
+    graphics = []
+    for s in symbolizers:
+        graphics.extend([graph for graph in s.iter("Graphic")])
+    return graphics
         
 def _fillSymbolizer(sl, graphicFillLayer = 0):
     root = _baseFillSymbolizer(sl)
