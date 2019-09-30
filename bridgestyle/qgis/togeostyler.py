@@ -426,25 +426,15 @@ def _basePointSimbolizer(sl, opacity):
 
     return symbolizer
 
-wknReplacements = {"regularstar":"star",
+wknReplacements = {"regular_star":"star",
                "cross2": "x",
                "equilateral_triangle": "triangle",
                "rectangle": "square",
                "arrowhead": "shape://oarrow",
-               "filledarrowhead": "shape://coarrow",
+               "filled_arrowhead": "shape://coarrow",
                "line": "shape://vertline",
-               "plus":"cross",
-               # somehow these marks require the shape:// prefix in geoserver
-               "oarrow": "shape://oarrow",
-               "carrow": "shape://carrow",
-               "coarrow": "shape://coarrow",
-               "ccarrow": "shape://ccarrow",
-               "vertline": "shape://vertline",
-               "horline": "shape://horline",
-               "dot": "shape://dot",
-               "slash": "shape://slash",
-               "backslash": "shape://backslash",
-               "times": "shape://times"}
+               "cross":"cross",
+               "cross_filled":"cross"}
 
 def _markGraphic(sl):
     props = sl.properties()
