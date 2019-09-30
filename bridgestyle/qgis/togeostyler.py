@@ -187,9 +187,7 @@ def processLabeling(layer):
     exp = settings.getLabelExpression()
     label = _expressionConverter.walkExpression(exp.rootNode())
     symbolizer.update({"color": color,
-                        "offset": [offsetX, offsetY],
                         "font": font,
-                        "anchor": anchor,
                         "label": label,
                         "size": size})
     return {"symbolizers": [symbolizer], "name": "labeling"}
