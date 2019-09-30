@@ -29,7 +29,7 @@ def processLayer(layer):
     
     for rule in layer["rules"]:
         layers = processRule(rule, layer["name"])
-        allLayers.append(layers)
+        allLayers += layers
 
     return allLayers
 
