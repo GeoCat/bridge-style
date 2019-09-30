@@ -156,13 +156,13 @@ def _textSymbolizer(sl):
         offset = sl["offset"]
         offsetx = convertExpression(offset[0])
         offsety = convertExpression(offset[1])
-        label["OFFSET"] = (offsetx, offsety)
+        style["OFFSET"] = (offsetx, offsety)
 
-    label["TEXT"] = label    
-    label["SIZE"] = size
-    label["FONT"] =  fontFamily
-    label["TYPE"] = "truetype"
-    label["COLOR"] = color
+    style["TEXT"] = label    
+    style["SIZE"] = size
+    style["FONT"] =  fontFamily
+    style["TYPE"] = "truetype"
+    style["COLOR"] = color
 
     '''
     if "haloColor" in sl and "haloSize" in sl:        
