@@ -134,7 +134,7 @@ def _addSubElement(parent, tag, value=None, attrib={}):
     return sub
 
 def _addVendorOption(parent, name, value):
-    if values is not None:
+    if value is not None:
         sub = SubElement(parent, "VendorOption", name=name)
         _addValueToElement(sub, value)
         return sub    
