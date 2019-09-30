@@ -235,8 +235,8 @@ def _cast(v):
 
 MM2PIXEL = 3.7795275591
 
-def _handleUnits(value, units):
-    if str(value) in ["0", "0.0"]:
+def _handleUnits(value, units, propertyConstant):
+    if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
         return 1 #hairline width
     if units == "MM":
         if isinstance(value, list):
@@ -277,7 +277,7 @@ def _symbolProperty(symbolLayer, name, propertyConstant=-1):
     
     units = symbolLayer.properties().get(name + "_unit")
     if units is not None:
-        v = _handleUnits(v, units)
+        v = _handleUnits(v, units, propertyConstant)
     return _cast(v)
 
 def _toHexColor(color):
