@@ -426,20 +426,25 @@ def _basePointSimbolizer(sl, opacity):
 
     return symbolizer
 
-wknReplacements = {"regular_star":"star",
+wknReplacements = {"regularstar":"star",
                "cross2": "x",
                "equilateral_triangle": "triangle",
                "rectangle": "square",
-               "filled_arrowhead": "ttf://Webdings#0x34",
+               "arrowhead": "shape://oarrow",
+               "filledarrowhead": "shape://coarrow",
                "line": "shape://vertline",
-               "arrow": "ttf://Wingdings#0xE9",
-               "diamond": "ttf://Wingdings#0x75",
-                "horline":"shape://horline",
-               "vertline":"shape://vertline",
-               "cross":"shape://plus",
-               "slash":"shape://slash",
-               "backslash":"shape://backslash",
-               "x": "shape://times"}
+               "plus":"cross",
+               # somehow these marks require the shape:// prefix in geoserver
+               "oarrow": "shape://oarrow",
+               "carrow": "shape://carrow",
+               "coarrow": "shape://coarrow",
+               "ccarrow": "shape://ccarrow",
+               "vertline": "shape://vertline",
+               "horline": "shape://horline",
+               "dot": "shape://dot",
+               "slash": "shape://slash",
+               "backslash": "shape://backslash",
+               "times": "shape://times"}
 
 def _markGraphic(sl):
     props = sl.properties()
@@ -455,7 +460,8 @@ def _markGraphic(sl):
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
-        name = props["name"]
+        #qgis uses internally a underscore notation for marks
+        name = props["name"].replace("_","") 
         name = wknReplacements.get(name, name)
         outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
