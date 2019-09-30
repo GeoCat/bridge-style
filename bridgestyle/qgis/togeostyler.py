@@ -450,8 +450,7 @@ def _markGraphic(sl):
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
-        #qgis uses internally a underscore notation for marks
-        name = props["name"].replace("_","") 
+        name = props["name"] 
         name = wknReplacements.get(name, name)
         outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
