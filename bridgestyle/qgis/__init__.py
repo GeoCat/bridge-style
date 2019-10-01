@@ -48,7 +48,7 @@ def layerStyleAsMapboxFolder(layer, folder):
     
 def layerStyleAsMapfile(layer):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
-    mserver, msWarnings = mapserver.fromgeostyler.convert(geostyler)
+    mserver, mserverSymbols, msWarnings = mapserver.fromgeostyler.convert(geostyler)
     warnings.extend(msWarnings)
     filename = os.path.basename(layer.source())
     filename = os.path.splitext(filename)[0] + ".shp"
@@ -59,12 +59,12 @@ def layerStyleAsMapfile(layer):
     elif isinstance(layer, QgsVectorLayer):        
         layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
     mserver = mserver.replace("{layertype}", layerType)
-    return mserver, icons, warnings
+    return mserver, mserverSymbols, icons, warnings
     
 
 def layerStyleAsMapfileFolder(layer, layerFilename, folder):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
-    mserver, msWarnings = mapserver.fromgeostyler.convert(geostyler)
+    mserver, mserverSymbols, msWarnings = mapserver.fromgeostyler.convert(geostyler)
     warnings.extend(msWarnings)    
     mserver = mserver.replace("{data}", layerFilename)
     if isinstance(layer, QgsRasterLayer):
@@ -72,13 +72,16 @@ def layerStyleAsMapfileFolder(layer, layerFilename, folder):
     elif isinstance(layer, QgsVectorLayer):        
         layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
     mserver = mserver.replace("{layertype}", layerType)
-    filename = os.path.join(folder, "style.map")
+    filename = os.path.join(folder, layer.name() + ".txt")
     with open(filename, "w") as f:
         f.write(mserver)
+    filename = os.path.join(folder, layer.name() + "._symbols.txt")
+    with open(filename, "w") as f:
+        f.write(mserverSymbols)
     for icon in icons:
         dst = os.path.join(folder, os.path.basename(icon))
         copyfile(icon, dst)
-    return warnings    
+    return warnings
 
 NO_ICON = "no_icon"
 

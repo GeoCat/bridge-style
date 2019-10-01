@@ -4,24 +4,20 @@ import json
 
 _warnings = []
 
-def convertAsDict(geostyler):
+def convertToDict(geostyler):
     global _warnings
     _warnings = []
     global _symbols
     _symbols = []
-    mapfileDict = {}
-    mapElement = {}
-    mapElement ["SYMBOLSET"] = "symbols.txt"    
-    layer = processLayer(geostyler) 
-    mapElement["LAYER"] = layer
-    mapfileDict["SYMBOLS"] = _symbols
-    mapfileDict["MAP"] = mapElement
-    return mapfileDict
+    layer = processLayer(geostyler)
+    return layer
+
 
 def convert(geostyler):
-    d = convertAsDict(geostyler)
+    d = convertToDict(geostyler)
     mapfile = convertDictToMapfile(d)
-    return mapfile, _warnings
+    symbols = convertDictToMapfile({"SYMBOLS": _symbols})
+    return mapfile, symbols, _warnings
 
 def convertDictToMapfile(d):    
     def _toString(element, indent):
