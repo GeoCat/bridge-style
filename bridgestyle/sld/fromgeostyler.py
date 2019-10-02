@@ -234,7 +234,11 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
         _addCssParameter(stroke, "stroke-opacity", opacity)
         _addCssParameter(stroke, "stroke-linejoin", join)
         _addCssParameter(stroke, "stroke-linecap", cap)    
-        if dasharray is not None:
+        if dasharray is not None:            
+            if cap != "butt":
+                GAP_FACTOR = 2
+                tokens = [int(v) * GAP_FACTOR if i % 2 else int(v) for i,v in enumerate(dasharray.split(" "))]
+                dasharray = " ".join([str(v) for v in tokens])
             _addCssParameter(stroke, "stroke-dasharray", dasharray)
     if offset is not None:
         _addSubElement(root, "PerpendicularOffset", offset)
