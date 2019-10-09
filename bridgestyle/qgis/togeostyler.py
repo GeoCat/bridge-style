@@ -427,14 +427,14 @@ def _basePointSimbolizer(sl, opacity):
     return symbolizer
 
 wknReplacements = {"regular_star":"star",
-               "cross2": "x",
+               "cross2": "shape://times",
                "equilateral_triangle": "triangle",
                "rectangle": "square",
                "arrowhead": "shape://oarrow",
                "filled_arrowhead": "shape://coarrow",
                "line": "shape://vertline",
-               "cross":"cross",
-               "cross_filled":"cross"}
+               "cross":"shape://plus",
+               "cross_filled":"shape://plus"}
 
 def _markGraphic(sl):
     props = sl.properties()
