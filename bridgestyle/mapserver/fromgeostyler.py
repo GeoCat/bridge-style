@@ -48,7 +48,7 @@ def processLayer(layer):
         classes.append(clazz)
 
     layerData = {"NAME": _quote(layer.get("name", "")),
-                "DATA": _quote({data}),
+                "DATA": _quote("{data}" ),
                 "STATUS": "ON",
                 "TYPE": "{layertype}",
                 "SIZEUNITS": "pixels"
@@ -58,7 +58,7 @@ def processLayer(layer):
 
 
 def processRule(rule):
-    d = {"NAME": rule.get("name", "default")}
+    d = {"NAME": _quote(rule.get("name", "") or "default")}
     name = rule.get("name", "rule")
     
     expression = convertExpression(rule.get("filter", None))
