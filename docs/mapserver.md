@@ -27,3 +27,9 @@ Mapserver offers some capabilities via command line. You can run from command li
 ```
 mapserv QUERY_STRING="map=example.map&service=wms&request=getcapabilities"
 ```
+
+Add the -nh (no header) switch if you want to pipe the result of a getmap request to an image
+
+```
+mapserv QUERY_STRING="SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&service=WMS&layers=definition&bbox=4.70,51.89,4.71,51.90&width=800&height=800&map=groups.map&crs=epsg:4326&format=image/png" -nh > dummy.png
+```
