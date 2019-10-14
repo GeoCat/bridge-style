@@ -292,18 +292,24 @@ def _basePointSimbolizer(sl):
 def _markGraphic(sl):
     color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
+    fillOpacity = _symbolProperty(sl, "fillOpacity")
+    strokeOpacity = _symbolProperty(sl, "strokeOpacity")
     outlineWidth = _symbolProperty(sl, "strokeWidth")
     outlineDasharray = _symbolProperty(sl, "strokeDasharray")
     shape = _symbolProperty(sl, "wellKnownName")
     mark = Element("Mark")
     _addSubElement(mark, "WellKnownName", shape)
-    fill = SubElement(mark, "Fill")
-    _addCssParameter(fill, "fill", color)
-    stroke = _addSubElement(mark, "Stroke")    
-    _addCssParameter(stroke, "stroke", outlineColor)
-    _addCssParameter(stroke, "stroke-width", outlineWidth)
-    if outlineDasharray is not None:
-        _addCssParameter(stroke, "stroke-dasharray", outlineDasharray)
+    if fillOpacity:
+        fill = SubElement(mark, "Fill")
+        _addCssParameter(fill, "fill", color)
+        _addCssParameter(fill, "fill-opacity", fillOpacity)
+    stroke = _addSubElement(mark, "Stroke")
+    if strokeOpacity:
+        _addCssParameter(stroke, "stroke", outlineColor)
+        _addCssParameter(stroke, "stroke-width", outlineWidth)
+        _addCssParameter(stroke, "stroke-opacity", strokeOpacity)
+        if outlineDasharray is not None:
+            _addCssParameter(stroke, "stroke-dasharray", outlineDasharray)
 
     return mark
 

@@ -287,6 +287,13 @@ def _toHexColor(color):
         return '#%02x%02x%02x' % (int(r), int(g), int(b))
     except:
         return color
+
+def _opacity(color):
+    try:
+        r,g,b,a = str(color).split(",")
+        return float(a) / 255.
+    except:
+        return 1.0
         
 def _createSymbolizers(symbol):
     opacity = symbol.opacity()
@@ -451,7 +458,9 @@ def _markGraphic(sl):
     size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
     color = _toHexColor(props["color"])
     outlineColor = _toHexColor(props["outline_color"])
-    outlineWidth = _symbolProperty(sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)    
+    outlineWidth = _symbolProperty(sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
+    fillOpacity = _opacity(props["color"])
+    strokeOpacity = _opacity(props["outline_color"])
     try:
         path = sl.path()
         global _usedIcons
@@ -471,7 +480,9 @@ def _markGraphic(sl):
             "wellKnownName": name,
             "size": size,
             "strokeColor": outlineColor,
-            "strokeWidth": outlineWidth            
+            "strokeWidth": outlineWidth,
+            "strokeOpacity": strokeOpacity,
+            "fillOpacity": fillOpacity       
             } 
     if outlineStyle not in ["solid", "no"]:
         mark["strokeDasharray"] = "5 2"
