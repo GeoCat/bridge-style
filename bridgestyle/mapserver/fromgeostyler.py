@@ -115,7 +115,12 @@ def convertExpression(exp):
             else:
                 return "%s(%s)" % (funcName, arg1)                    
     else:
-        return exp
+        try:
+            f = float(exp)
+            return exp
+        except:
+            return _quote(exp)
+
 
 
 def processSymbolizer(sl):
@@ -282,4 +287,4 @@ def _rasterSymbolizer(sl):
     return None
 
 def _quote(t):
-            return '"%s"' % t
+    return '"%s"' % t
