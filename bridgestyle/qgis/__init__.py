@@ -75,7 +75,7 @@ def layerStyleAsMapfileFolder(layer, layerFilename, folder):
     filename = os.path.join(folder, layer.name() + ".txt")
     with open(filename, "w", encoding='utf-8') as f:
         f.write(mserver)
-    filename = os.path.join(folder, layer.name() + "._symbols.txt")
+    filename = os.path.join(folder, layer.name() + "_symbols.txt")
     with open(filename, "w", encoding='utf-8') as f:
         f.write(mserverSymbols)
     for icon in icons:
