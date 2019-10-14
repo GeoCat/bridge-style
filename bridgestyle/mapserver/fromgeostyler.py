@@ -47,8 +47,8 @@ def processLayer(layer):
         clazz = processRule(rule)
         classes.append(clazz)
 
-    layerData = {"NAME": layer.get("name", ""),
-                "DATA": "{data}",
+    layerData = {"NAME": _quote(layer.get("name", "")),
+                "DATA": _quote("{data}" ),
                 "STATUS": "ON",
                 "TYPE": "{layertype}",
                 "SIZEUNITS": "pixels"
@@ -58,7 +58,7 @@ def processLayer(layer):
 
 
 def processRule(rule):
-    d = {"NAME": rule.get("name", "")}
+    d = {"NAME": _quote(rule.get("name", "") or "default")}
     name = rule.get("name", "rule")
     
     expression = convertExpression(rule.get("filter", None))
@@ -158,7 +158,7 @@ def _textSymbolizer(sl):
     style["SIZE"] = size
     style["FONT"] =  fontFamily
     style["TYPE"] = "truetype"
-    style["COLOR"] = color
+    style["COLOR"] = _quote(color)
 
     '''
     if "haloColor" in sl and "haloSize" in sl:        
@@ -200,7 +200,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     if color is not None:
         style["WIDTH"] = width
         style["OPACITY"] = opacity
-        style["COLOR"] = color
+        style["COLOR"] = _quote(color)
         style["LINECAP"] = cap
         style["LINEJOIN"] = join
     if dasharray is not None:
@@ -222,7 +222,7 @@ def _iconSymbolizer(sl):
     style = {}
     style["SYMBOL"] = path
     style["ANGLE"] = rotation
-    style["COLOR"] = color
+    style["COLOR"] = _quote(color)
     style["SIZE"] = size
 
     return style
@@ -245,12 +245,12 @@ def _markSymbolizer(sl):
         _symbols.append({"SYMBOL":{"TYPE": "svg", "IMAGE": svgFilename, "NAME": name}})
     else:
         name = shape
-    style["SYMBOL"] = name
-    style["COLOR"] = color
+    style["SYMBOL"] = _quote(name)
+    style["COLOR"] = _quote(color)
     style["SIZE"] = size
     style["ANGLE"] = rotation
     if outlineColor is not None:                
-        style["OUTLINECOLOR"] = outlineColor
+        style["OUTLINECOLOR"] = _quote(outlineColor)
         style["OUTLINEWIDTH"] = outlineWidth
 
     return style
@@ -265,15 +265,18 @@ def _fillSymbolizer(sl):
         #TODO
     style["OPACITY"] = opacity
     if color is not None:                
-        style["COLOR"] = color
+        style["COLOR"] = _quote(color)
 
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
         outlineWidth = _symbolProperty(sl, "outlineWidth") 
-        style["OUTLINECOLOR"] = outlineColor
+        style["OUTLINECOLOR"] = _quote(outlineColor)
         style["OUTLINEWIDTH"] = outlineWidth
 
     return style
 
 def _rasterSymbolizer(sl):
     return None
+
+def _quote(t):
+            return '"%s"' % t
