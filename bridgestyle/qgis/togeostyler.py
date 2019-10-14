@@ -332,14 +332,23 @@ def _createSymbolizer(sl, opacity):
 def _fontMarkerSymbolizer(sl, opacity):
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
-    character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)
+    character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)    
     size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
-
-    symbolizer = {"kind": "Text",
-                    "size": size,
-                    "label": character,
-                    "font": fontFamily,
-                    "color": color}    
+    if len(character) == 1:
+        hexcode = hex(ord(character))
+        name = "ttf://%s#%s" % (fontFamily, hexcode)
+        symbolizer = {"kind": "Mark",
+                "color": color,
+                "wellKnownName": name,
+                "size": size,          
+                } 
+    else:
+        symbolizer = {"kind": "Text",
+                "size": size,
+                "label": character,
+                "font": fontFamily,
+                "color": color} 
+   
     return symbolizer
 
 def _lineSymbolizer(sl, opacity):
