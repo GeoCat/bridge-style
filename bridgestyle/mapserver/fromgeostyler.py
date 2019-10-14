@@ -47,13 +47,16 @@ def processLayer(layer):
         clazz = processRule(rule)
         classes.append(clazz)
 
-    layerData = {"NAME": _quote(layer.get("name", "")),
-                "DATA": _quote("{data}" ),
-                "STATUS": "ON",
-                "TYPE": "{layertype}",
-                "SIZEUNITS": "pixels"
-            }
-    layerData["CLASSES"] = classes
+    layerData ={"LAYER":
+                    {
+                    "NAME": _quote(layer.get("name", "")),
+                    "DATA": _quote("{data}" ),
+                    "STATUS": "ON",
+                    "TYPE": "{layertype}",
+                    "SIZEUNITS": "pixels",
+                    "CLASSES": classes
+                    }
+                }    
     return layerData
 
 
