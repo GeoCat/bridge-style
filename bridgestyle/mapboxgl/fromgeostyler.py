@@ -27,7 +27,7 @@ def _toZoomLevel(scale):
 def processLayer(layer):
     allLayers = []
     
-    for rule in layer["rules"]:
+    for rule in layer.get("rules", []):
         layers = processRule(rule, layer["name"])
         allLayers += layers
 

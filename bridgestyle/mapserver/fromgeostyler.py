@@ -43,7 +43,7 @@ def convertDictToMapfile(d):
 def processLayer(layer):
     classes = []
     
-    for rule in layer["rules"]:
+    for rule in layer.get("rules", []):
         clazz = processRule(rule)
         classes.append(clazz)
 

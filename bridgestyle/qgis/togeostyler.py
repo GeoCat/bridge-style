@@ -39,14 +39,15 @@ def processLayer(layer):
             rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
             return  {"name": layer.name(), "rules": rules, "transformation": transformation}
         else:
-            if not isinstance(renderer, QgsRuleBasedRenderer):
-                renderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
-            if renderer is None:
-                _warnings.append("Unsupported renderer type: %s" % str(renderer))
-                return
-            for rule in renderer.rootRule().children():
-                if rule.active():
-                    rules.append(processRule(rule))
+            if not isinstance(renderer, QgsNullSymbolRenderer):
+                if not isinstance(renderer, QgsRuleBasedRenderer):
+                    ruleRenderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
+                if ruleRenderer is None:
+                    _warnings.append("Unsupported renderer type: %s" % str(renderer))
+                    return
+                for rule in ruleRenderer.rootRule().children():
+                    if rule.active():
+                        rules.append(processRule(rule))
             labelingRule = processLabeling(layer)
             if labelingRule is not None:
                 rules.append(labelingRule)

@@ -30,7 +30,7 @@ def convert(geostyler):
     featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
     if "transformation" in geostyler:
         featureTypeStyle.append(processTransformation(geostyler["transformation"]))
-    for rule in geostyler["rules"]:
+    for rule in geostyler.get("rules", []):
         featureTypeStyle.append(processRule(rule))
     
     sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
