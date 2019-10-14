@@ -18,7 +18,7 @@ def layerStyleAsSld(layer):
 
 def saveLayerStyleAsSld(layer, filename):
     sldstring, icons, warnings = layerStyleAsSld(layer)       
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding='utf-8') as f:
         f.write(sldstring)
     return warnings
 
@@ -41,7 +41,7 @@ def layerStyleAsMapboxFolder(layer, folder):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
     mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)    
     filename = os.path.join(folder, "style.mapbox")
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding='utf-8') as f:
         f.write(mbox)
     saveSpritesSheet(icons, folder)
     return warnings
@@ -73,10 +73,10 @@ def layerStyleAsMapfileFolder(layer, layerFilename, folder):
         layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
     mserver = mserver.replace("{layertype}", layerType)
     filename = os.path.join(folder, layer.name() + ".txt")
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding='utf-8') as f:
         f.write(mserver)
     filename = os.path.join(folder, layer.name() + "._symbols.txt")
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding='utf-8') as f:
         f.write(mserverSymbols)
     for icon in icons:
         dst = os.path.join(folder, os.path.basename(icon))
