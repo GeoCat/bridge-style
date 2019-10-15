@@ -470,7 +470,7 @@ def _markGraphic(sl):
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
         name = props["name"] 
-        name = wknReplacements.get(name, name)
+        name = wknReplacements.get(name, name.replace("_", ""))
         outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
             outlineWidth = 0
