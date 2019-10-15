@@ -184,7 +184,7 @@ def _textSymbolizer(sl):
     return {"LABEL": style}
 
 def _lineSymbolizer(sl, graphicStrokeLayer = 0):
-    opacity = _symbolProperty(sl, "opacity")
+    opacity = _symbolProperty(sl, "opacity") * 100
     color =  sl.get("color", None)
     graphicStroke =  sl.get("graphicStroke", None)
     width = _symbolProperty(sl, "width")
@@ -263,7 +263,7 @@ def _markSymbolizer(sl):
 
 def _fillSymbolizer(sl):
     style = {}
-    opacity = _symbolProperty(sl, "opacity")
+    opacity = _symbolProperty(sl, "opacity") * 100
     color =  sl.get("color", None)
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
