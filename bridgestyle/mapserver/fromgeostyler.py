@@ -164,7 +164,7 @@ def _textSymbolizer(sl):
     style["SIZE"] = size
     style["FONT"] =  fontFamily
     style["TYPE"] = "truetype"
-    style["COLOR"] = _quote(color)
+    style["COLOR"] = color
 
     '''
     if "haloColor" in sl and "haloSize" in sl:        
@@ -185,7 +185,7 @@ def _textSymbolizer(sl):
 
 def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     opacity = _symbolProperty(sl, "opacity") * 100
-    color =  sl.get("color", None)
+    color =  _symbolProperty(sl, "color")
     graphicStroke =  sl.get("graphicStroke", None)
     width = _symbolProperty(sl, "width")
     try:
@@ -206,7 +206,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     if color is not None:
         style["WIDTH"] = width
         style["OPACITY"] = opacity
-        style["COLOR"] = _quote(color)
+        style["COLOR"] = color
         style["LINECAP"] = cap
         style["LINEJOIN"] = join
     if dasharray is not None:
@@ -222,14 +222,18 @@ def _geometryFromSymbolizer(sl):
 
 def _iconSymbolizer(sl):
     path = os.path.basename(sl["image"])
+    name = "icon_" + os.path.splitext(path)[0]
     rotation = _symbolProperty(sl, "rotate") or 0
     size = _symbolProperty(sl, "size")    
     color = _symbolProperty(sl, "color")
-    style = {}
-    style["SYMBOL"] = path
-    style["ANGLE"] = rotation
-    style["COLOR"] = _quote(color)
-    style["SIZE"] = size
+    _symbols.append({"SYMBOL":
+                        {"TYPE": "PIXMAP", 
+                        "IMAGE": _quote(path), 
+                        "NAME": _quote(name)}
+                    })
+    style = {"SYMBOL": _quote(name),
+            "ANGLE": rotation,
+            "SIZE": size}
 
     return style
     
@@ -238,7 +242,7 @@ def _markSymbolizer(sl):
     #opacity = _symbolProperty(sl, "opacity")
     size = _symbolProperty(sl, "size")
     rotation = _symbolProperty(sl, "rotate") or 0
-    shape = _symbolProperty(sl, "wellKnownName")
+    shape = sl["wellKnownName"]
     color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")    
@@ -248,15 +252,29 @@ def _markSymbolizer(sl):
         svgFilename = shape.split("//")[-1]
         svgName = os.path.splitext(svgFilename)[0]
         name = "svgicon_" + svgName
-        _symbols.append({"SYMBOL":{"TYPE": "svg", "IMAGE": svgFilename, "NAME": name}})
+        _symbols.append({"SYMBOL":
+                            {"TYPE": "svg", 
+                            "IMAGE": _quote(svgFilename), 
+                            "NAME": _quote(name)}
+                        })
+    elif shape.startswith("ttf://"):        
+        token = shape.split("//")[-1]
+        font, code = token.split("#")
+        character = chr(int(code, 16))
+        name = "txtmarker_%s_%s" % (font, character)
+        _symbols.append({"SYMBOL":
+                            {"TYPE": "TRUETYPE", 
+                            "CHARACTER": _quote(character), 
+                            "FONT": _quote(font),
+                            "NAME": _quote(name)}})
     else:
         name = shape
     style["SYMBOL"] = _quote(name)
-    style["COLOR"] = _quote(color)
+    style["COLOR"] = color
     style["SIZE"] = size
     style["ANGLE"] = rotation
     if outlineColor is not None:                
-        style["OUTLINECOLOR"] = _quote(outlineColor)
+        style["OUTLINECOLOR"] = outlineColor
         style["OUTLINEWIDTH"] = outlineWidth
 
     return style
@@ -264,19 +282,19 @@ def _markSymbolizer(sl):
 def _fillSymbolizer(sl):
     style = {}
     opacity = _symbolProperty(sl, "opacity") * 100
-    color =  sl.get("color", None)
+    color =  _symbolProperty(sl, "color")
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
         _warnings.append("Marker fills not supported for MapServer conversion")
         #TODO
     style["OPACITY"] = opacity
     if color is not None:                
-        style["COLOR"] = _quote(color)
+        style["COLOR"] = color
 
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
         outlineWidth = _symbolProperty(sl, "outlineWidth") 
-        style["OUTLINECOLOR"] = _quote(outlineColor)
+        style["OUTLINECOLOR"] = outlineColor
         style["OUTLINEWIDTH"] = outlineWidth
 
     return style
