@@ -236,8 +236,12 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
         _addCssParameter(stroke, "stroke-linecap", cap)    
         if dasharray is not None:            
             if cap != "butt":
-                GAP_FACTOR = 2
-                tokens = [int(v) * GAP_FACTOR if i % 2 else int(v) for i,v in enumerate(dasharray.split(" "))]
+                try:
+                    EXTRA_GAP = 2 * width
+                    tokens = [int(v) + EXTRA_GAP if i % 2 else int(v) for i,v in enumerate(dasharray.split(" "))]
+                except: #in case width is not a number, but an expression
+                    GAP_FACTOR = 2
+                    tokens = [int(v) * GAP_FACTOR if i % 2 else int(v) for i,v in enumerate(dasharray.split(" "))]
                 dasharray = " ".join([str(v) for v in tokens])
             _addCssParameter(stroke, "stroke-dasharray", dasharray)
     if offset is not None:
