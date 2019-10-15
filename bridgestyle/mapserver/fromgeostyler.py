@@ -106,7 +106,7 @@ def convertExpression(exp):
             _warnings.append("Unsupported expression function for MapServer conversion: '%s'" % exp[0])
             return None
         elif funcName == "PropertyName":
-            return "[%s]" % exp[1]
+            return '"[%s]"' % exp[1]
         else:
             arg1 = convertExpression(exp[1])
             if len(exp) == 3:                
