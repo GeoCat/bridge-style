@@ -121,8 +121,6 @@ def convertExpression(exp):
         except:
             return _quote(exp)
 
-
-
 def processSymbolizer(sl):
     symbolizerType = sl["kind"]
     if symbolizerType == "Icon":
@@ -224,7 +222,7 @@ def _geometryFromSymbolizer(sl):
 
 def _iconSymbolizer(sl):
     path = os.path.basename(sl["image"])
-    rotation = _symbolProperty(sl, "rotate")
+    rotation = _symbolProperty(sl, "rotate") or 0
     size = _symbolProperty(sl, "size")    
     color = _symbolProperty(sl, "color")
     style = {}
@@ -239,8 +237,8 @@ def _markSymbolizer(sl):
     #outlineDasharray = _symbolProperty(sl, "strokeDasharray")
     #opacity = _symbolProperty(sl, "opacity")
     size = _symbolProperty(sl, "size")
-    rotation = _symbolProperty(sl, "rotate")    
-    shape = _symbolProperty(sl, "wellKnownName")    
+    rotation = _symbolProperty(sl, "rotate") or 0
+    shape = _symbolProperty(sl, "wellKnownName")
     color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")    
