@@ -142,11 +142,11 @@ def processSymbolizer(sl):
 
     return symbolizer
 
-def _symbolProperty(sl, name):
+def _symbolProperty(sl, name, default=None):
     if name in sl:        
         return convertExpression(sl[name])      
     else:
-        return None
+        return default
 
 def _textSymbolizer(sl):
     style = {} 
@@ -184,7 +184,7 @@ def _textSymbolizer(sl):
     return {"LABEL": style}
 
 def _lineSymbolizer(sl, graphicStrokeLayer = 0):
-    opacity = _symbolProperty(sl, "opacity") * 100
+    opacity = _symbolProperty(sl, "opacity", 1.0) * 100
     color =  _symbolProperty(sl, "color")
     graphicStroke =  sl.get("graphicStroke", None)
     width = _symbolProperty(sl, "width")
@@ -290,14 +290,14 @@ def _markSymbolizer(sl):
 
 def _fillSymbolizer(sl):
     style = {}
-    opacity = _symbolProperty(sl, "opacity") * 100
+    opacity = _symbolProperty(sl, "opacity", 1.0) * 100
     color =  _symbolProperty(sl, "color")
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
         name = _createSymbol(graphicFill[0]) #TODO: support multiple symbol layers
         style["SYMBOL"] = _quote(name)
     style["OPACITY"] = opacity
-    if color is not None:                
+    if color is not None:   
         style["COLOR"] = color
 
     outlineColor = _symbolProperty(sl, "outlineColor")

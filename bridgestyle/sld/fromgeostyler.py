@@ -102,11 +102,11 @@ def _createSymbolizer(sl):
 
     return symbolizer
 
-def _symbolProperty(sl, name):
+def _symbolProperty(sl, name, default=None):
     if name in sl:        
         return _processProperty(sl[name])      
     else:
-        return None
+        return default
 
 def _processProperty(value):
     v = convertExpression(value)
@@ -296,8 +296,8 @@ def _basePointSimbolizer(sl):
 def _markGraphic(sl):
     color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
-    fillOpacity = _symbolProperty(sl, "fillOpacity")
-    strokeOpacity = _symbolProperty(sl, "strokeOpacity")
+    fillOpacity = _symbolProperty(sl, "fillOpacity", 1.0)
+    strokeOpacity = _symbolProperty(sl, "strokeOpacity", 1.0)
     outlineWidth = _symbolProperty(sl, "strokeWidth")
     outlineDasharray = _symbolProperty(sl, "strokeDasharray")
     shape = _symbolProperty(sl, "wellKnownName")
