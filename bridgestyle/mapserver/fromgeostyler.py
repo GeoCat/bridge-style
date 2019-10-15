@@ -200,9 +200,8 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
 
     style = {}
     if graphicStroke is not None:
-        _warnings.append("Marker lines not supported for MapServer conversion")
-        #TODO
-
+        name = _createSymbol(graphicStroke[0]) #TODO: support multiple symbol layers
+        style["SYMBOL"] = _quote(name)
     if color is not None:
         style["WIDTH"] = width
         style["OPACITY"] = opacity
@@ -220,17 +219,50 @@ def _geometryFromSymbolizer(sl):
     geomExpr = convertExpression(sl.get("geometry", None))
     return geomExpr       
 
+def _createSymbol(sl):
+    name = ""
+    symbolizerType = sl["kind"]
+    if symbolizerType == "Icon":
+        path = os.path.basename(sl["image"])
+        name = "icon_" + os.path.splitext(path)[0]          
+        _symbols.append({"SYMBOL":
+                            {"TYPE": "PIXMAP", 
+                            "IMAGE": _quote(path), 
+                            "NAME": _quote(name)}
+                        })
+    elif symbolizerType == "Mark":
+        shape = sl["wellKnownName"]
+        if shape.startswith("file://"):
+            svgFilename = shape.split("//")[-1]
+            svgName = os.path.splitext(svgFilename)[0]
+            name = "svgicon_" + svgName
+            _symbols.append({"SYMBOL":
+                                {"TYPE": "svg", 
+                                "IMAGE": _quote(svgFilename), 
+                                "NAME": _quote(name)}
+                            })
+        elif shape.startswith("ttf://"):        
+            token = shape.split("//")[-1]
+            font, code = token.split("#")
+            character = chr(int(code, 16))
+            name = "txtmarker_%s_%s" % (font, character)
+            _symbols.append({"SYMBOL":
+                                {"TYPE": "TRUETYPE", 
+                                "CHARACTER": _quote(character), 
+                                "FONT": _quote(font),
+                                "NAME": _quote(name)}})
+        else:
+            name = shape
+
+    return name
+
+                    
 def _iconSymbolizer(sl):
-    path = os.path.basename(sl["image"])
-    name = "icon_" + os.path.splitext(path)[0]
     rotation = _symbolProperty(sl, "rotate") or 0
     size = _symbolProperty(sl, "size")    
     color = _symbolProperty(sl, "color")
-    _symbols.append({"SYMBOL":
-                        {"TYPE": "PIXMAP", 
-                        "IMAGE": _quote(path), 
-                        "NAME": _quote(name)}
-                    })
+    name = _createSymbol(sl)
+    
     style = {"SYMBOL": _quote(name),
             "ANGLE": rotation,
             "SIZE": size}
@@ -241,38 +273,15 @@ def _markSymbolizer(sl):
     #outlineDasharray = _symbolProperty(sl, "strokeDasharray")
     #opacity = _symbolProperty(sl, "opacity")
     size = _symbolProperty(sl, "size")
-    rotation = _symbolProperty(sl, "rotate") or 0
-    shape = sl["wellKnownName"]
+    rotation = _symbolProperty(sl, "rotate") or 0    
     color = _symbolProperty(sl, "color")
     outlineColor = _symbolProperty(sl, "strokeColor")
     outlineWidth = _symbolProperty(sl, "strokeWidth")    
-
-    style = {}  
-    if shape.startswith("file://"):
-        svgFilename = shape.split("//")[-1]
-        svgName = os.path.splitext(svgFilename)[0]
-        name = "svgicon_" + svgName
-        _symbols.append({"SYMBOL":
-                            {"TYPE": "svg", 
-                            "IMAGE": _quote(svgFilename), 
-                            "NAME": _quote(name)}
-                        })
-    elif shape.startswith("ttf://"):        
-        token = shape.split("//")[-1]
-        font, code = token.split("#")
-        character = chr(int(code, 16))
-        name = "txtmarker_%s_%s" % (font, character)
-        _symbols.append({"SYMBOL":
-                            {"TYPE": "TRUETYPE", 
-                            "CHARACTER": _quote(character), 
-                            "FONT": _quote(font),
-                            "NAME": _quote(name)}})
-    else:
-        name = shape
-    style["SYMBOL"] = _quote(name)
-    style["COLOR"] = color
-    style["SIZE"] = size
-    style["ANGLE"] = rotation
+    name = _createSymbol(sl)
+    style = {"SYMBOL": _quote(name),
+            "COLOR": color,
+            "SIZE": size,
+            "ANGLE": rotation}
     if outlineColor is not None:                
         style["OUTLINECOLOR"] = outlineColor
         style["OUTLINEWIDTH"] = outlineWidth
@@ -285,8 +294,8 @@ def _fillSymbolizer(sl):
     color =  _symbolProperty(sl, "color")
     graphicFill =  sl.get("graphicFill", None)
     if graphicFill is not None:
-        _warnings.append("Marker fills not supported for MapServer conversion")
-        #TODO
+        name = _createSymbol(graphicFill[0]) #TODO: support multiple symbol layers
+        style["SYMBOL"] = _quote(name)
     style["OPACITY"] = opacity
     if color is not None:                
         style["COLOR"] = color
