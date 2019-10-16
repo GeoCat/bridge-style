@@ -10,11 +10,10 @@ def convertToDict(geostyler):
     global _symbols
     _symbols = []
     layer = processLayer(geostyler)
-    return layer
-
+    return layer, _symbols, _warnings
 
 def convert(geostyler):
-    d = convertToDict(geostyler)
+    d, _, _ = convertToDict(geostyler)
     mapfile = convertDictToMapfile(d)
     symbols = convertDictToMapfile({"SYMBOLS": _symbols})
     return mapfile, symbols, _warnings
@@ -49,10 +48,8 @@ def processLayer(layer):
 
     layerData ={"LAYER":
                     {
-                    "NAME": _quote(layer.get("name", "")),
-                    "DATA": _quote("{data}" ),
-                    "STATUS": "ON",
-                    "TYPE": "{layertype}",
+                    "NAME": _quote(layer.get("name", "")),                    
+                    "STATUS": "ON",                    
                     "SIZEUNITS": "pixels",
                     "CLASSES": classes
                     }

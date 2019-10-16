@@ -50,34 +50,40 @@ def layerStyleAsMapfile(layer):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
     mserver, mserverSymbols, msWarnings = mapserver.fromgeostyler.convert(geostyler)
     warnings.extend(msWarnings)
-    filename = os.path.basename(layer.source())
-    filename = os.path.splitext(filename)[0] + ".shp"
-    mserver = mserver.replace("{data}", filename)
-    layerType = "TODO:fill this"
-    if isinstance(layer, QgsRasterLayer):
-        layerType = "raster"
-    elif isinstance(layer, QgsVectorLayer):        
-        layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
-    mserver = mserver.replace("{layertype}", layerType)
     return mserver, mserverSymbols, icons, warnings
-    
 
 def layerStyleAsMapfileFolder(layer, layerFilename, folder):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
-    mserver, mserverSymbols, msWarnings = mapserver.fromgeostyler.convert(geostyler)
+    mserverDict, mserverSymbolsDict, msWarnings = mapserver.fromgeostyler.convertToDict(geostyler)
     warnings.extend(msWarnings)    
-    mserver = mserver.replace("{data}", layerFilename)
+    mserverDict["LAYER"]["DATA"] = mapserver.fromgeostyler._quote(layerFilename)
     if isinstance(layer, QgsRasterLayer):
         layerType = "raster"
-    elif isinstance(layer, QgsVectorLayer):        
+    elif isinstance(layer, QgsVectorLayer):
         layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
-    mserver = mserver.replace("{layertype}", layerType)
+    mserverDict["LAYER"]["TYPE"] = mapserver.fromgeostyler._quote(layerType)
+
+    bbox = layer.extent()
+    if bbox.isEmpty():
+        bbox.grow(1)
+    extent = ",".join([str(v) for v in [bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum()]]) 
+    metadata = {
+                "wms_abstract": "",
+                "wms_title": mapserver.fromgeostyler._quote(layer.name()),
+                "ows_srs": mapserver.fromgeostyler._quote(layer.crs().authid()),
+                "wms_extent": mapserver.fromgeostyler._quote(extent)
+                }
+
+    mserverDict["LAYER"]["METADATA"] = metadata
+
+    mapfile = mapserver.fromgeostyler.convertDictToMapfile(mserverDict)
+    symbols = mapserver.fromgeostyler.convertDictToMapfile({"SYMBOLS": mserverSymbolsDict})
     filename = os.path.join(folder, layer.name() + ".txt")
     with open(filename, "w", encoding='utf-8') as f:
-        f.write(mserver)
+        f.write(mapfile)
     filename = os.path.join(folder, layer.name() + "_symbols.txt")
     with open(filename, "w", encoding='utf-8') as f:
-        f.write(mserverSymbols)
+        f.write(symbols)
     for icon in icons:
         dst = os.path.join(folder, os.path.basename(icon))
         copyfile(icon, dst)
