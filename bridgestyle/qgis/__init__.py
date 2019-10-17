@@ -52,30 +52,12 @@ def layerStyleAsMapfile(layer):
     warnings.extend(msWarnings)
     return mserver, mserverSymbols, icons, warnings
 
-def layerStyleAsMapfileFolder(layer, layerFilename, folder):
+def layerStyleAsMapfileFolder(layer, folder, additional=None):
     geostyler, icons, warnings = qgis.togeostyler.convert(layer)
     mserverDict, mserverSymbolsDict, msWarnings = mapserver.fromgeostyler.convertToDict(geostyler)
-    warnings.extend(msWarnings)    
-    mserverDict["LAYER"]["DATA"] = mapserver.fromgeostyler._quote(layerFilename)
-    if isinstance(layer, QgsRasterLayer):
-        layerType = "raster"
-    elif isinstance(layer, QgsVectorLayer):
-        layerType = QgsWkbTypes.geometryDisplayString(layer.geometryType())
-    mserverDict["LAYER"]["TYPE"] = mapserver.fromgeostyler._quote(layerType)
-
-    bbox = layer.extent()
-    if bbox.isEmpty():
-        bbox.grow(1)
-    extent = ",".join([str(v) for v in [bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum()]]) 
-    metadata = {
-                "wms_abstract": "",
-                "wms_title": mapserver.fromgeostyler._quote(layer.name()),
-                "ows_srs": mapserver.fromgeostyler._quote(layer.crs().authid()),
-                "wms_extent": mapserver.fromgeostyler._quote(extent)
-                }
-
-    mserverDict["LAYER"]["METADATA"] = metadata
-
+    warnings.extend(msWarnings)
+    additional = additional or {} 
+    mserverDict["LAYER"].update(additional)
     mapfile = mapserver.fromgeostyler.convertDictToMapfile(mserverDict)
     symbols = mapserver.fromgeostyler.convertDictToMapfile({"SYMBOLS": mserverSymbolsDict})
     filename = os.path.join(folder, layer.name() + ".txt")
