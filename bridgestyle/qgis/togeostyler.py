@@ -42,6 +42,8 @@ def processLayer(layer):
             if not isinstance(renderer, QgsNullSymbolRenderer):
                 if not isinstance(renderer, QgsRuleBasedRenderer):
                     ruleRenderer = QgsRuleBasedRenderer.convertFromRenderer(renderer)
+                else:
+                    ruleRenderer = renderer
                 if ruleRenderer is None:
                     _warnings.append("Unsupported renderer type: %s" % str(renderer))
                     return
