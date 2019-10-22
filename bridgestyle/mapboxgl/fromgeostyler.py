@@ -151,6 +151,9 @@ def _textSymbolizer(sl):
         offsetx = convertExpression(offset[0])
         offsety = convertExpression(offset[1])
         layout["text-offset"] = [offsetx, offsety]
+    elif "perpendicularOffset" in sl:
+        offset = sl["perpendicularOffset"]
+        layout["text-offset"] = offset
 
             
     if "haloColor" in sl and "haloSize" in sl:        

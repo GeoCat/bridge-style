@@ -181,7 +181,7 @@ def processLabeling(layer):
                             "haloSize": haloSize})
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
-        symbolizer["offset"] = offset
+        symbolizer["perpendicularOffset"] = offset
     else:
         anchor = quadOffset[settings.quadOffset]
         offsetX = _labelingProperty(settings, None, "xOffset")
@@ -440,8 +440,9 @@ def _basePointSimbolizer(sl, opacity):
         } 
 
     if x or y:
-        exp = "translate($geometry, %s,%s)" % (str(x), str(y))        
-        symbolizer["geometry"] = processExpression(exp)
+        symbolizer["offset"] = [x, y]
+        #exp = "translate($geometry, %s,%s)" % (str(x), str(y))        
+        #symbolizer["geometry"] = processExpression(exp)
 
     return symbolizer
 
@@ -579,7 +580,8 @@ def _simpleFillSymbolizer(sl, opacity):
 
     x, y = sl.offset().x(), sl.offset().y()    
     if x or y:
-        symbolizer["geometry"] = processExpression("translate(%s,%s)" % (str(x), str(y)))
+        symbolizer["offset"] = [x, y]
+        #symbolizer["geometry"] = processExpression("translate(%s,%s)" % (str(x), str(y)))
 
     return symbolizer
 

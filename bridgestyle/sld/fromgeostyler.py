@@ -180,20 +180,19 @@ def _textSymbolizer(sl):
         pointPlacement = _addSubElement(placement, "PointPlacement")      
         if "anchor" in sl:
             anchor = sl["anchor"]
-            #######
+            #TODO: Use anchor
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
         offsetx = _processProperty(offset[0])
         offsety = _processProperty(offset[1])            
         _addSubElement(displacement, "DisplacementX", offsetx)
         _addSubElement(displacement, "DisplacementY", offsety)
-    if "dist" in sl:
+    elif "perpendicularOffset" in sl:
         placement = _addSubElement(root, "LabelPlacement")
         linePlacement = _addSubElement(placement, "LinePlacement")
+        offset = sl["perpendicularOffset"]
         dist = _processProperty(offset)
         _addSubElement(linePlacement, "PerpendicularOffset", dist)
-
-
 
     if "haloColor" in sl and "haloSize" in sl:
         haloElem = _addSubElement(root, "Halo")
@@ -284,12 +283,17 @@ def _basePointSimbolizer(sl):
     size = _symbolProperty(sl, "size")
     rotation = _symbolProperty(sl, "rotate")
     opacity = _symbolProperty(sl, "opacity")
+    offset = sl.get("offset", None)
     
     root = Element("PointSymbolizer")
     graphic = _addSubElement(root, "Graphic")
     _addSubElement(graphic, "Opacity", opacity)
     _addSubElement(graphic, "Size", size)
     _addSubElement(graphic, "Rotation", rotation)
+    if offset:
+        displacement = _addSubElement(graphic, "Displacement")
+        _addSubElement(displacement, "DisplacementX", offset[0])
+        _addSubElement(displacement, "DisplacementY", offset[1])
   
     return root, graphic
 
@@ -359,6 +363,8 @@ def _fillSymbolizer(sl, graphicFillLayer = 0):
     opacity = _symbolProperty(sl, "opacity")
     color =  sl.get("color", None)
     graphicFill =  sl.get("graphicFill", None)
+    offset = sl.get("offset", None)
+
     if graphicFill is not None:
         margin = _symbolProperty(sl, "graphicFillMarginX")
         fill = _addSubElement(root, "Fill")
@@ -387,6 +393,9 @@ def _fillSymbolizer(sl, graphicFillLayer = 0):
         #_addCssParameter(stroke, "stroke-linecap", cap)
         if outlineDasharray is not None:
             _addCssParameter(stroke, "stroke-dasharray", " ".join(str(v) for v in outlineDasharray))
+
+    if offset:
+        pass #TODO: Not sure how to add this in SLD
 
     return symbolizers
 
