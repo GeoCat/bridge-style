@@ -25,9 +25,9 @@ These are the formats currently supported:
 
 Support for YSLD will be implemented soon.
 
-At the moment, all formats can be exported from QGIS, but the inverse conversion is not available for all of them. 
+The library also has support for being run from GIS applications, so it can convert from the data objects corresponding to map layer and features in those applications into Geostyler. At the moment, there is support for QGIS, and support from ArcGIS is planned an will soon be added.
 
-The library also has some support for being run from GIS applications, so it can convert from the data objects corresponding to map layer and features in those applications into Geostyler. At the moment, there is support for QGIS, and support from ArcGIS is planned an will soon be added.
+So far, all formats can be exported from QGIS, but the inverse conversion is not available for all of them. 
 
 To see which QGIS symbology features are correctly converted to Geostyler (and then supported in the rest of available formats, when possible), see [here](docs/qgis.md): 
 
@@ -81,7 +81,7 @@ File format is infered from the file extension.
 The example conversion shown above would be run with the console tool as follows:
 
 ```
-style to style /my/path/input.geostyler /my/path/output.sld
+style2style /my/path/input.geostyler /my/path/output.sld
 ```
 
 
