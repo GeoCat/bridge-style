@@ -184,12 +184,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     opacity = _symbolProperty(sl, "opacity", 1.0) * 100
     color =  _symbolProperty(sl, "color")
     graphicStroke =  sl.get("graphicStroke", None)
-    width = _symbolProperty(sl, "width")
-    try:
-        float(width)      
-    except:
-        _warnings.append("Only pixels are supported as measure units for MapServer conversion")
-        width = 1    
+    width = _symbolProperty(sl, "width")   
     dasharray = _symbolProperty(sl, "dasharray")
     cap = _symbolProperty(sl, "cap")
     join = _symbolProperty(sl, "join")
