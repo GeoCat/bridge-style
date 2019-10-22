@@ -32,7 +32,9 @@ def convert(geostyler):
         featureTypeStyle.append(processTransformation(geostyler["transformation"]))
     for rule in geostyler.get("rules", []):
         featureTypeStyle.append(processRule(rule))
-    
+    if "blendMode" in geostyler:
+        _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
+        
     sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
     dom = minidom.parseString(sldstring)    
     return dom.toprettyxml(indent="  "), _warnings

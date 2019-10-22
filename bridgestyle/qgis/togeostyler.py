@@ -5,6 +5,7 @@ from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
     from qgis.core import *
+    from qgis.PyQt.QtGui import QPainter
 except:
     pass
 
@@ -28,16 +29,32 @@ def convert(layer):
         geostyler = {"name": layer.name()}
     return geostyler, _usedIcons, _warnings
 
+blendModes = {                
+                QPainter.CompositionMode_Plus: "addition",
+                QPainter.CompositionMode_Multiply: "multiply",
+                QPainter.CompositionMode_Screen: "screen",
+                QPainter.CompositionMode_Overlay: "overlay",
+                QPainter.CompositionMode_Darken: "darken",
+                QPainter.CompositionMode_Lighten: "lighten",
+                QPainter.CompositionMode_ColorDodge: "dodge",
+                QPainter.CompositionMode_ColorBurn: "color-burn",
+                QPainter.CompositionMode_HardLight: "hard-light",
+                QPainter.CompositionMode_SoftLight: "soft-light",
+                QPainter.CompositionMode_Difference: "difference"
+            }
+
 def processLayer(layer):
     _expressionConverter.layer = layer
 
+    geostyler = {"name": layer.name()}
     if layer.type() == layer.VectorLayer:
         rules = []
         renderer = layer.renderer()
         if isinstance(renderer, QgsHeatmapRenderer):
             symbolizer, transformation = heatmapRenderer(renderer)
             rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
-            return  {"name": layer.name(), "rules": rules, "transformation": transformation}
+            geostyler["rules"] = rules
+            geostyler["transformation"] = transformation
         else:
             if not isinstance(renderer, QgsNullSymbolRenderer):
                 if not isinstance(renderer, QgsRuleBasedRenderer):
@@ -53,10 +70,15 @@ def processLayer(layer):
             labelingRule = processLabeling(layer)
             if labelingRule is not None:
                 rules.append(labelingRule)
-            return  {"name": layer.name(), "rules": rules}
+            geostyler["rules"] = rules
     elif layer.type() == layer.RasterLayer:
         rules = [{"name": layer.name(), "symbolizers": [rasterSymbolizer(layer)]}]
-        return  {"name": layer.name(), "rules": rules}
+        geostyler["rules"] = rules
+
+    if layer.blendMode() in blendModes:
+        geostyler["blendMode"] = blendModes[layer.blendMode()]
+
+    return geostyler
 
 def heatmapRenderer(renderer):
     hmRadius = renderer.radius()
