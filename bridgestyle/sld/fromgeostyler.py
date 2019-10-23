@@ -418,14 +418,21 @@ operators = ["PropertyName",
       "Div", 
       "Not"]
 
-def convertExpression(exp):
+operatorToFunction = {"PropertyIsEqualTo": "equalTo",
+                     "PropertyIsNotEqualTo": "notEqual",
+                     "PropertyIsLessThanOrEqualTo": "lessEqualThan",
+                     "PropertyIsGreaterThanOrEqualTo": "greaterEqualThan",
+                     "PropertyIsLessThan": "lessThan",
+                     "PropertyIsGreaterThan": "greaterThan"}
+
+def convertExpression(exp, inFunction=False):
     if exp is None:
         return None
     elif isinstance(exp, list):
-        if exp[0] in operators:
+        if exp[0] in operators and not (inFunction and exp[0] in operatorToFunction):
             return handleOperator(exp)
         else:
-            return handleFunction(exp)        
+            return handleFunction(exp)   
     else:
         return handleLiteral(exp)
 
@@ -440,11 +447,11 @@ def handleOperator(exp):
     return elem
 
 def handleFunction(exp):
-    name = exp[0]
+    name = operatorToFunction.get(exp[0], exp[0])
     elem = Element("ogc:Function", name=name)
     if len(exp) > 1:        
         for arg in exp[1:]:
-            elem.append(convertExpression(arg))
+            elem.append(convertExpression(arg, True))
     return elem
 
 def handleLiteral(v):
