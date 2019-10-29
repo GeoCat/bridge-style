@@ -29,7 +29,8 @@ def saveLayerStyleAsZippedSld(layer, filename):
     sldstring, icons, warnings = layerStyleAsSld(layer)
     z = zipfile.ZipFile(filename, "w")
     for icon in icons.keys():
-        z.write(icon, os.path.basename(icon))
+        if icon:
+            z.write(icon, os.path.basename(icon))
     z.writestr(layer.name() + ".sld", sldstring)
     z.close()
     return warnings
