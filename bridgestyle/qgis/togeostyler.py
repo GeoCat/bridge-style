@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import zipfile
 from .expressions import walkExpression, UnsupportedExpressionException
 
@@ -358,7 +359,7 @@ def _createSymbolizer(sl, opacity):
         symbolizer = _fontMarkerSymbolizer(sl, opacity)
 
     if symbolizer is None:
-        _warnings.append("Symbol layer type not supported: '%s'" % type(sl))
+        _warnings.append("Symbol layer type not supported: '%s'" % sl.__class__.__name__)
     return symbolizer
 
 
@@ -551,9 +552,14 @@ def _linePatternFillSymbolizer(sl, opacity):
     strokeWidth = _symbolProperty(sl, "line_width")
     size = _symbolProperty(sl, "distance", QgsSymbolLayer.PropertyLineDistance)
     rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyLineAngle)
-    subSymbolizer = _markFillPattern("horline", color, size, strokeWidth, rotation)
+    marker = _hatchMarkerForAngle(rotation)
+    subSymbolizer = _markFillPattern(marker, color, size, strokeWidth, 0)
     symbolizer["graphicFill"] = [subSymbolizer]
     return symbolizer
+
+def _hatchMarkerForAngle(angle):
+    quadrant = math.floor(((angle + 22.5) % 180) / 45.)
+    return  ["shape://vertline", "shape://slash", "shape://horline", "shape://backslash"][quadrant]
 
 def _pointPatternFillSymbolizer(sl, opacity):    
     symbolizer = _baseFillSymbolizer(sl, opacity)
@@ -573,9 +579,9 @@ def _pointPatternFillSymbolizer(sl, opacity):
 
     return symbolizer
 
-patternNamesReplacement = {"horizontal": "horline",
-                            "vertical": "vertline",
-                            "cross": "x"} #TODO
+patternNamesReplacement = {"horizontal": "shape://horline",
+                            "vertical": "shape://vertline",
+                            "cross": "shape://times"} #TODO
 
 def _simpleFillSymbolizer(sl, opacity):
     props = sl.properties()
