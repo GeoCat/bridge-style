@@ -195,6 +195,7 @@ def processLabeling(layer):
     size = _labelingProperty(settings, textFormat, "size", QgsPalLayerSettings.Size)
     color = textFormat.color().name()
     font = textFormat.font().family()
+    rotation = _labelingProperty(settings, None, "angleOffset", QgsPalLayerSettings.LabelRotation)
     buff = textFormat.buffer()
     if buff.enabled():
         haloColor = buff.color().name()
@@ -209,7 +210,8 @@ def processLabeling(layer):
         offsetX = _labelingProperty(settings, None, "xOffset")
         offsetY = _labelingProperty(settings, None, "yOffset")
         symbolizer.update({"offset": [offsetX, offsetY],                        
-                        "anchor": anchor})
+                        "anchor": anchor,
+                        "rotate": rotation})
     exp = settings.getLabelExpression()
     label = _expressionConverter.walkExpression(exp.rootNode())
     symbolizer.update({"color": color,
@@ -361,24 +363,25 @@ def _createSymbolizer(sl, opacity):
 
 
 def _fontMarkerSymbolizer(sl, opacity):
+    symbolizer = _basePointSimbolizer(opacity)
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)    
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)    
     if len(character) == 1:
         hexcode = hex(ord(character))
         name = "ttf://%s#%s" % (fontFamily, hexcode)
-        symbolizer = {"kind": "Mark",
+        symbolizer.update({"kind": "Mark",
                 "color": color,
                 "wellKnownName": name,
                 "size": ["Div", size, 2] #we use half of the size, since QGIS since to use this as radius, not char height
-                } 
+                })
     else:
-        symbolizer = {"kind": "Text",
+        symbolizer.update({"kind": "Text",
                 "size": size,
                 "label": character,
                 "font": fontFamily,
-                "color": color} 
+                "color": color})
    
     return symbolizer
 

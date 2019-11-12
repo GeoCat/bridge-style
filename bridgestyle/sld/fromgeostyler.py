@@ -186,9 +186,12 @@ def _textSymbolizer(sl):
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
         offsetx = _processProperty(offset[0])
-        offsety = _processProperty(offset[1])            
+        offsety = _processProperty(offset[1])        
         _addSubElement(displacement, "DisplacementX", offsetx)
         _addSubElement(displacement, "DisplacementY", offsety)
+        if "rotate" in sl:
+            rotation = _symbolProperty(sl, "rotate")
+            _addSubElement(displacement, "Rotation", rotation)
     elif "perpendicularOffset" in sl:
         placement = _addSubElement(root, "LabelPlacement")
         linePlacement = _addSubElement(placement, "LinePlacement")
