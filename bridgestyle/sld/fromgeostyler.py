@@ -199,6 +199,10 @@ def _textSymbolizer(sl):
         dist = _processProperty(offset)
         _addSubElement(linePlacement, "PerpendicularOffset", dist)
 
+    followLine = sl.get("followLine", False):
+    if followLine:
+        _addVendorOption(root, "followLine", True)
+
     if "haloColor" in sl and "haloSize" in sl:
         haloElem = _addSubElement(root, "Halo")
         _addSubElement(haloElem, "Radius", sl["haloSize"])

@@ -206,6 +206,8 @@ def processLabeling(layer):
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
+        if settings.placement = QgsPalLayerSettings.Curved:
+            symbolizer["followLine"] = True
     else:
         anchor = quadOffset[settings.quadOffset]
         offsetX = _labelingProperty(settings, None, "xOffset")
