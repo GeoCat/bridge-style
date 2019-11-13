@@ -199,7 +199,7 @@ def _textSymbolizer(sl):
         dist = _processProperty(offset)
         _addSubElement(linePlacement, "PerpendicularOffset", dist)
 
-    followLine = sl.get("followLine", False):
+    followLine = sl.get("followLine", False)
     if followLine:
         _addVendorOption(root, "followLine", True)
 
