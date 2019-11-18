@@ -366,7 +366,7 @@ def _createSymbolizer(sl, opacity):
 
 
 def _fontMarkerSymbolizer(sl, opacity):
-    symbolizer = _basePointSimbolizer(opacity)
+    symbolizer = _basePointSimbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)    
