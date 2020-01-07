@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import zipfile
 from .expressions import walkExpression, UnsupportedExpressionException
 
@@ -195,6 +196,7 @@ def processLabeling(layer):
     size = _labelingProperty(settings, textFormat, "size", QgsPalLayerSettings.Size)
     color = textFormat.color().name()
     font = textFormat.font().family()
+    rotation = _labelingProperty(settings, None, "angleOffset", QgsPalLayerSettings.LabelRotation)
     buff = textFormat.buffer()
     if buff.enabled():
         haloColor = buff.color().name()
@@ -204,12 +206,15 @@ def processLabeling(layer):
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
+        if settings.placement == QgsPalLayerSettings.Curved:
+            symbolizer["followLine"] = True
     else:
         anchor = quadOffset[settings.quadOffset]
         offsetX = _labelingProperty(settings, None, "xOffset")
         offsetY = _labelingProperty(settings, None, "yOffset")
         symbolizer.update({"offset": [offsetX, offsetY],                        
-                        "anchor": anchor})
+                        "anchor": anchor,
+                        "rotate": rotation})
     exp = settings.getLabelExpression()
     label = _expressionConverter.walkExpression(exp.rootNode())
     symbolizer.update({"color": color,
@@ -356,29 +361,30 @@ def _createSymbolizer(sl, opacity):
         symbolizer = _fontMarkerSymbolizer(sl, opacity)
 
     if symbolizer is None:
-        _warnings.append("Symbol layer type not supported: '%s'" % type(sl))
+        _warnings.append("Symbol layer type not supported: '%s'" % sl.__class__.__name__)
     return symbolizer
 
 
 def _fontMarkerSymbolizer(sl, opacity):
+    symbolizer = _basePointSimbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)    
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)    
     if len(character) == 1:
         hexcode = hex(ord(character))
         name = "ttf://%s#%s" % (fontFamily, hexcode)
-        symbolizer = {"kind": "Mark",
+        symbolizer.update({"kind": "Mark",
                 "color": color,
                 "wellKnownName": name,
                 "size": ["Div", size, 2] #we use half of the size, since QGIS since to use this as radius, not char height
-                } 
+                })
     else:
-        symbolizer = {"kind": "Text",
+        symbolizer.update({"kind": "Text",
                 "size": size,
                 "label": character,
                 "font": fontFamily,
-                "color": color} 
+                "color": color})
    
     return symbolizer
 
@@ -548,9 +554,14 @@ def _linePatternFillSymbolizer(sl, opacity):
     strokeWidth = _symbolProperty(sl, "line_width")
     size = _symbolProperty(sl, "distance", QgsSymbolLayer.PropertyLineDistance)
     rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyLineAngle)
-    subSymbolizer = _markFillPattern("horline", color, size, strokeWidth, rotation)
+    marker = _hatchMarkerForAngle(rotation)
+    subSymbolizer = _markFillPattern(marker, color, size, strokeWidth, 0)
     symbolizer["graphicFill"] = [subSymbolizer]
     return symbolizer
+
+def _hatchMarkerForAngle(angle):
+    quadrant = math.floor(((angle + 22.5) % 180) / 45.)
+    return  ["shape://vertline", "shape://slash", "shape://horline", "shape://backslash"][quadrant]
 
 def _pointPatternFillSymbolizer(sl, opacity):    
     symbolizer = _baseFillSymbolizer(sl, opacity)
@@ -570,9 +581,9 @@ def _pointPatternFillSymbolizer(sl, opacity):
 
     return symbolizer
 
-patternNamesReplacement = {"horizontal": "horline",
-                            "vertical": "vertline",
-                            "cross": "x"} #TODO
+patternNamesReplacement = {"horizontal": "shape://horline",
+                            "vertical": "shape://vertline",
+                            "cross": "shape://times"} #TODO
 
 def _simpleFillSymbolizer(sl, opacity):
     props = sl.properties()
