@@ -377,7 +377,7 @@ def _fontMarkerSymbolizer(sl, opacity):
         symbolizer.update({"kind": "Mark",
                 "color": color,
                 "wellKnownName": name,
-                "size": ["Div", size, 2] #we use half of the size, since QGIS since to use this as radius, not char height
+                "size": ["Div", size, 2] #we use half of the size, since QGIS uses this as radius, not char height
                 })
     else:
         symbolizer.update({"kind": "Text",
