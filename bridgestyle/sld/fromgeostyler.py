@@ -257,7 +257,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     return symbolizers
     
 def _geometryFromSymbolizer(sl):
-    geomExpr = convertExpression(sl.get("geometry", None))
+    geomExpr = convertExpression(sl.get("Geometry", None))
     if geomExpr is not None:
         geomElement = Element("Geometry")
         geomElement.append(geomExpr)
