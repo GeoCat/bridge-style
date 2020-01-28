@@ -369,7 +369,7 @@ def _graphicFromSymbolizer(sl):
 def _fillSymbolizer(sl, graphicFillLayer = 0):
     root = _baseFillSymbolizer(sl)
     symbolizers = [root]
-    opacity = _symbolProperty(sl, "opacity")
+    opacity = float(_symbolProperty(sl, "opacity", 1))
     color =  sl.get("color", None)
     graphicFill =  sl.get("graphicFill", None)
     offset = sl.get("offset", None)
@@ -384,20 +384,22 @@ def _fillSymbolizer(sl, graphicFillLayer = 0):
         if graphicFillLayer == 0 and len(graphicFill) > 1:
             for i in range(1, len(graphicFill)):
                 symbolizers.extend(_fillSymbolizer(sl, i))
-    if color is not None:                
+    if color is not None:
+        fillOpacity = float(_symbolProperty(sl, "fillOpacity", 1))
         fill = _addSubElement(root, "Fill")
         _addCssParameter(fill, "fill", color)
-        _addCssParameter(fill, "fill-opacity", opacity)
+        _addCssParameter(fill, "fill-opacity", fillOpacity * opacity)
 
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
         outlineDasharray = _symbolProperty(sl, "outlineDasharray")
-        outlineWidth = _symbolProperty(sl, "outlineWidth")                
+        outlineWidth = _symbolProperty(sl, "outlineWidth")
+        outlineOpacity = float(_symbolProperty(sl, "outlineOpacity"))
         #borderWidthUnits = props["outline_width_unit"]
         stroke = _addSubElement(root, "Stroke")
         _addCssParameter(stroke, "stroke", outlineColor)
         _addCssParameter(stroke, "stroke-width", outlineWidth)
-        _addCssParameter(stroke, "stroke-opacity", opacity)
+        _addCssParameter(stroke, "stroke-opacity", outlineOpacity * opacity)
         #_addCssParameter(stroke, "stroke-linejoin", join)
         #_addCssParameter(stroke, "stroke-linecap", cap)
         if outlineDasharray is not None:

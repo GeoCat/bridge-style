@@ -391,6 +391,7 @@ def _fontMarkerSymbolizer(sl, opacity):
 def _lineSymbolizer(sl, opacity):
     props = sl.properties()
     color = _toHexColor(props["line_color"])
+    strokeOpacity = _opacity(props["line_color"])
     width = _symbolProperty(sl, "line_width", QgsSymbolLayer.PropertyStrokeWidth)    
     lineStyle = _symbolProperty(sl, "line_style", QgsSymbolLayer.PropertyStrokeStyle)
     cap = _symbolProperty(sl, "capstyle", QgsSymbolLayer.PropertyCapStyle)
@@ -399,7 +400,7 @@ def _lineSymbolizer(sl, opacity):
     offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)    
     symbolizer = {"kind": "Line",
                     "color": color,
-                    "opacity": opacity,
+                    "opacity": opacity * strokeOpacity,
                     "width": width,
                     "perpendicularOffset": offset,
                     "cap": cap,
@@ -592,9 +593,11 @@ def _simpleFillSymbolizer(sl, opacity):
     symbolizer = _baseFillSymbolizer(sl, opacity)
 
     if style != "no":
-        color =  _toHexColor(props["color"])               
+        color =  _toHexColor(props["color"])
+        fillOpacity =  _opacity(props["color"])              
         if style == "solid":
-            symbolizer["color"] = color            
+            symbolizer["color"] = color
+            symbolizer["fillOpacity"] = fillOpacity
         else:
             style = patternNamesReplacement.get(style, style)
             marker = _markFillPattern(style, color)
@@ -603,11 +606,13 @@ def _simpleFillSymbolizer(sl, opacity):
             symbolizer["graphicFillDistanceY"] = FIXED_PATTERN_SIZE / 2.0
 
     outlineColor =  _toHexColor(props["outline_color"])
+    outlineOpacity = _opacity(props["outline_color"])
     outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
     if outlineStyle != "no":
         outlineWidth = _symbolProperty(sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
         symbolizer.update({"outlineColor": outlineColor,
-                            "outlineWidth": outlineWidth})
+                            "outlineWidth": outlineWidth,
+                            "outlineOpacity": outlineOpacity})
     if outlineStyle not in ["solid", "no"]:
         symbolizer["outlineDasharray"] ="5 2"
 
