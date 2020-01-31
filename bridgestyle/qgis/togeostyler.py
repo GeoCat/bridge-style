@@ -67,7 +67,7 @@ def processLayer(layer):
                     return
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
-                        rules.append(processRule(rule))
+                        rules.extend(processRule(rule))
             labelingRule = processLabeling(layer)
             if labelingRule is not None:
                 rules.append(labelingRule)
@@ -224,20 +224,28 @@ def processLabeling(layer):
     return {"symbolizers": [symbolizer], "name": "labeling"}
 
 def processRule(rule):
-    symbolizers = _createSymbolizers(rule.symbol().clone())
-    name = rule.label()
-    ruledef = {"name": name,
-            "symbolizers": symbolizers}
-    if rule.isElse():
-        ruledef["filter"] = "ELSE"
+    symbol = rule.symbol()
+    if symbol is None:
+        ruledefs = []
+        for subrule in rule.children():
+            if subrule.active():
+                ruledefs.extend(processRule(subrule))
+        return ruledefs
     else:
-        filt = processExpression(rule.filterExpression())
-        if filt is not None:
-            ruledef["filter"] = filt
-    if rule.dependsOnScale():
-        scale = processRuleScale(rule)
-        ruledef["scaleDenominator"] = scale
-    return ruledef
+        symbolizers = _createSymbolizers(rule.symbol())
+        name = rule.label()
+        ruledef = {"name": name,
+                "symbolizers": symbolizers}
+        if rule.isElse():
+            ruledef["filter"] = "ELSE"
+        else:
+            filt = processExpression(rule.filterExpression())
+            if filt is not None:
+                ruledef["filter"] = filt
+        if rule.dependsOnScale():
+            scale = processRuleScale(rule)
+            ruledef["scaleDenominator"] = scale
+        return [ruledef]
 
 def processRuleScale(rule):
     return {"min": rule.minimumScale(),
@@ -298,12 +306,12 @@ def _labelingProperty(settings, obj, name, propertyConstant=-1):
 
     return _cast(v)
 
-def _symbolProperty(symbolLayer, name, propertyConstant=-1):
+def _symbolProperty(symbolLayer, name, propertyConstant=-1, default=0):
     ddProps = symbolLayer.dataDefinedProperties()
     if propertyConstant in ddProps.propertyKeys():
         v = processExpression(ddProps.property(propertyConstant).asExpression()) or ""        
     else:
-        v = symbolLayer.properties()[name]
+        v = symbolLayer.properties().get(name, default)
     
     units = symbolLayer.properties().get(name + "_unit")
     if units is not None:
