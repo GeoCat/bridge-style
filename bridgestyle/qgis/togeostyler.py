@@ -252,8 +252,10 @@ def processRule(rule):
         return [ruledef]
 
 def processRuleScale(rule):
-    return {"min": rule.minimumScale(),
-            "max": rule.maximumScale()}
+    # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
+    # however, these are backwards if you think in terms of RF.
+    return {"max": rule.minimumScale(),
+            "min": rule.maximumScale()}
 
 def processExpression(expstr):
     try:

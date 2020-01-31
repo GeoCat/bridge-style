@@ -1,4 +1,4 @@
-from qgis.core import QgsExpressionNode, QgsExpression
+from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
 
 class UnsupportedExpressionException(Exception):
     pass
@@ -71,8 +71,8 @@ def walkExpression(node, layer):
         exp = handleBinary(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntUnaryOperator:
         exp = handleUnary(node, layer)
-    #elif node.nodeType() == QgsExpressionNode.ntInOperator:
-        #filt = handle_in(node)
+    elif node.nodeType() == QgsExpressionNode.ntInOperator:
+        exp = handle_in(node,layer)
     elif node.nodeType() == QgsExpressionNode.ntFunction:
         exp = handleFunction(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntLiteral:
@@ -86,6 +86,35 @@ def walkExpression(node, layer):
     if exp is None:
         raise UnsupportedExpressionException("Unsupported operator in expression: '%s'" % str( node))
     return exp
+
+# handle IN expression
+# convert to a series of (A='a') OR (B='b')
+def handle_in(node,layer):
+    if node.isNotIn():
+        raise UnsupportedExpressionException("expression NOT IN is unsupported")
+    #convert this expression to another (equivelent Expression)
+    if node.node().nodeType() != QgsExpressionNode.ntColumnRef:
+        raise UnsupportedExpressionException("expression  IN doesn't ref column!")
+    if node.list().count() == 0:
+        raise UnsupportedExpressionException("expression  IN doesn't have anything inside the IN")
+
+    colRef = handleColumnRef(node.node(),layer)
+    propEqualsExprs = [] # one for each of the literals in the expression
+    for item in node.list().list():
+        if item.nodeType() != QgsExpressionNode.ntLiteral:
+            raise UnsupportedExpressionException("expression  IN isn't literal")
+        #equals_expr = QgsExpressionNodeBinaryOperator(2,colRef,item) #2 is "="
+        equals_expr = [binaryOps[2], colRef, handleLiteral(item)]  # 2 is "="
+        propEqualsExprs.append(equals_expr)
+
+     #bulid into single expression
+    if len(propEqualsExprs) == 1:
+        return propEqualsExprs[0]  # handle 1 item in the list
+    accum = [binaryOps[0], propEqualsExprs[0], propEqualsExprs[1]]  #0="OR"
+    for idx in range(2,len(propEqualsExprs)):
+        accum = [binaryOps[0],accum,propEqualsExprs[idx]] #0="OR"
+    return accum
+
 
 def handleBinary(node, layer):
     op = node.op()

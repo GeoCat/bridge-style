@@ -49,10 +49,10 @@ def processRule(rule):
         scale = rule["scaleDenominator"]
         if "max" in scale:
             maxScale = SubElement(ruleElement, "MaxScaleDenominator")
-            maxScale.text = scale["max"]
+            maxScale.text = str(scale["max"])
         if "min" in scale:
             minScale = SubElement(ruleElement, "MinScaleDenominator")
-            maxScale.text = scale["min"]
+            minScale.text = str(scale["min"])
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
         filterElement = Element("ElseFilter")            
