@@ -216,7 +216,11 @@ def processLabeling(layer):
                         "anchor": anchor,
                         "rotate": rotation})
     exp = settings.getLabelExpression()
-    label = _expressionConverter.walkExpression(exp.rootNode())
+    try:
+        label = _expressionConverter.walkExpression(exp.rootNode())
+    except UnsupportedExpressionException as e:
+        _warnings.append(str(e))
+        label = ""
     symbolizer.update({"color": color,
                         "font": font,
                         "label": label,

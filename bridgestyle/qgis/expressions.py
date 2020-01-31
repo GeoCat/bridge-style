@@ -79,8 +79,12 @@ def walkExpression(node, layer):
         exp = handleLiteral(node)
     elif node.nodeType() == QgsExpressionNode.ntColumnRef:
         exp = handleColumnRef(node, layer)
+    else:
+        exp = None
     #elif node.nodeType() == QgsExpression.ntCondition:
     #    filt = handle_condition(nod)
+    if exp is None:
+        raise UnsupportedExpressionException("Unsupported operator in expression: '%s'" % str( node))
     return exp
 
 def handleBinary(node, layer):
