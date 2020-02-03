@@ -120,6 +120,10 @@ def rasterSymbolizer(layer):
     return symbolizer
 
 def channelSelection(renderer):
+    # handle a WMS layer -- this is wrong, but it throws exceptions... 
+    if isinstance(renderer, QgsSingleBandColorDataRenderer):
+        return {"grayChannel": {"sourceChannelName": str(renderer.usesBands()[0])}}
+
     if isinstance(renderer, QgsSingleBandGrayRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.grayBand())}}
     elif isinstance(renderer, (QgsSingleBandPseudoColorRenderer, QgsPalettedRasterRenderer)):

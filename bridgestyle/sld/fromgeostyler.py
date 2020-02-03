@@ -421,6 +421,7 @@ operators = ["PropertyName",
      "PropertyIsGreaterThanOrEqualTo", 
      "PropertyIsLessThan", 
      "PropertyIsGreaterThan", 
+     "PropertyIsLike",
      "Add", 
       "Sub", 
       "Mul", 
@@ -448,6 +449,8 @@ def convertExpression(exp, inFunction=False):
 def handleOperator(exp):
     name = exp[0]
     elem = Element("ogc:" + name) 
+    if name == "PropertyIsLike":
+        elem.attrib["wildCard"] = "%"
     if name == "PropertyName":
         elem.text = exp[1]  
     else:
