@@ -383,7 +383,7 @@ def _fontMarkerSymbolizer(sl, opacity):
     symbolizer = _basePointSimbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
-    character = _symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter)    
+    character = str(_symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter))
     size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)    
     if len(character) == 1:
         hexcode = hex(ord(character))
