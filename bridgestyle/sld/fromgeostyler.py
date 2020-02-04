@@ -239,7 +239,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
             fsize = float(size)
             finterval = float(interval)
             _addCssParameter(stroke, "stroke-dasharray", "%s %s" % (str(size), str(interval)))
-        else:
+        except:
             _addCssParameter(stroke, "stroke-dasharray", "10 10")
         _addCssParameter(stroke, "stroke-dashoffset", dashOffset)
         if graphicStrokeLayer == 0 and len(graphicStroke) > 1:
