@@ -281,7 +281,7 @@ def processLabeling(layer,labeling, name="labeling",filter=None):
         result["filter"] = filter
 
 
-    if labeling.dependsOnScale():
+    if hasattr(labeling,'dependsOnScale')  and labeling.dependsOnScale():
             scale = processRuleScale(labeling)
             result["scaleDenominator"] = scale
 
@@ -348,6 +348,8 @@ MM2PIXEL = 3.7795275591
 def _handleUnits(value, units, propertyConstant):
     if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
         return 1  # hairline width
+    if units == "Point":
+        return float(value) * MM2PIXEL * 0.353 # point is 1/72 of an inch
     if units == "MM":
         if isinstance(value, list):
             return ["Mul", MM2PIXEL, value]
