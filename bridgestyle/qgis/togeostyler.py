@@ -227,29 +227,42 @@ def processLabeling(layer):
                         "size": size})
     return {"symbolizers": [symbolizer], "name": "labeling"}
 
-def processRule(rule):
-    symbol = rule.symbol()
-    if symbol is None:
-        ruledefs = []
-        for subrule in rule.children():
-            if subrule.active():
-                ruledefs.extend(processRule(subrule))
-        return ruledefs
+# AND two expressions together (handle nulls)
+def andFilter(f1,f2):
+    if f1 is None and f2 is None:
+        return None
+    if f1 is None:
+        return f2
+    if f2 is None:
+        return f1
+    return ['And', f1, f2]
+
+def processRule(rule, filters=None):
+    ruledefs = []
+
+    if rule.isElse():
+        filt = "ELSE"
     else:
+        filt = andFilter(processExpression(rule.filterExpression()), filters)
+
+    for subrule in rule.children():
+        if subrule.active():
+            ruledefs.extend(processRule(subrule, filt))
+
+    symbol = rule.symbol()
+    if symbol is not None:                    
         symbolizers = _createSymbolizers(rule.symbol())
         name = rule.label()
         ruledef = {"name": name,
                 "symbolizers": symbolizers}
-        if rule.isElse():
-            ruledef["filter"] = "ELSE"
-        else:
-            filt = processExpression(rule.filterExpression())
-            if filt is not None:
-                ruledef["filter"] = filt
+        if filt is not None:
+            ruledef["filter"] = filt
         if rule.dependsOnScale():
             scale = processRuleScale(rule)
             ruledef["scaleDenominator"] = scale
-        return [ruledef]
+        ruledefs.append(ruledef)
+
+    return ruledefs
 
 def processRuleScale(rule):
     # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
