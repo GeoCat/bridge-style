@@ -279,6 +279,12 @@ def processLabeling(layer,labeling, name="labeling",filter=None):
     result= {"symbolizers": [symbolizer], "name": name}
     if filter is not None:
         result["filter"] = filter
+
+
+    if labeling.dependsOnScale():
+            scale = processRuleScale(labeling)
+            result["scaleDenominator"] = scale
+
     return result
 
 
