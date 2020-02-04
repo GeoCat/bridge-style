@@ -13,12 +13,16 @@ except:
 _usedIcons = {}
 _warnings = []
 
+
 class ExpressionConverter():
     layer = None
+
     def walkExpression(self, node):
         return walkExpression(node, self.layer)
 
+
 _expressionConverter = ExpressionConverter()
+
 
 def convert(layer):
     global _usedIcons
@@ -30,19 +34,21 @@ def convert(layer):
         geostyler = {"name": layer.name()}
     return geostyler, _usedIcons, _warnings
 
-blendModes = {                
-                QPainter.CompositionMode_Plus: "addition",
-                QPainter.CompositionMode_Multiply: "multiply",
-                QPainter.CompositionMode_Screen: "screen",
-                QPainter.CompositionMode_Overlay: "overlay",
-                QPainter.CompositionMode_Darken: "darken",
-                QPainter.CompositionMode_Lighten: "lighten",
-                QPainter.CompositionMode_ColorDodge: "dodge",
-                QPainter.CompositionMode_ColorBurn: "color-burn",
-                QPainter.CompositionMode_HardLight: "hard-light",
-                QPainter.CompositionMode_SoftLight: "soft-light",
-                QPainter.CompositionMode_Difference: "difference"
-            }
+
+blendModes = {
+    QPainter.CompositionMode_Plus: "addition",
+    QPainter.CompositionMode_Multiply: "multiply",
+    QPainter.CompositionMode_Screen: "screen",
+    QPainter.CompositionMode_Overlay: "overlay",
+    QPainter.CompositionMode_Darken: "darken",
+    QPainter.CompositionMode_Lighten: "lighten",
+    QPainter.CompositionMode_ColorDodge: "dodge",
+    QPainter.CompositionMode_ColorBurn: "color-burn",
+    QPainter.CompositionMode_HardLight: "hard-light",
+    QPainter.CompositionMode_SoftLight: "soft-light",
+    QPainter.CompositionMode_Difference: "difference"
+}
+
 
 def processLayer(layer):
     _expressionConverter.layer = layer
@@ -68,9 +74,9 @@ def processLayer(layer):
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
                         rules.extend(processRule(rule))
-            labelingRule = processLabeling(layer)
-            if labelingRule is not None:
-                rules.append(labelingRule)
+            labelingRules = processLabelingLayer(layer)
+            if labelingRules is not None:
+                rules = rules + labelingRules
             geostyler["rules"] = rules
     elif layer.type() == layer.RasterLayer:
         rules = [{"name": layer.name(), "symbolizers": [rasterSymbolizer(layer)]}]
@@ -81,23 +87,24 @@ def processLayer(layer):
 
     return geostyler
 
+
 def heatmapRenderer(renderer):
     hmRadius = renderer.radius()
     colorRamp = renderer.colorRamp()
     if not isinstance(colorRamp, QgsGradientColorRamp):
         _warnings.append("Unsupported color ramp class: %s" % str(colorRamp))
-        return    
+        return
     colMap = {}
     colMap["type"] = "intervals" if colorRamp.isDiscrete() else "ramp"
     mapEntries = []
     mapEntries.append({"color": colorRamp.color1().name(), "quantity": 0,
-                            "opacity": colorRamp.color1().alphaF(), "label": ""})
+                       "opacity": colorRamp.color1().alphaF(), "label": ""})
     for stop in colorRamp.stops():
         mapEntries.append({"color": stop.color.name(), "quantity": stop.offset,
-                            "opacity": stop.color.alphaF(), "label": ""})
+                           "opacity": stop.color.alphaF(), "label": ""})
     mapEntries.append({"color": colorRamp.color2().name(), "quantity": 1,
-                            "opacity": colorRamp.color2().alphaF(), "label": ""})
-    colMap["colorMapEntries"] = mapEntries    
+                       "opacity": colorRamp.color2().alphaF(), "label": ""})
+    colMap["colorMapEntries"] = mapEntries
 
     weightAttr = renderer.weightExpression()
     radius = renderer.radius()
@@ -106,18 +113,20 @@ def heatmapRenderer(renderer):
 
     channel = {"grayChannel": {"sourceChannelName": 1}}
     symbolizer = {"kind": "Raster", "opacity": 1,
-                 "channelSelection": channel, "colorMap": colMap}
+                  "channelSelection": channel, "colorMap": colMap}
     transformation = {"type": "vec:Heatmap", "radiusPixels": radius, "weightAttr": weightAttr}
     return symbolizer, transformation
 
+
 def rasterSymbolizer(layer):
-    renderer = layer.renderer()    
+    renderer = layer.renderer()
     symbolizer = {"kind": "Raster", "opacity": renderer.opacity(),
-                 "channelSelection": channelSelection(renderer)}
+                  "channelSelection": channelSelection(renderer)}
     colMap = colorMap(renderer)
     if colMap:
         symbolizer["colorMap"] = colMap
     return symbolizer
+
 
 def channelSelection(renderer):
     # handle a WMS layer -- this is wrong, but it throws exceptions... 
@@ -127,7 +136,7 @@ def channelSelection(renderer):
     if isinstance(renderer, QgsSingleBandGrayRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.grayBand())}}
     elif isinstance(renderer, (QgsSingleBandPseudoColorRenderer, QgsPalettedRasterRenderer)):
-         return {"grayChannel": {"sourceChannelName": str(renderer.band())}}
+        return {"grayChannel": {"sourceChannelName": str(renderer.band())}}
     elif isinstance(renderer, QgsMultiBandColorRenderer):
         bands = renderer.usesBands()
         channels = {}
@@ -142,6 +151,7 @@ def channelSelection(renderer):
         _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer))
         return None
 
+
 def colorMap(renderer):
     colMap = {}
     mapEntries = []
@@ -149,12 +159,12 @@ def colorMap(renderer):
         colMap["type"] = "ramp"
         entries = renderer.legendSymbologyItems()
         for entry in entries:
-            mapEntries.append({"color": entry[1].name() , "quantity": float(entry[0]),
-                            "opacity": entry[1].alphaF(), "label": entry[0]})
+            mapEntries.append({"color": entry[1].name(), "quantity": float(entry[0]),
+                               "opacity": entry[1].alphaF(), "label": entry[0]})
     elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
         rampType = "ramp"
         shader = renderer.shader().rasterShaderFunction()
-        colorRampType = shader.colorRampType   
+        colorRampType = shader.colorRampType
         if colorRampType == QgsColorRampShader.Exact:
             rampType = "values"
         elif colorRampType == QgsColorRampShader.Discrete:
@@ -162,16 +172,16 @@ def colorMap(renderer):
         colMap["type"] = rampType
         items = shader.colorRampItemList()
         for item in items:
-            mapEntries.append({"color": item.color.name() , "quantity": item.value,
-                            "label": item.label, "opacity": item.color.alphaF()})
+            mapEntries.append({"color": item.color.name(), "quantity": item.value,
+                               "label": item.label, "opacity": item.color.alphaF()})
     elif isinstance(renderer, QgsPalettedRasterRenderer):
         colMap["type"] = "values"
         classes = renderer.classes()
         for c in classes:
-            mapEntries.append({"color": c.color.name() , "quantity": c.value,
-                            "label": c.label, "opacity": c.color.alphaF()})
+            mapEntries.append({"color": c.color.name(), "quantity": c.value,
+                               "label": c.label, "opacity": c.color.alphaF()})
     elif isinstance(renderer, QgsMultiBandColorRenderer):
-        _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer)) #TODO
+        _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer))  # TODO
         return None
     else:
         _warnings.append("Unsupported raster renderer class: '%s'" % str(renderer))
@@ -182,21 +192,58 @@ def colorMap(renderer):
         colMap["colorMapEntries"] = mapEntries
     return colMap
 
+
 quadOffset = ["top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
 
-def processLabeling(layer):
+
+# AND two expressions together (handle nulls)
+def andFilter(f1,f2):
+    if f1 is None:
+        return f2
+    if f2 is None:
+        return f1
+    return ['And', f1, f2]
+
+# is the rule something that can be labeled?
+# note #getLabelExpression() will throw exception if you shouldn't be labeling with this rule
+def labelThisRule(labeling):
+    if labeling.settings() is None:
+        return False
+    if labeling.settings().fieldName != '':
+        return True
+    return labeling.settings().isExpression
+
+def processLabelingLayer(layer ):
     if not layer.labelsEnabled():
         return None
     labeling = layer.labeling()
     if labeling is None:
         return None
 
+    if isinstance(labeling, QgsRuleBasedLabeling):
+        return processRuleLabeling(layer,labeling.rootRule(), "labeling",None,[])
     if not isinstance(labeling, QgsVectorLayerSimpleLabeling):
         _warnings.append("Unsupported labeling class: '%s'" % str(labeling))
         return None
+    return [processLabeling(layer,labeling)]
+
+def processRuleLabeling(layer,labeling, name,filter,symbolizers):
+    for child in labeling.children():
+        if child.active():
+            name = name + " - " + child.description()
+            filter = andFilter(filter, processExpression(child.filterExpression()))
+            if labelThisRule(child):
+                symbolizer =  processLabeling(layer,child,name,filter)
+                symbolizers.append(symbolizer)
+            return processRuleLabeling(layer,child, name,filter,symbolizers)
+    return symbolizers
+
+
+def processLabeling(layer,labeling, name="labeling",filter=None):
+
     symbolizer = {"kind": "Text"}
     settings = labeling.settings()
-    textFormat = settings.format()    
+    textFormat = settings.format()
     size = _labelingProperty(settings, textFormat, "size", QgsPalLayerSettings.Size)
     color = textFormat.color().name()
     font = textFormat.font().family()
@@ -206,7 +253,7 @@ def processLabeling(layer):
         haloColor = buff.color().name()
         haloSize = _labelingProperty(settings, buff, "size", QgsPalLayerSettings.BufferSize)
         symbolizer.update({"haloColor": haloColor,
-                            "haloSize": haloSize})
+                           "haloSize": haloSize})
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
@@ -216,9 +263,9 @@ def processLabeling(layer):
         anchor = quadOffset[settings.quadOffset]
         offsetX = _labelingProperty(settings, None, "xOffset")
         offsetY = _labelingProperty(settings, None, "yOffset")
-        symbolizer.update({"offset": [offsetX, offsetY],                        
-                        "anchor": anchor,
-                        "rotate": rotation})
+        symbolizer.update({"offset": [offsetX, offsetY],
+                           "anchor": anchor,
+                           "rotate": rotation})
     exp = settings.getLabelExpression()
     try:
         label = _expressionConverter.walkExpression(exp.rootNode())
@@ -226,10 +273,14 @@ def processLabeling(layer):
         _warnings.append(str(e))
         label = ""
     symbolizer.update({"color": color,
-                        "font": font,
-                        "label": label,
-                        "size": size})
-    return {"symbolizers": [symbolizer], "name": "labeling"}
+                       "font": font,
+                       "label": label,
+                       "size": size})
+    result= {"symbolizers": [symbolizer], "name": name}
+    if filter is not None:
+        result["filter"] = filter
+    return result
+
 
 def processRule(rule):
     symbol = rule.symbol()
@@ -243,7 +294,7 @@ def processRule(rule):
         symbolizers = _createSymbolizers(rule.symbol())
         name = rule.label()
         ruledef = {"name": name,
-                "symbolizers": symbolizers}
+                   "symbolizers": symbolizers}
         if rule.isElse():
             ruledef["filter"] = "ELSE"
         else:
@@ -255,11 +306,13 @@ def processRule(rule):
             ruledef["scaleDenominator"] = scale
         return [ruledef]
 
+
 def processRuleScale(rule):
     # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
     # however, these are backwards if you think in terms of RF.
     return {"max": rule.minimumScale(),
             "min": rule.maximumScale()}
+
 
 def processExpression(expstr):
     try:
@@ -272,6 +325,7 @@ def processExpression(expstr):
         _warnings.append(str(e))
         return None
 
+
 def _cast(v):
     if isinstance(v, basestring):
         try:
@@ -281,11 +335,13 @@ def _cast(v):
     else:
         return v
 
+
 MM2PIXEL = 3.7795275591
+
 
 def _handleUnits(value, units, propertyConstant):
     if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
-        return 1 #hairline width
+        return 1  # hairline width
     if units == "MM":
         if isinstance(value, list):
             return ["Mul", MM2PIXEL, value]
@@ -303,10 +359,11 @@ def _handleUnits(value, units, propertyConstant):
         _warnings.append("Unsupported units: '%s'" % units)
         return value
 
+
 def _labelingProperty(settings, obj, name, propertyConstant=-1):
     ddProps = settings.dataDefinedProperties()
     if propertyConstant in ddProps.propertyKeys():
-        v = processExpression(ddProps.property(propertyConstant).asExpression()) or ""        
+        v = processExpression(ddProps.property(propertyConstant).asExpression()) or ""
     else:
         v = getattr(obj or settings, name)
         try:
@@ -316,37 +373,41 @@ def _labelingProperty(settings, obj, name, propertyConstant=-1):
 
     return _cast(v)
 
+
 def _symbolProperty(symbolLayer, name, propertyConstant=-1, default=0):
     ddProps = symbolLayer.dataDefinedProperties()
     if propertyConstant in ddProps.propertyKeys():
-        v = processExpression(ddProps.property(propertyConstant).asExpression()) or ""        
+        v = processExpression(ddProps.property(propertyConstant).asExpression()) or ""
     else:
         v = symbolLayer.properties().get(name, default)
-    
+
     units = symbolLayer.properties().get(name + "_unit")
     if units is not None:
         v = _handleUnits(v, units, propertyConstant)
     return _cast(v)
 
+
 def _toHexColor(color):
     try:
-        r,g,b,a = str(color).split(",")
+        r, g, b, a = str(color).split(",")
         return '#%02x%02x%02x' % (int(r), int(g), int(b))
     except:
         return color
 
+
 def _opacity(color):
     try:
-        r,g,b,a = str(color).split(",")
+        r, g, b, a = str(color).split(",")
         return float(a) / 255.
     except:
         return 1.0
-        
+
+
 def _createSymbolizers(symbol):
     opacity = symbol.opacity()
-    symbolizers = []    
+    symbolizers = []
     for sl in symbol.symbolLayers():
-        symbolizer = _createSymbolizer(sl, opacity)        
+        symbolizer = _createSymbolizer(sl, opacity)
         if symbolizer is not None:
             if isinstance(symbolizer, list):
                 symbolizers.extend(symbolizer)
@@ -355,24 +416,25 @@ def _createSymbolizers(symbol):
 
     return symbolizers
 
+
 def _createSymbolizer(sl, opacity):
     symbolizer = None
     if isinstance(sl, QgsSimpleMarkerSymbolLayer):
-        symbolizer = _simpleMarkerSymbolizer(sl, opacity)            
+        symbolizer = _simpleMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsSimpleLineSymbolLayer):
         symbolizer = _lineSymbolizer(sl, opacity)
     elif isinstance(sl, QgsMarkerLineSymbolLayer):
-        symbolizer = _markerLineSymbolizer(sl, opacity)   
+        symbolizer = _markerLineSymbolizer(sl, opacity)
     elif isinstance(sl, QgsSimpleFillSymbolLayer):
         symbolizer = _simpleFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsPointPatternFillSymbolLayer):
         symbolizer = _pointPatternFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsLinePatternFillSymbolLayer):
-        symbolizer = _linePatternFillSymbolizer(sl, opacity)        
+        symbolizer = _linePatternFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsSvgMarkerSymbolLayer):
         symbolizer = _svgMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsRasterMarkerSymbolLayer):
-        symbolizer = _rasterImageMarkerSymbolizer(sl, opacity)      
+        symbolizer = _rasterImageMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsGeometryGeneratorSymbolLayer):
         symbolizer = _geomGeneratorSymbolizer(sl, opacity)
     elif isinstance(sl, QgsFontMarkerSymbolLayer):
@@ -388,53 +450,56 @@ def _fontMarkerSymbolizer(sl, opacity):
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = str(_symbolProperty(sl, "chr", QgsSymbolLayer.PropertyCharacter))
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)    
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
     if len(character) == 1:
         hexcode = hex(ord(character))
         name = "ttf://%s#%s" % (fontFamily, hexcode)
         symbolizer.update({"kind": "Mark",
-                "color": color,
-                "wellKnownName": name,
-                "size": ["Div", size, 2] #we use half of the size, since QGIS uses this as radius, not char height
-                })
+                           "color": color,
+                           "wellKnownName": name,
+                           "size": ["Div", size, 2]
+                           # we use half of the size, since QGIS uses this as radius, not char height
+                           })
     else:
         symbolizer.update({"kind": "Text",
-                "size": size,
-                "label": character,
-                "font": fontFamily,
-                "color": color})
-   
+                           "size": size,
+                           "label": character,
+                           "font": fontFamily,
+                           "color": color})
+
     return symbolizer
+
 
 def _lineSymbolizer(sl, opacity):
     props = sl.properties()
     color = _toHexColor(props["line_color"])
     strokeOpacity = _opacity(props["line_color"])
-    width = _symbolProperty(sl, "line_width", QgsSymbolLayer.PropertyStrokeWidth)    
+    width = _symbolProperty(sl, "line_width", QgsSymbolLayer.PropertyStrokeWidth)
     lineStyle = _symbolProperty(sl, "line_style", QgsSymbolLayer.PropertyStrokeStyle)
     cap = _symbolProperty(sl, "capstyle", QgsSymbolLayer.PropertyCapStyle)
     cap = "butt" if cap == "flat" else cap
     join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.PropertyJoinStyle)
-    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)    
+    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)
     symbolizer = {"kind": "Line",
-                    "color": color,
-                    "opacity": opacity * strokeOpacity,
-                    "width": width,
-                    "perpendicularOffset": offset,
-                    "cap": cap,
-                    "join": join
-                    }
+                  "color": color,
+                  "opacity": opacity * strokeOpacity,
+                  "width": width,
+                  "perpendicularOffset": offset,
+                  "cap": cap,
+                  "join": join
+                  }
     if lineStyle != "solid":
         symbolizer["dasharray"] = "5 2"
     return symbolizer
 
+
 def _markerLineSymbolizer(sl, opacity):
-    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset) 
-    symbolizer = {"kind": "Line",                
-                    "opacity": opacity,
-                    "perpendicularOffset": offset}
+    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)
+    symbolizer = {"kind": "Line",
+                  "opacity": opacity,
+                  "perpendicularOffset": offset}
     subSymbolizers = []
-    for subsl in sl.subSymbol().symbolLayers():       
+    for subsl in sl.subSymbol().symbolLayers():
         subSymbolizer = _createSymbolizer(subsl, 1)
         if subSymbolizers is not None:
             subSymbolizers.append(subSymbolizer)
@@ -445,63 +510,70 @@ def _markerLineSymbolizer(sl, opacity):
         symbolizer["graphicStrokeInterval"] = interval
         symbolizer["graphicStrokeOffset"] = offsetAlong
 
-    return symbolizer    
+    return symbolizer
+
 
 def _geomGeneratorSymbolizer(sl, opacity):
     subSymbol = sl.subSymbol()
     symbolizers = _createSymbolizers(subSymbol)
-    geomExp = sl.geometryExpression()    
+    geomExp = sl.geometryExpression()
     geom = processExpression(geomExp)
     for symbolizer in symbolizers:
         symbolizer["Geometry"] = geom
     return symbolizers
 
+
 def _svgMarkerSymbolizer(sl, opacity):
     marker = _basePointSimbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     marker["color"] = color
-    svg = _markGraphic(sl)    
+    svg = _markGraphic(sl)
     marker.update(svg)
     return marker
+
 
 def _rasterImageMarkerSymbolizer(sl, opacity):
     marker = _basePointSimbolizer(sl, opacity)
     img = _iconGraphic(sl)
     marker.update(img)
-    return marker  
+    return marker
+
 
 def _simpleMarkerSymbolizer(sl, opacity):
     marker = _basePointSimbolizer(sl, opacity)
     mark = _markGraphic(sl)
-    marker.update(mark)    
+    marker.update(mark)
     return marker
 
+
 def _basePointSimbolizer(sl, opacity):
-    props = sl.properties()        
+    props = sl.properties()
     rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyAngle)
     x, y = sl.offset().x(), sl.offset().y()
-    
-    symbolizer =  {
+
+    symbolizer = {
         "opacity": opacity,
         "rotate": rotation
-        } 
+    }
 
     if x or y:
         symbolizer["offset"] = [x, y]
-        #exp = "translate($geometry, %s,%s)" % (str(x), str(y))        
-        #symbolizer["geometry"] = processExpression(exp)
+        # exp = "translate($geometry, %s,%s)" % (str(x), str(y))
+        # symbolizer["geometry"] = processExpression(exp)
 
     return symbolizer
 
-wknReplacements = {"regular_star":"star",
-               "cross2": "shape://times",
-               "equilateral_triangle": "triangle",
-               "rectangle": "square",
-               "arrowhead": "shape://oarrow",
-               "filled_arrowhead": "shape://coarrow",
-               "line": "shape://vertline",
-               "cross":"shape://plus",
-               "cross_filled":"shape://plus"}
+
+wknReplacements = {"regular_star": "star",
+                   "cross2": "shape://times",
+                   "equilateral_triangle": "triangle",
+                   "rectangle": "square",
+                   "arrowhead": "shape://oarrow",
+                   "filled_arrowhead": "shape://coarrow",
+                   "line": "shape://vertline",
+                   "cross": "shape://plus",
+                   "cross_filled": "shape://plus"}
+
 
 def _markGraphic(sl):
     props = sl.properties()
@@ -519,7 +591,7 @@ def _markGraphic(sl):
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
-        name = props["name"] 
+        name = props["name"]
         name = wknReplacements.get(name, name.replace("_", ""))
         outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
@@ -532,16 +604,18 @@ def _markGraphic(sl):
             "strokeColor": outlineColor,
             "strokeWidth": outlineWidth,
             "strokeOpacity": strokeOpacity,
-            "fillOpacity": fillOpacity       
-            } 
+            "fillOpacity": fillOpacity
+            }
     if outlineStyle not in ["solid", "no"]:
         mark["strokeDasharray"] = "5 2"
 
     return mark
 
+
 FIXED_PATTERN_SIZE = 10
 
-def _markFillPattern(shape, color, size=FIXED_PATTERN_SIZE, strokeWidth=1, rotation=0):    
+
+def _markFillPattern(shape, color, size=FIXED_PATTERN_SIZE, strokeWidth=1, rotation=0):
     shape = wknReplacements.get(shape, shape)
     return {"kind": "Mark",
             "color": color,
@@ -550,9 +624,10 @@ def _markFillPattern(shape, color, size=FIXED_PATTERN_SIZE, strokeWidth=1, rotat
             "strokeColor": color,
             "strokeWidth": strokeWidth,
             "rotate": rotation
-            } 
+            }
 
-def _iconGraphic(sl, color=None):    
+
+def _iconGraphic(sl, color=None):
     global _usedIcons
     _usedIcons[sl.path()] = sl
     path = os.path.basename(sl.path())
@@ -561,11 +636,13 @@ def _iconGraphic(sl, color=None):
             "color": color,
             "image": path,
             "size": size,
-            }  
+            }
+
 
 def _baseFillSymbolizer(sl, opacity):
     return {"kind": "Fill",
             "opacity": opacity}
+
 
 def _linePatternFillSymbolizer(sl, opacity):
     symbolizer = _baseFillSymbolizer(sl, opacity)
@@ -578,14 +655,16 @@ def _linePatternFillSymbolizer(sl, opacity):
     symbolizer["graphicFill"] = [subSymbolizer]
     return symbolizer
 
+
 def _hatchMarkerForAngle(angle):
     quadrant = math.floor(((angle + 22.5) % 180) / 45.)
-    return  ["shape://vertline", "shape://slash", "shape://horline", "shape://backslash"][quadrant]
+    return ["shape://vertline", "shape://slash", "shape://horline", "shape://backslash"][quadrant]
 
-def _pointPatternFillSymbolizer(sl, opacity):    
+
+def _pointPatternFillSymbolizer(sl, opacity):
     symbolizer = _baseFillSymbolizer(sl, opacity)
     subSymbolizers = []
-    for subsl in sl.subSymbol().symbolLayers():       
+    for subsl in sl.subSymbol().symbolLayers():
         subSymbolizer = _createSymbolizer(subsl, 1)
         if subSymbolizers is not None:
             subSymbolizers.append(subSymbolizer)
@@ -600,19 +679,21 @@ def _pointPatternFillSymbolizer(sl, opacity):
 
     return symbolizer
 
+
 patternNamesReplacement = {"horizontal": "shape://horline",
-                            "vertical": "shape://vertline",
-                            "cross": "shape://times"} #TODO
+                           "vertical": "shape://vertline",
+                           "cross": "shape://times"}  # TODO
+
 
 def _simpleFillSymbolizer(sl, opacity):
     props = sl.properties()
     style = props["style"]
-    
+
     symbolizer = _baseFillSymbolizer(sl, opacity)
 
     if style != "no":
-        color =  _toHexColor(props["color"])
-        fillOpacity =  _opacity(props["color"])              
+        color = _toHexColor(props["color"])
+        fillOpacity = _opacity(props["color"])
         if style == "solid":
             symbolizer["color"] = color
             symbolizer["fillOpacity"] = fillOpacity
@@ -623,23 +704,20 @@ def _simpleFillSymbolizer(sl, opacity):
             symbolizer["graphicFillDistanceX"] = FIXED_PATTERN_SIZE / 2.0
             symbolizer["graphicFillDistanceY"] = FIXED_PATTERN_SIZE / 2.0
 
-    outlineColor =  _toHexColor(props["outline_color"])
+    outlineColor = _toHexColor(props["outline_color"])
     outlineOpacity = _opacity(props["outline_color"])
     outlineStyle = _symbolProperty(sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
     if outlineStyle != "no":
         outlineWidth = _symbolProperty(sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
         symbolizer.update({"outlineColor": outlineColor,
-                            "outlineWidth": outlineWidth,
-                            "outlineOpacity": outlineOpacity})
+                           "outlineWidth": outlineWidth,
+                           "outlineOpacity": outlineOpacity})
     if outlineStyle not in ["solid", "no"]:
-        symbolizer["outlineDasharray"] ="5 2"
+        symbolizer["outlineDasharray"] = "5 2"
 
-    x, y = sl.offset().x(), sl.offset().y()    
+    x, y = sl.offset().x(), sl.offset().y()
     if x or y:
         symbolizer["offset"] = [x, y]
-        #symbolizer["geometry"] = processExpression("translate(%s,%s)" % (str(x), str(y)))
+        # symbolizer["geometry"] = processExpression("translate(%s,%s)" % (str(x), str(y)))
 
     return symbolizer
-
-   
-
