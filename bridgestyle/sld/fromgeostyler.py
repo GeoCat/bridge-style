@@ -231,7 +231,12 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
         interval = sl.get("graphicStrokeInterval")
         dashOffset = sl.get("graphicStrokeOffset")
         size = graphicStroke[graphicStrokeLayer].get("size")
-        _addCssParameter(stroke, "stroke-dasharray", "%s %s" % (str(size), str(interval)))
+        try:
+            fsize = float(size)
+            finterval = float(interval)
+            _addCssParameter(stroke, "stroke-dasharray", "%s %s" % (str(size), str(interval)))
+        else:
+            _addCssParameter(stroke, "stroke-dasharray", "10 10")
         _addCssParameter(stroke, "stroke-dashoffset", dashOffset)
         if graphicStrokeLayer == 0 and len(graphicStroke) > 1:
             for i in range(1, len(graphicStroke)):
