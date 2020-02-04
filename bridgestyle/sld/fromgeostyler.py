@@ -174,8 +174,7 @@ def _textSymbolizer(sl):
     fontElem = _addSubElement(root, "Font")    
     _addCssParameter(fontElem, "font-family", fontFamily)
     _addCssParameter(fontElem, "font-size", size)
-    fillElem = _addSubElement(root, "Fill")
-    _addCssParameter(fontElem, "fill", color)
+
 
     if "offset" in sl:
         placement = _addSubElement(root, "LabelPlacement")
@@ -199,15 +198,20 @@ def _textSymbolizer(sl):
         dist = _processProperty(offset)
         _addSubElement(linePlacement, "PerpendicularOffset", dist)
 
-    followLine = sl.get("followLine", False)
-    if followLine:
-        _addVendorOption(root, "followLine", True)
+
 
     if "haloColor" in sl and "haloSize" in sl:
         haloElem = _addSubElement(root, "Halo")
         _addSubElement(haloElem, "Radius", sl["haloSize"])
         haloFillElem = _addSubElement(haloElem, "Fill")
         _addCssParameter(haloFillElem, "fill", sl["haloColor"])
+
+    fillElem = _addSubElement(root, "Fill")
+    _addCssParameter(fontElem, "fill", color)
+
+    followLine = sl.get("followLine", False)
+    if followLine:
+        _addVendorOption(root, "followLine", True)
 
     return root
 
