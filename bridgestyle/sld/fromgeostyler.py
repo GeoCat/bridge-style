@@ -47,12 +47,12 @@ def processRule(rule):
     ruleName.text = rule.get("name", "")
     if "scaleDenominator" in rule:
         scale = rule["scaleDenominator"]
-        if "max" in scale:
-            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
-            maxScale.text = str(scale["max"])
         if "min" in scale:
             minScale = SubElement(ruleElement, "MinScaleDenominator")
             minScale.text = str(scale["min"])
+        if "max" in scale:
+            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
+            maxScale.text = str(scale["max"])
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
         filterElement = Element("ElseFilter")            
@@ -174,8 +174,7 @@ def _textSymbolizer(sl):
     fontElem = _addSubElement(root, "Font")    
     _addCssParameter(fontElem, "font-family", fontFamily)
     _addCssParameter(fontElem, "font-size", size)
-    fillElem = _addSubElement(root, "Fill")
-    _addCssParameter(fontElem, "fill", color)
+
 
     if "offset" in sl:
         placement = _addSubElement(root, "LabelPlacement")
@@ -199,15 +198,20 @@ def _textSymbolizer(sl):
         dist = _processProperty(offset)
         _addSubElement(linePlacement, "PerpendicularOffset", dist)
 
-    followLine = sl.get("followLine", False)
-    if followLine:
-        _addVendorOption(root, "followLine", True)
+
 
     if "haloColor" in sl and "haloSize" in sl:
         haloElem = _addSubElement(root, "Halo")
         _addSubElement(haloElem, "Radius", sl["haloSize"])
         haloFillElem = _addSubElement(haloElem, "Fill")
         _addCssParameter(haloFillElem, "fill", sl["haloColor"])
+
+    fillElem = _addSubElement(root, "Fill")
+    _addCssParameter(fontElem, "fill", color)
+
+    followLine = sl.get("followLine", False)
+    if followLine:
+        _addVendorOption(root, "followLine", True)
 
     return root
 
@@ -421,6 +425,7 @@ operators = ["PropertyName",
      "PropertyIsGreaterThanOrEqualTo", 
      "PropertyIsLessThan", 
      "PropertyIsGreaterThan", 
+     "PropertyIsLike",
      "Add", 
       "Sub", 
       "Mul", 
@@ -448,6 +453,8 @@ def convertExpression(exp, inFunction=False):
 def handleOperator(exp):
     name = exp[0]
     elem = Element("ogc:" + name) 
+    if name == "PropertyIsLike":
+        elem.attrib["wildCard"] = "%"
     if name == "PropertyName":
         elem.text = exp[1]  
     else:
