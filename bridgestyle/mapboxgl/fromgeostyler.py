@@ -22,7 +22,8 @@ def convert(geostyler):
     return json.dumps(obj, indent=4), _warnings
 
 def _toZoomLevel(scale):
-    scale = scale or 1
+    if scale<1:     # scale=0 is valid in QGIS 
+        return 30;
     return int(math.log(1000000000 / scale, 2))
 
 def processLayer(layer):

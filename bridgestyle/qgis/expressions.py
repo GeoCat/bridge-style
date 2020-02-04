@@ -12,7 +12,7 @@ binaryOps = [
      "PropertyIsGreaterThanOrEqualTo",
      "PropertyIsLessThan",
      "PropertyIsGreaterThan",
-     None, None, None, None, None, None, None,
+     None, "PropertyIsLike", None, None, None, None, None,
      "Add",
       "Sub",
       "Mul",
