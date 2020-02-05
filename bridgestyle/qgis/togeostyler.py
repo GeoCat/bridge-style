@@ -440,8 +440,11 @@ def _opacity(color):
 def _createSymbolizers(symbol):
     opacity = symbol.opacity()
     symbolizers = []
-    for sl in symbol.symbolLayers():
+
+    for indx in range(len(symbol.symbolLayers())):
+        sl = symbol.symbolLayers()[indx]
         symbolizer = _createSymbolizer(sl, opacity)
+        symbolizer["Z"] = indx
         if symbolizer is not None:
             if isinstance(symbolizer, list):
                 symbolizers.extend(symbolizer)

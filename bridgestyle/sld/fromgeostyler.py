@@ -8,6 +8,35 @@ import zipfile
 
 _warnings = []
 
+# return a dictionary<int,list of rules>, where int is the Z value
+# symbolizers are marked with a Z
+#
+# a rule (with multiple sybolizers) will have the rule replicated, one for each Z value found in the symbolizer
+#
+# ie. rule[0]["symbolizers"][0] has Z=0
+#     rule[0]["symbolizers"][1] has Z=1
+#
+# this will return
+#   result[0] => rule with symbolizer 0  (name changed to include Z=0)
+#   result[1] => rule with symbolizer 1  (name changed to include Z=1)
+def processRulesByZ(rules):
+    result = {}
+    for rule in rules:
+        for symbolizer in rule["symbolizers"]:
+            z = 0
+            if "Z" in symbolizer:
+                z = symbolizer["Z"]
+            if not z in result:
+                result[z] = []
+            r = result[z]
+            rule_copy = rule.copy()
+            rule_copy["symbolizers"] = [symbolizer]
+            rule_copy["name"] += ", Z="+str(z)
+            r.append(rule_copy)
+    return result
+
+
+
 def convert(geostyler):
     global _warnings
     _warnings = []
@@ -19,6 +48,9 @@ def convert(geostyler):
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance"
         }
+
+    rulesByZ = processRulesByZ(geostyler["rules"])
+
     root = Element("StyledLayerDescriptor", attrib=attribs) 
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
@@ -27,17 +59,20 @@ def convert(geostyler):
     userStyleTitle = SubElement(userStyle, "Title")
     userStyleTitle.text = geostyler["name"]
 
-    featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
-    if "transformation" in geostyler:
-        featureTypeStyle.append(processTransformation(geostyler["transformation"]))
-    for rule in geostyler.get("rules", []):
-        featureTypeStyle.append(processRule(rule))
-    if "blendMode" in geostyler:
-        _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
+    for zrulesIdx in rulesByZ:
+        zrules = rulesByZ[zrulesIdx]
+        featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
+        if "transformation" in geostyler:
+            featureTypeStyle.append(processTransformation(geostyler["transformation"]))
+        for rule in zrules:
+            featureTypeStyle.append(processRule(rule))
+        if "blendMode" in geostyler:
+            _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
         
     sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
-    dom = minidom.parseString(sldstring)    
-    return dom.toprettyxml(indent="  "), _warnings
+    dom = minidom.parseString(sldstring)
+    result = dom.toprettyxml(indent="  "), _warnings
+    return result
 
 
 
@@ -45,14 +80,7 @@ def processRule(rule):
     ruleElement = Element("Rule")
     ruleName = SubElement(ruleElement, "Name")
     ruleName.text = rule.get("name", "")
-    if "scaleDenominator" in rule:
-        scale = rule["scaleDenominator"]
-        if "min" in scale:
-            minScale = SubElement(ruleElement, "MinScaleDenominator")
-            minScale.text = str(scale["min"])
-        if "max" in scale:
-            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
-            maxScale.text = str(scale["max"])
+
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
         filterElement = Element("ElseFilter")            
@@ -63,6 +91,14 @@ def processRule(rule):
             filterElement = Element("ogc:Filter")
             filterElement.append(filt)
             ruleElement.append(filterElement)
+    if "scaleDenominator" in rule:
+        scale = rule["scaleDenominator"]
+        if "min" in scale:
+            minScale = SubElement(ruleElement, "MinScaleDenominator")
+            minScale.text = str(scale["min"])
+        if "max" in scale:
+            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
+            maxScale.text = str(scale["max"])
     symbolizers = _createSymbolizers(rule["symbolizers"])
     ruleElement.extend(symbolizers)
     
