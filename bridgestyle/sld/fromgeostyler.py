@@ -23,9 +23,7 @@ def processRulesByZ(rules):
     result = {}
     for rule in rules:
         for symbolizer in rule["symbolizers"]:
-            z = 0
-            if "Z" in symbolizer:
-                z = symbolizer["Z"]
+            z = symbolizer.get("Z", 0)
             if not z in result:
                 result[z] = []
             r = result[z]
