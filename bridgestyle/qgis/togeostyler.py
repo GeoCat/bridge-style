@@ -75,7 +75,7 @@ def processLayer(layer):
                     return
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
-                        rules.extend(processRule(rule))
+                        rules.extend(processRule(rule,None,layer.opacity()))
             labelingRules = processLabelingLayer(layer)
             if labelingRules is not None:
                 rules = rules + labelingRules
@@ -304,7 +304,7 @@ def andFilter(f1, f2):
     return ['And', f1, f2]
 
 
-def processRule(rule, filters=None):
+def processRule(rule, filters=None,layerOpacity=1):
     ruledefs = []
 
     if rule.isElse():
@@ -314,11 +314,11 @@ def processRule(rule, filters=None):
 
     for subrule in rule.children():
         if subrule.active():
-            ruledefs.extend(processRule(subrule, filt))
+            ruledefs.extend(processRule(subrule, filt,layerOpacity))
 
     symbol = rule.symbol()
     if symbol is not None:
-        symbolizers = _createSymbolizers(rule.symbol())
+        symbolizers = _createSymbolizers(rule.symbol(),layerOpacity)
         name = rule.label()
         ruledef = {"name": name,
                    "symbolizers": symbolizers}
@@ -361,7 +361,7 @@ def _cast(v):
         return v
 
 
-MM2PIXEL = 3.7795275591
+MM2PIXEL = 3.571428571428571 # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
 POINT2PIXEL = MM2PIXEL * 0.353
 
 
@@ -437,14 +437,14 @@ def _opacity(color):
         return 1.0
 
 
-def _createSymbolizers(symbol):
-    opacity = symbol.opacity()
+def _createSymbolizers(symbol,layerOpacity=1):
+    opacity = symbol.opacity() * layerOpacity
     symbolizers = []
 
     for indx in range(len(symbol.symbolLayers())):
         sl = symbol.symbolLayers()[indx]
         symbolizer = _createSymbolizer(sl, opacity)
-        symbolizer["Z"] = indx
+        symbolizer["Z"] = sl.renderingPass()
         if symbolizer is not None:
             if isinstance(symbolizer, list):
                 symbolizers.extend(symbolizer)
@@ -558,7 +558,7 @@ def _markerLineSymbolizer(sl, opacity):
 
 def _geomGeneratorSymbolizer(sl, opacity):
     subSymbol = sl.subSymbol()
-    symbolizers = _createSymbolizers(subSymbol)
+    symbolizers = _createSymbolizers(subSymbol,opacity)
     geomExp = sl.geometryExpression()
     geom = processExpression(geomExp)
     for symbolizer in symbolizers:

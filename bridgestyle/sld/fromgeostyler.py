@@ -59,8 +59,10 @@ def convert(geostyler):
     userStyleTitle = SubElement(userStyle, "Title")
     userStyleTitle.text = geostyler["name"]
 
-    for zrulesIdx in rulesByZ:
-        zrules = rulesByZ[zrulesIdx]
+    z_values = list(rulesByZ.keys())
+    z_values.sort()
+    for z_value in z_values:
+        zrules = rulesByZ[z_value]
         featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
         if "transformation" in geostyler:
             featureTypeStyle.append(processTransformation(geostyler["transformation"]))
