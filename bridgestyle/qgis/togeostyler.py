@@ -75,7 +75,7 @@ def processLayer(layer):
                     return
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
-                        rules.extend(processRule(rule,None,layer.opacity()))
+                        rules.extend(processRule(rule,None,layer.opacity(),layer))
             labelingRules = processLabelingLayer(layer)
             if labelingRules is not None:
                 rules = rules + labelingRules
@@ -223,24 +223,25 @@ def processLabelingLayer(layer):
         return None
 
     if isinstance(labeling, QgsRuleBasedLabeling):
-        return processRuleLabeling(layer, labeling.rootRule(), "labeling", None, [])
+        return processRuleLabeling(layer, labeling.rootRule(), "labeling", None)
     if not isinstance(labeling, QgsVectorLayerSimpleLabeling):
         _warnings.append("Unsupported labeling class: '%s'" % str(labeling))
         return None
     return [processLabeling(layer, labeling)]
 
 
-def processRuleLabeling(layer, labeling, name, filter, symbolizers):
+def processRuleLabeling(layer, labeling, name, filter):
+    result = []
     for child in labeling.children():
         if child.active():
-            name = name + " - " + child.description()
+            fullname = name + " - " + child.description()
             filter = andFilter(filter, processExpression(
                 child.filterExpression()))
             if labelThisRule(child):
-                symbolizer = processLabeling(layer, child, name, filter)
-                symbolizers.append(symbolizer)
-            return processRuleLabeling(layer, child, name, filter, symbolizers)
-    return symbolizers
+                symbolizer = processLabeling(layer, child, fullname, filter)
+                result.append(symbolizer)
+            result += processRuleLabeling(layer, child, name, filter)
+    return result
 
 
 def processLabeling(layer, labeling, name="labeling", filter=None):
@@ -249,6 +250,9 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     textFormat = settings.format()
     size = _labelingProperty(settings, textFormat,
                              "size", QgsPalLayerSettings.Size)
+    sizeUnits = _labelingProperty(settings, textFormat,
+                             "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
+    size = str(_convertToPixel(size,sizeUnits)) + " px"
     color = textFormat.color().name()
     font = textFormat.font().family()
     rotation = _labelingProperty(
@@ -258,8 +262,13 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
         haloColor = buff.color().name()
         haloSize = _labelingProperty(
             settings, buff, "size", QgsPalLayerSettings.BufferSize)
+        haloSizeUnit = _labelingProperty(
+            settings, buff, "sizeUnit", QgsPalLayerSettings.BufferUnit)
+        haloSize = str(_convertToPixel(haloSize, haloSizeUnit)) + " px"
         symbolizer.update({"haloColor": haloColor,
-                           "haloSize": haloSize})
+                           "haloSize": haloSize,
+                           "haloOpacity": buff.opacity()})
+
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
@@ -274,7 +283,10 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
                            "rotate": rotation})
     exp = settings.getLabelExpression()
     try:
-        label = _expressionConverter.walkExpression(exp.rootNode())
+        if not exp.isValid():
+            label=''
+        else:
+            label = _expressionConverter.walkExpression(exp.rootNode())
     except UnsupportedExpressionException as e:
         _warnings.append(str(e))
         label = ""
@@ -304,7 +316,7 @@ def andFilter(f1, f2):
     return ['And', f1, f2]
 
 
-def processRule(rule, filters=None,layerOpacity=1):
+def processRule(rule, filters=None,layerOpacity=1,layer=None):
     ruledefs = []
 
     if rule.isElse():
@@ -314,7 +326,7 @@ def processRule(rule, filters=None,layerOpacity=1):
 
     for subrule in rule.children():
         if subrule.active():
-            ruledefs.extend(processRule(subrule, filt,layerOpacity))
+            ruledefs.extend(processRule(subrule, filt,layerOpacity,layer))
 
     symbol = rule.symbol()
     if symbol is not None:
@@ -324,13 +336,22 @@ def processRule(rule, filters=None,layerOpacity=1):
                    "symbolizers": symbolizers}
         if filt is not None:
             ruledef["filter"] = filt
-        if rule.dependsOnScale():
-            scale = processRuleScale(rule)
+        scaleRule = getScaleRule(rule,layer)
+        if scaleRule is not None:
+            scale = processRuleScale(scaleRule)
             ruledef["scaleDenominator"] = scale
         ruledefs.append(ruledef)
 
     return ruledefs
 
+def getScaleRule(rule,layer):
+    if rule is None:
+        if layer.hasScaleBasedVisibility():
+            return layer
+        return None
+    if rule.dependsOnScale():
+        return rule
+    return getScaleRule(rule.parent(),layer)
 
 def processRuleScale(rule):
     # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
@@ -362,7 +383,18 @@ def _cast(v):
 
 
 MM2PIXEL = 3.571428571428571 # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
-POINT2PIXEL = MM2PIXEL * 0.353
+POINT2PIXEL = MM2PIXEL * 0.353 # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
+
+def _convertToPixel(value, units):
+    if units is None or units == '':
+        return value # cannot convert
+    if units == "Pixels" or units == QgsUnitTypes.RenderUnit.RenderPixels:
+        return float(value)
+    if units == "Point" or units== QgsUnitTypes.RenderUnit.RenderPoints:
+        return float(value) * POINT2PIXEL
+    if units == "MM" or units== QgsUnitTypes.RenderUnit.RenderMillimeters:
+        return float(value) * MM2PIXEL
+    return value # dont know
 
 
 def _handleUnits(value, units, propertyConstant):
@@ -394,16 +426,18 @@ def _handleUnits(value, units, propertyConstant):
 
 def _labelingProperty(settings, obj, name, propertyConstant=-1):
     ddProps = settings.dataDefinedProperties()
+    v = None
     if propertyConstant in ddProps.propertyKeys():
         v = processExpression(ddProps.property(
-            propertyConstant).asExpression()) or ""
-    else:
+            propertyConstant).asExpression())  # could return None if expression is bad
+    if v is None:
         v = getattr(obj or settings, name)
         try:
             v = v()
         except:
             pass
-
+    if v is None:
+        return ''
     return _cast(v)
 
 

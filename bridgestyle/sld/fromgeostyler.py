@@ -218,6 +218,11 @@ def _textSymbolizer(sl):
         if "anchor" in sl:
             anchor = sl["anchor"]
             #TODO: Use anchor
+        # centers
+        achorLoc = _addSubElement(pointPlacement, "AnchorPoint")
+        _addSubElement(achorLoc, "AnchorPointX","0.5")
+        _addSubElement(achorLoc, "AnchorPointY", "0.5")
+
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
         offsetx = _processProperty(offset[0])
@@ -241,6 +246,7 @@ def _textSymbolizer(sl):
         _addSubElement(haloElem, "Radius", sl["haloSize"])
         haloFillElem = _addSubElement(haloElem, "Fill")
         _addCssParameter(haloFillElem, "fill", sl["haloColor"])
+        _addCssParameter(haloFillElem, "fill-opacity", sl["haloOpacity"])
 
     fillElem = _addSubElement(root, "Fill")
     _addCssParameter(fontElem, "fill", color)
@@ -248,6 +254,9 @@ def _textSymbolizer(sl):
     followLine = sl.get("followLine", False)
     if followLine:
         _addVendorOption(root, "followLine", True)
+        _addVendorOption(root, "group", "yes")
+    else:
+        _addVendorOption(root, "autoWrap", 50)
 
     return root
 
