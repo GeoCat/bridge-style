@@ -8,6 +8,33 @@ import zipfile
 
 _warnings = []
 
+# return a dictionary<int,list of rules>, where int is the Z value
+# symbolizers are marked with a Z
+#
+# a rule (with multiple sybolizers) will have the rule replicated, one for each Z value found in the symbolizer
+#
+# ie. rule[0]["symbolizers"][0] has Z=0
+#     rule[0]["symbolizers"][1] has Z=1
+#
+# this will return
+#   result[0] => rule with symbolizer 0  (name changed to include Z=0)
+#   result[1] => rule with symbolizer 1  (name changed to include Z=1)
+def processRulesByZ(rules):
+    result = {}
+    for rule in rules:
+        for symbolizer in rule["symbolizers"]:
+            z = symbolizer.get("Z", 0)
+            if not z in result:
+                result[z] = []
+            r = result[z]
+            rule_copy = rule.copy()
+            rule_copy["symbolizers"] = [symbolizer]
+            rule_copy["name"] += ", Z="+str(z)
+            r.append(rule_copy)
+    return result
+
+
+
 def convert(geostyler):
     global _warnings
     _warnings = []
@@ -19,6 +46,9 @@ def convert(geostyler):
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance"
         }
+
+    rulesByZ = processRulesByZ(geostyler["rules"])
+
     root = Element("StyledLayerDescriptor", attrib=attribs) 
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
@@ -27,17 +57,22 @@ def convert(geostyler):
     userStyleTitle = SubElement(userStyle, "Title")
     userStyleTitle.text = geostyler["name"]
 
-    featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
-    if "transformation" in geostyler:
-        featureTypeStyle.append(processTransformation(geostyler["transformation"]))
-    for rule in geostyler.get("rules", []):
-        featureTypeStyle.append(processRule(rule))
-    if "blendMode" in geostyler:
-        _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
+    z_values = list(rulesByZ.keys())
+    z_values.sort()
+    for z_value in z_values:
+        zrules = rulesByZ[z_value]
+        featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
+        if "transformation" in geostyler:
+            featureTypeStyle.append(processTransformation(geostyler["transformation"]))
+        for rule in zrules:
+            featureTypeStyle.append(processRule(rule))
+        if "blendMode" in geostyler:
+            _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
         
     sldstring = ElementTree.tostring(root, encoding='utf8', method='xml').decode()
-    dom = minidom.parseString(sldstring)    
-    return dom.toprettyxml(indent="  "), _warnings
+    dom = minidom.parseString(sldstring)
+    result = dom.toprettyxml(indent="  "), _warnings
+    return result
 
 
 
@@ -45,14 +80,7 @@ def processRule(rule):
     ruleElement = Element("Rule")
     ruleName = SubElement(ruleElement, "Name")
     ruleName.text = rule.get("name", "")
-    if "scaleDenominator" in rule:
-        scale = rule["scaleDenominator"]
-        if "min" in scale:
-            minScale = SubElement(ruleElement, "MinScaleDenominator")
-            minScale.text = str(scale["min"])
-        if "max" in scale:
-            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
-            maxScale.text = str(scale["max"])
+
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
         filterElement = Element("ElseFilter")            
@@ -63,6 +91,14 @@ def processRule(rule):
             filterElement = Element("ogc:Filter")
             filterElement.append(filt)
             ruleElement.append(filterElement)
+    if "scaleDenominator" in rule:
+        scale = rule["scaleDenominator"]
+        if "min" in scale:
+            minScale = SubElement(ruleElement, "MinScaleDenominator")
+            minScale.text = str(scale["min"])
+        if "max" in scale:
+            maxScale = SubElement(ruleElement, "MaxScaleDenominator")
+            maxScale.text = str(scale["max"])
     symbolizers = _createSymbolizers(rule["symbolizers"])
     ruleElement.extend(symbolizers)
     
@@ -182,6 +218,11 @@ def _textSymbolizer(sl):
         if "anchor" in sl:
             anchor = sl["anchor"]
             #TODO: Use anchor
+        # centers
+        achorLoc = _addSubElement(pointPlacement, "AnchorPoint")
+        _addSubElement(achorLoc, "AnchorPointX","0.5")
+        _addSubElement(achorLoc, "AnchorPointY", "0.5")
+
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
         offsetx = _processProperty(offset[0])
@@ -191,7 +232,7 @@ def _textSymbolizer(sl):
         if "rotate" in sl:
             rotation = _symbolProperty(sl, "rotate")
             _addSubElement(displacement, "Rotation", rotation)
-    elif "perpendicularOffset" in sl:
+    elif "perpendicularOffset" in sl and not "background" in sl:
         placement = _addSubElement(root, "LabelPlacement")
         linePlacement = _addSubElement(placement, "LinePlacement")
         offset = sl["perpendicularOffset"]
@@ -205,13 +246,45 @@ def _textSymbolizer(sl):
         _addSubElement(haloElem, "Radius", sl["haloSize"])
         haloFillElem = _addSubElement(haloElem, "Fill")
         _addCssParameter(haloFillElem, "fill", sl["haloColor"])
+        _addCssParameter(haloFillElem, "fill-opacity", sl["haloOpacity"])
 
     fillElem = _addSubElement(root, "Fill")
-    _addCssParameter(fontElem, "fill", color)
+    _addCssParameter(fillElem, "fill", color)
 
     followLine = sl.get("followLine", False)
     if followLine:
         _addVendorOption(root, "followLine", True)
+        _addVendorOption(root, "group", "yes")
+    elif not "background" in sl:
+        _addVendorOption(root, "autoWrap", 50)
+
+    if "background" in sl:
+        background = sl["background"]
+        avg_size = max(background["sizeX"] , background["sizeY"])
+        shapeName = "rectangle"
+        if background["shapeType"] == "circle" or background["shapeType"] == "elipse":
+            shapeName = "circle"
+        graphic = _addSubElement(root, "Graphic")
+        mark = _addSubElement(graphic, "Mark")
+        _addSubElement(graphic, "Opacity",background["opacity"])
+        _addSubElement(mark, "WellKnownName",shapeName)
+        fill = _addSubElement(mark, "Fill")
+        stroke = _addSubElement(mark, "Stroke")
+        _addCssParameter(stroke, "stroke", background["strokeColor"])
+        _addCssParameter(fill, "fill", background["fillColor"])
+        if background["sizeType"] == "buffer":
+            _addVendorOption(root, "graphic-resize", "stretch")
+            _addVendorOption(root, "graphic-margin", str( avg_size) )
+            _addVendorOption(root, "spaceAround", str(25))
+        else:
+            _addSubElement(graphic, "Size",str( avg_size))
+
+        placement = _addSubElement(root, "LabelPlacement")
+        pointPlacement = _addSubElement(placement, "PointPlacement")
+        # centers
+        achorLoc = _addSubElement(pointPlacement, "AnchorPoint")
+        _addSubElement(achorLoc, "AnchorPointX", "0.5")
+        _addSubElement(achorLoc, "AnchorPointY", "0.5")
 
     return root
 

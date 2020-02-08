@@ -75,7 +75,7 @@ def processLayer(layer):
                     return
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
-                        rules.extend(processRule(rule))
+                        rules.extend(processRule(rule,None,layer.opacity(),layer))
             labelingRules = processLabelingLayer(layer)
             if labelingRules is not None:
                 rules = rules + labelingRules
@@ -223,32 +223,47 @@ def processLabelingLayer(layer):
         return None
 
     if isinstance(labeling, QgsRuleBasedLabeling):
-        return processRuleLabeling(layer, labeling.rootRule(), "labeling", None, [])
+        return processRuleLabeling(layer, labeling.rootRule(), "labeling")
     if not isinstance(labeling, QgsVectorLayerSimpleLabeling):
         _warnings.append("Unsupported labeling class: '%s'" % str(labeling))
         return None
     return [processLabeling(layer, labeling)]
 
+# given a rule, calculate the full filter
+# i.e. its an AND of the rule and its parents (and grand parents)
+def getHeirarchicalFilter(rule,filter=None):
+    if rule is None:
+        return filter
+    filter = andFilter(
+        processExpression(rule.filterExpression()),
+        getHeirarchicalFilter(rule.parent()))
+    return filter
 
-def processRuleLabeling(layer, labeling, name, filter, symbolizers):
+def processRuleLabeling(layer, labeling, name):
+    result = []
     for child in labeling.children():
         if child.active():
-            name = name + " - " + child.description()
-            filter = andFilter(filter, processExpression(
-                child.filterExpression()))
+            fullname = name + " - " + child.description()
+            #filter = andFilter(filter, processExpression(
+            #    child.filterExpression()))
+            filter = getHeirarchicalFilter(child)
             if labelThisRule(child):
-                symbolizer = processLabeling(layer, child, name, filter)
-                symbolizers.append(symbolizer)
-            return processRuleLabeling(layer, child, name, filter, symbolizers)
-    return symbolizers
+                symbolizer = processLabeling(layer, child, fullname, filter)
+                result.append(symbolizer)
+            result += processRuleLabeling(layer, child, name)
+    return result
 
 
 def processLabeling(layer, labeling, name="labeling", filter=None):
     symbolizer = {"kind": "Text"}
     settings = labeling.settings()
     textFormat = settings.format()
+
     size = _labelingProperty(settings, textFormat,
                              "size", QgsPalLayerSettings.Size)
+    sizeUnits = _labelingProperty(settings, textFormat,
+                             "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
+    size = str(_convertToPixel(size,sizeUnits)) + " px"
     color = textFormat.color().name()
     font = textFormat.font().family()
     rotation = _labelingProperty(
@@ -258,8 +273,13 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
         haloColor = buff.color().name()
         haloSize = _labelingProperty(
             settings, buff, "size", QgsPalLayerSettings.BufferSize)
+        haloSizeUnit = _labelingProperty(
+            settings, buff, "sizeUnit", QgsPalLayerSettings.BufferUnit)
+        haloSize = str(_convertToPixel(haloSize, haloSizeUnit)) + " px"
         symbolizer.update({"haloColor": haloColor,
-                           "haloSize": haloSize})
+                           "haloSize": haloSize,
+                           "haloOpacity": buff.opacity()})
+
     if layer.geometryType() == QgsWkbTypes.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
@@ -274,7 +294,10 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
                            "rotate": rotation})
     exp = settings.getLabelExpression()
     try:
-        label = _expressionConverter.walkExpression(exp.rootNode())
+        if not exp.isValid():
+            label=''
+        else:
+            label = _expressionConverter.walkExpression(exp.rootNode())
     except UnsupportedExpressionException as e:
         _warnings.append(str(e))
         label = ""
@@ -282,6 +305,9 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
                        "font": font,
                        "label": label,
                        "size": size})
+    # background (i.e. road shields)
+    addBackground(textFormat,symbolizer)
+
     result = {"symbolizers": [symbolizer], "name": name}
     if filter is not None:
         result["filter"] = filter
@@ -292,6 +318,52 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
 
     return result
 
+
+def addBackground(textFormat, symbolizer):
+    background = textFormat.background()
+    if not background.enabled():
+        return
+    background_type = background.type()
+    background_sizeType = background.sizeType()
+    background_size = background.size()
+    background_sizeUnit = background.sizeUnit()
+
+    shapeType = "square"
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeRectangle:
+        shapeType = "rectangle"
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeSquare:
+        shapeType = "square"
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeEllipse:
+        shapeType = "elipse"
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeCircle:
+        shapeType = "circle"
+
+    sizeType = "buffer"
+    if background_sizeType == QgsTextBackgroundSettings.SizeType.SizeFixed:
+        sizeType = "fixed"
+
+    sizeUnits = "MM"
+    if background_sizeUnit ==QgsUnitTypes.RenderUnit.RenderPixels:
+        sizeUnits = "Pixel"
+    if background_sizeUnit ==QgsUnitTypes.RenderUnit.RenderPoints:
+        sizeUnits = "Point"
+
+    sizeX = _convertToPixel(background_size.width(),sizeUnits)
+    sizeY = _convertToPixel(background_size.height(),sizeUnits)
+
+    fillColor =_toHexColorQColor(background.fillColor())
+    strokeColor = _toHexColorQColor(background.strokeColor())
+    opacity = background.opacity()
+
+    result = {"shapeType":shapeType,
+        "sizeType":sizeType,
+        "sizeX":sizeX,
+        "sizeY":sizeY,
+        "fillColor":fillColor,
+        "strokeColor":strokeColor,
+        "opacity":opacity}
+
+    symbolizer["background"] = result
 
 # AND two expressions together (handle nulls)
 def andFilter(f1, f2):
@@ -304,7 +376,7 @@ def andFilter(f1, f2):
     return ['And', f1, f2]
 
 
-def processRule(rule, filters=None):
+def processRule(rule, filters=None,layerOpacity=1,layer=None):
     ruledefs = []
 
     if rule.isElse():
@@ -314,23 +386,34 @@ def processRule(rule, filters=None):
 
     for subrule in rule.children():
         if subrule.active():
-            ruledefs.extend(processRule(subrule, filt))
+            ruledefs.extend(processRule(subrule, filt,layerOpacity,layer))
 
     symbol = rule.symbol()
     if symbol is not None:
-        symbolizers = _createSymbolizers(rule.symbol())
+        symbolizers = _createSymbolizers(rule.symbol(),layerOpacity)
         name = rule.label()
         ruledef = {"name": name,
                    "symbolizers": symbolizers}
         if filt is not None:
             ruledef["filter"] = filt
-        if rule.dependsOnScale():
-            scale = processRuleScale(rule)
+        scaleRule = getScaleRule(rule,layer)
+        if scaleRule is not None:
+            scale = processRuleScale(scaleRule)
             ruledef["scaleDenominator"] = scale
         ruledefs.append(ruledef)
 
     return ruledefs
 
+# note - this will usually return a Rule, but could return the layer
+#  they both have the same .minimumScale() functions, so this isn't a problem.
+def getScaleRule(rule,layer):
+    if rule is None:
+        if layer.hasScaleBasedVisibility():
+            return layer
+        return None
+    if rule.dependsOnScale():
+        return rule
+    return getScaleRule(rule.parent(),layer)
 
 def processRuleScale(rule):
     # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
@@ -361,8 +444,19 @@ def _cast(v):
         return v
 
 
-MM2PIXEL = 3.7795275591
-POINT2PIXEL = MM2PIXEL * 0.353
+MM2PIXEL = 3.571428571428571 # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
+POINT2PIXEL = MM2PIXEL * 0.353 # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
+
+def _convertToPixel(value, units):
+    if units is None or units == '':
+        return value # cannot convert
+    if units == "Pixels" or units == QgsUnitTypes.RenderUnit.RenderPixels:
+        return float(value)
+    if units == "Point" or units== QgsUnitTypes.RenderUnit.RenderPoints:
+        return float(value) * POINT2PIXEL
+    if units == "MM" or units== QgsUnitTypes.RenderUnit.RenderMillimeters:
+        return float(value) * MM2PIXEL
+    return value # dont know
 
 
 def _handleUnits(value, units, propertyConstant):
@@ -394,16 +488,18 @@ def _handleUnits(value, units, propertyConstant):
 
 def _labelingProperty(settings, obj, name, propertyConstant=-1):
     ddProps = settings.dataDefinedProperties()
+    v = None
     if propertyConstant in ddProps.propertyKeys():
         v = processExpression(ddProps.property(
-            propertyConstant).asExpression()) or ""
-    else:
+            propertyConstant).asExpression())  # could return None if expression is bad
+    if v is None:
         v = getattr(obj or settings, name)
         try:
             v = v()
         except:
             pass
-
+    if v is None:
+        return ''
     return _cast(v)
 
 
@@ -420,6 +516,11 @@ def _symbolProperty(symbolLayer, name, propertyConstant=-1, default=0):
         v = _handleUnits(v, units, propertyConstant)
     return _cast(v)
 
+def _toHexColorQColor(qcolor):
+    try:
+        return '#%02x%02x%02x' % (qcolor.red(),qcolor.green(),qcolor.blue())
+    except:
+        return qcolor
 
 def _toHexColor(color):
     try:
@@ -437,11 +538,14 @@ def _opacity(color):
         return 1.0
 
 
-def _createSymbolizers(symbol):
-    opacity = symbol.opacity()
+def _createSymbolizers(symbol,layerOpacity=1):
+    opacity = symbol.opacity() * layerOpacity
     symbolizers = []
-    for sl in symbol.symbolLayers():
+
+    for indx in range(len(symbol.symbolLayers())):
+        sl = symbol.symbolLayers()[indx]
         symbolizer = _createSymbolizer(sl, opacity)
+        symbolizer["Z"] = sl.renderingPass()
         if symbolizer is not None:
             if isinstance(symbolizer, list):
                 symbolizers.extend(symbolizer)
@@ -555,7 +659,7 @@ def _markerLineSymbolizer(sl, opacity):
 
 def _geomGeneratorSymbolizer(sl, opacity):
     subSymbol = sl.subSymbol()
-    symbolizers = _createSymbolizers(subSymbol)
+    symbolizers = _createSymbolizers(subSymbol,opacity)
     geomExp = sl.geometryExpression()
     geom = processExpression(geomExp)
     for symbolizer in symbolizers:
