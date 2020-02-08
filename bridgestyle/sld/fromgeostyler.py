@@ -232,7 +232,7 @@ def _textSymbolizer(sl):
         if "rotate" in sl:
             rotation = _symbolProperty(sl, "rotate")
             _addSubElement(displacement, "Rotation", rotation)
-    elif "perpendicularOffset" in sl:
+    elif "perpendicularOffset" in sl and not "background" in sl:
         placement = _addSubElement(root, "LabelPlacement")
         linePlacement = _addSubElement(placement, "LinePlacement")
         offset = sl["perpendicularOffset"]
@@ -249,14 +249,42 @@ def _textSymbolizer(sl):
         _addCssParameter(haloFillElem, "fill-opacity", sl["haloOpacity"])
 
     fillElem = _addSubElement(root, "Fill")
-    _addCssParameter(fontElem, "fill", color)
+    _addCssParameter(fillElem, "fill", color)
 
     followLine = sl.get("followLine", False)
     if followLine:
         _addVendorOption(root, "followLine", True)
         _addVendorOption(root, "group", "yes")
-    else:
+    elif not "background" in sl:
         _addVendorOption(root, "autoWrap", 50)
+
+    if "background" in sl:
+        background = sl["background"]
+        avg_size = max(background["sizeX"] , background["sizeY"])
+        shapeName = "rectangle"
+        if background["shapeType"] == "circle" or background["shapeType"] == "elipse":
+            shapeName = "circle"
+        graphic = _addSubElement(root, "Graphic")
+        mark = _addSubElement(graphic, "Mark")
+        _addSubElement(graphic, "Opacity",background["opacity"])
+        _addSubElement(mark, "WellKnownName",shapeName)
+        fill = _addSubElement(mark, "Fill")
+        stroke = _addSubElement(mark, "Stroke")
+        _addCssParameter(stroke, "stroke", background["strokeColor"])
+        _addCssParameter(fill, "fill", background["fillColor"])
+        if background["sizeType"] == "buffer":
+            _addVendorOption(root, "graphic-resize", "stretch")
+            _addVendorOption(root, "graphic-margin", str( avg_size) )
+            _addVendorOption(root, "spaceAround", str(25))
+        else:
+            _addSubElement(graphic, "Size",str( avg_size))
+
+        placement = _addSubElement(root, "LabelPlacement")
+        pointPlacement = _addSubElement(placement, "PointPlacement")
+        # centers
+        achorLoc = _addSubElement(pointPlacement, "AnchorPoint")
+        _addSubElement(achorLoc, "AnchorPointX", "0.5")
+        _addSubElement(achorLoc, "AnchorPointY", "0.5")
 
     return root
 
