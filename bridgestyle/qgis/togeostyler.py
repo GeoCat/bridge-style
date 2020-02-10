@@ -263,7 +263,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
                              "size", QgsPalLayerSettings.Size)
     sizeUnits = _labelingProperty(settings, textFormat,
                              "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
-    size = str(_convertToPixel(size,sizeUnits)) + " px"
+    size = str(_handleUnits(size, sizeUnits))
     color = textFormat.color().name()
     font = textFormat.font().family()
     rotation = _labelingProperty(
@@ -275,7 +275,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
             settings, buff, "size", QgsPalLayerSettings.BufferSize)
         haloSizeUnit = _labelingProperty(
             settings, buff, "sizeUnit", QgsPalLayerSettings.BufferUnit)
-        haloSize = str(_convertToPixel(haloSize, haloSizeUnit)) + " px"
+        haloSize = str(_handleUnits(haloSize, haloSizeUnit))
         symbolizer.update({"haloColor": haloColor,
                            "haloSize": haloSize,
                            "haloOpacity": buff.opacity()})
@@ -348,8 +348,8 @@ def addBackground(textFormat, symbolizer):
     if background_sizeUnit ==QgsUnitTypes.RenderUnit.RenderPoints:
         sizeUnits = "Point"
 
-    sizeX = _convertToPixel(background_size.width(),sizeUnits)
-    sizeY = _convertToPixel(background_size.height(),sizeUnits)
+    sizeX = _handleUnits(background_size.width(), sizeUnits)
+    sizeY = _handleUnits(background_size.height(), sizeUnits)
 
     fillColor =_toHexColorQColor(background.fillColor())
     strokeColor = _toHexColorQColor(background.strokeColor())
@@ -447,27 +447,15 @@ def _cast(v):
 MM2PIXEL = 3.571428571428571 # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
 POINT2PIXEL = MM2PIXEL * 0.353 # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
 
-def _convertToPixel(value, units):
-    if units is None or units == '':
-        return value # cannot convert
-    if units == "Pixels" or units == QgsUnitTypes.RenderUnit.RenderPixels:
-        return float(value)
-    if units == "Point" or units== QgsUnitTypes.RenderUnit.RenderPoints:
-        return float(value) * POINT2PIXEL
-    if units == "MM" or units== QgsUnitTypes.RenderUnit.RenderMillimeters:
-        return float(value) * MM2PIXEL
-    return value # dont know
-
-
-def _handleUnits(value, units, propertyConstant):
+def _handleUnits(value, units, propertyConstant=None):
     if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
         return 1  # hairline width
-    if units == "Point":
+    if units in ["Point", QgsUnitTypes.RenderUnit.RenderPoints]:
         if isinstance(value, list):
             return ["Mul", POINT2PIXEL, value]
         else:
             return float(value) * POINT2PIXEL
-    if units == "MM":
+    if units in ["MM", QgsUnitTypes.RenderUnit.RenderMillimeters]:
         if isinstance(value, list):
             return ["Mul", MM2PIXEL, value]
         else:
@@ -479,7 +467,7 @@ def _handleUnits(value, units, propertyConstant):
             return value
         else:
             return str(value) + "m"
-    elif units == "Pixel":
+    elif units in ["Pixel", QgsUnitTypes.RenderUnit.RenderMillimeters]:
         return value
     else:
         _warnings.append("Unsupported units: '%s'" % units)
