@@ -526,19 +526,19 @@ def _opacity(color):
         return 1.0
 
 
-def _createSymbolizers(symbol,layerOpacity=1):
+def _createSymbolizers(symbol, layerOpacity=1):
     opacity = symbol.opacity() * layerOpacity
     symbolizers = []
 
     for indx in range(len(symbol.symbolLayers())):
         sl = symbol.symbolLayers()[indx]
-        symbolizer = _createSymbolizer(sl, opacity)
-        symbolizer["Z"] = sl.renderingPass()
+        symbolizer = _createSymbolizer(sl, opacity)        
         if symbolizer is not None:
-            if isinstance(symbolizer, list):
-                symbolizers.extend(symbolizer)
-            else:
-                symbolizers.append(symbolizer)
+            if not isinstance(symbolizer, list):
+                symbolizer = [symbolizer]
+            for s in symbolizer:
+                s["Z"] = sl.renderingPass()                            
+                symbolizers.append(s)
 
     return symbolizers
 
@@ -647,7 +647,7 @@ def _markerLineSymbolizer(sl, opacity):
 
 def _geomGeneratorSymbolizer(sl, opacity):
     subSymbol = sl.subSymbol()
-    symbolizers = _createSymbolizers(subSymbol,opacity)
+    symbolizers = _createSymbolizers(subSymbol, opacity)
     geomExp = sl.geometryExpression()
     geom = processExpression(geomExp)
     for symbolizer in symbolizers:
