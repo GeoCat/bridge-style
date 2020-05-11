@@ -4,21 +4,22 @@ import json
 
 _warnings = []
 
-
 def convert(geostyler):
     global _warnings
     _warnings = []
-    layers = processLayer(geostyler)
+    if not isinstance(geostyler, list):
+        geostyler = [geostyler]
+    name = geostyler[0]["name"] if len(geostyler) == 1 else "Style"
+
+    print(geostyler)
     obj = {
         "version": 8,
-        "name": geostyler["name"],
+        "name": name,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-        "sources": {geostyler["name"]: "TODO:Configure this!!!"},
-        "layers": layers,
-        "sprite": "spriteSheet",
+        "sources": {g["name"]: "TODO:Configure this!!!" for g in geostyler},
+        "layers":  [processLayer(g) for g in geostyler],
+        "sprite": "spriteSheet"
     }
-
-    obj["sprite"] = "spriteSheet"
 
     return json.dumps(obj, indent=4), _warnings
 

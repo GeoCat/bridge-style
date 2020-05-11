@@ -46,23 +46,29 @@ def saveLayerStyleAsZippedSld(layer, filename):
     z.close()
     return warnings
 
-
 def layerStyleAsMapbox(layer):
     geostyler, icons, warnings = togeostyler.convert(layer)
     mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
     warnings.extend(mbWarnings)
     return mbox, icons, warnings
 
-
-def layerStyleAsMapboxFolder(layer, folder):
-    geostyler, icons, warnings = togeostyler.convert(layer)
-    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
+def layerStylesAsMapboxFolder(layers, folder):
+    geostylers = []
+    allWarnings = []
+    allIcons = {}
+    for layer in layers:
+        geostyler, icons, warnings = togeostyler.convert(layer)
+        geostylers.append(geostyler)
+        allWarnings.extend(warnings)
+        allIcons.update(icons)
+    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostylers)
     filename = os.path.join(folder, "style.mapbox")
+    print(filename)
     with open(filename, "w", encoding="utf-8") as f:
         f.write(mbox)
-    saveSpritesSheet(icons, folder)
-    return warnings
-
+    saveSpritesSheet(allIcons, folder)
+    allWarnings.extend(mbWarnings)
+    return allWarnings
 
 def layerStyleAsMapfile(layer):
     geostyler, icons, warnings = togeostyler.convert(layer)
