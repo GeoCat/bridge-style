@@ -11,13 +11,15 @@ def convert(geostyler):
         geostyler = [geostyler]
     name = geostyler[0]["name"] if len(geostyler) == 1 else "Style"
 
-    print(geostyler)
+    layers = []
+    for g in geostyler:
+        layers.extend(processLayer(g))
     obj = {
         "version": 8,
         "name": name,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
         "sources": {g["name"]: "TODO:Configure this!!!" for g in geostyler},
-        "layers":  [processLayer(g) for g in geostyler],
+        "layers":  layers,
         "sprite": "spriteSheet"
     }
 
