@@ -37,13 +37,13 @@ def saveLayerStyleAsZippedSld(layer, filename):
 
 def layerStyleAsMapbox(layer):
     geostyler, icons, warnings = togeostyler.convert(layer)
-    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)
+    mbox, mbWarnings, obj = mapboxgl.fromgeostyler.convert(geostyler)
     warnings.extend(mbWarnings)
     return mbox, icons, warnings
 
 def layerStyleAsMapboxFolder(layer, folder):
     geostyler, icons, warnings = togeostyler.convert(layer)
-    mbox, mbWarnings = mapboxgl.fromgeostyler.convert(geostyler)    
+    mbox, mbWarnings, obj = mapboxgl.fromgeostyler.convert(geostyler)
     filename = os.path.join(folder, "style.mapbox")
     with open(filename, "w", encoding='utf-8') as f:
         f.write(mbox)

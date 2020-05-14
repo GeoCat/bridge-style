@@ -2,7 +2,47 @@ import os
 import math
 import json
 
+from ..qgis import togeostyler
+
 _warnings = []
+_source_name = "vector-source"
+
+def convertGroup(group, qgis_layers, baseUrl, workspace, name):
+    obj = {
+           "version": 8,
+           "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
+           "name": name,
+           "sources": {
+               _source_name: {
+                   "type": "vector",
+                   "tiles": [
+                       tileURLFull(baseUrl,workspace,name)
+                   ],
+                   "minZoom": 0,
+                   "maxZoom": 20  # todo: might be able to determine these from style
+               },
+           },
+           "sprite": "spriteSheet"
+    }
+
+    obj["layers"] = []
+
+    geostylers = {}
+    mapboxstyles = {}
+    mblayers = []
+
+    # build geostyler and mapbox styles
+    for layername in group["layers"]:
+        layer = qgis_layers[layername]
+        geostyler, icons, warnings = togeostyler.convert(layer)
+        geostylers[layername] = geostyler
+        mbox, mbWarnings, obj2 = convert(geostyler)
+        mapboxstyles[layername] = obj2
+        mblayers.extend(obj2["layers"])
+
+    obj["layers"] = mblayers
+
+    return json.dumps(obj, indent=4), _warnings, obj
 
 def convert(geostyler):
     global _warnings
@@ -10,32 +50,58 @@ def convert(geostyler):
     layers = processLayer(geostyler)
     obj = {
         "version": 8,
-        "name": geostyler["name"],
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-        "sources": {geostyler["name"]: "TODO:Configure this!!!"},
+
+        "name": geostyler["name"],
+        "sources": {
+            _source_name: {
+                "type": "vector",
+                "tiles": [
+                    tileURL(geostyler)
+                ],
+                "minZoom": 0,
+                "maxZoom": 20 # todo: might be able to determine these from style
+            },
+        },
         "layers": layers,
         "sprite": "spriteSheet",
     }
-    
-    obj["sprite"] = "spriteSheet"
-    
-    return json.dumps(obj, indent=4), _warnings
+
+    return json.dumps(obj, indent=4), _warnings,obj
+
+# requires configuration with the tiles server URL
+# This is only available during publishing
+# TODO: inject this
+#  "http://localhost:8080/geoserver/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER=Quickstart2:quickstart&STYLE=&TILEMATRIX=EPSG:900913:{z}&TILEMATRIXSET=EPSG:900913&FORMAT=application/x-protobuf;type=mapbox-vector&TILECOL={x}&TILEROW={y}"
+
+def tileURL(geostyler):
+    return "URL to tiles - " + geostyler["name"]
+
+def tileURLFull(baseurl, workspace, layer):
+    return "{0}/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER={1}:{2}" \
+            "&STYLE=&TILEMATRIX=EPSG:900913:{{z}}" \
+            "&TILEMATRIXSET=EPSG:900913&FORMAT=application/x-protobuf;type=mapbox-vector&TILECOL={{x}}&TILEROW={{y}}" \
+            .format(baseurl, workspace, layer)
 
 def _toZoomLevel(scale):
-    if scale<1:     # scale=0 is valid in QGIS 
+    if scale < 1:  # scale=0 is valid in QGIS
         return 30;
     return int(math.log(1000000000 / scale, 2))
 
+
 def processLayer(layer):
     allLayers = []
-    
+
+    ruleNumber = 0
     for rule in layer.get("rules", []):
-        layers = processRule(rule, layer["name"])
+        layers = processRule(rule, layer["name"], ruleNumber)
+        ruleNumber += 1
         allLayers += layers
 
     return allLayers
 
-def processRule(rule, source):
+
+def processRule(rule, source, ruleNumber):
     filt = convertExpression(rule.get("filter", None))
     minzoom = None
     maxzoom = None
@@ -44,68 +110,71 @@ def processRule(rule, source):
         if "max" in scale:
             maxzoom = _toZoomLevel(scale["max"])
         if "min" in scale:
-            minzoom = _toZoomLevel(scale["min"])            
+            minzoom = _toZoomLevel(scale["min"])
     name = rule.get("name", "rule")
     layers = [processSymbolizer(s) for s in rule["symbolizers"]]
     for i, lay in enumerate(layers):
-        try: 
+        try:
             if filt is not None:
                 lay["filter"] = filt
-            lay["source"] = source
-            lay["id"] = name + ":" + str(i)
+            lay["source"] = _source_name
+            lay["source-layer"] = source
+            lay["id"] = source + ":"  + "(rule#"+str(ruleNumber)+")" + name + ":" + str(i)  # this needs to be globally unique
             if minzoom is not None:
                 lay["minzoom"] = minzoom
             if maxzoom is not None:
                 lay["maxzoom"] = maxzoom
         except Exception as e:
-             _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
+            _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
     return layers
 
+
 func = {"PropertyName": "get",
-             "Or": "any", 
-             "And": "all", 
-             "PropertyIsEqualTo": "==",
-             "PropertyIsNotEqualTo": "!=",
-             "PropertyIsLessThanOrEqualTo": "<=", 
-             "PropertyIsGreaterThanOrEqualTo": ">=",
-             "PropertyIsLessThan": "<", 
-             "PropertyIsGreaterThan": ">", 
-             "Add": "+", 
-             "Sub": "-", 
-             "Mul": "*", 
-             "Div": "/", 
-             "Not": "!",
-             "toRadians": None,
-             "toDegrees": None,
-             "floor": "floor",
-             "ceil": "ceil",             
-             "if_then_else": "case",             
-             "Concatenate": "concat",
-             "strSubstr": None,
-             "strToLower": "downcase",
-             "strToUpper": "upcase",
-             "strReplace": None,                        
-             "acos": "acos",
-             "asin": "asin",
-             "atan": "atan",
-             "atan2": "atan2",
-             "sin": "sin",
-             "cos": "cos",
-             "tan": "tan",
-             "log": "ln",
-             "strCapitalize": None,             
-             "min": "min",
-             "max": "max"} #TODO
+        "Or": "any",
+        "And": "all",
+        "PropertyIsEqualTo": "==",
+        "PropertyIsNotEqualTo": "!=",
+        "PropertyIsLessThanOrEqualTo": "<=",
+        "PropertyIsGreaterThanOrEqualTo": ">=",
+        "PropertyIsLessThan": "<",
+        "PropertyIsGreaterThan": ">",
+        "Add": "+",
+        "Sub": "-",
+        "Mul": "*",
+        "Div": "/",
+        "Not": "!",
+        "toRadians": None,
+        "toDegrees": None,
+        "floor": "floor",
+        "ceil": "ceil",
+        "if_then_else": "case",
+        "Concatenate": "concat",
+        "strSubstr": None,
+        "strToLower": "downcase",
+        "strToUpper": "upcase",
+        "strReplace": None,
+        "acos": "acos",
+        "asin": "asin",
+        "atan": "atan",
+        "atan2": "atan2",
+        "sin": "sin",
+        "cos": "cos",
+        "tan": "tan",
+        "log": "ln",
+        "strCapitalize": None,
+        "min": "min",
+        "max": "max"}  # TODO
+
 
 def convertExpression(exp):
     if exp is None:
         return None
     if isinstance(exp, list):
-        funcName = func.get(exp[0], None)        
+        funcName = func.get(exp[0], None)
         if funcName is None:
             _warnings.append("Unsupported expression function for mapbox conversion: '%s'" % exp[0])
             return None
-        else:            
+        else:
             convertedExp = [funcName]
             for arg in exp[1:]:
                 convertedExp.append(convertExpression(arg))
@@ -119,7 +188,7 @@ def processSymbolizer(sl):
     if symbolizerType == "Icon":
         symbolizer = _iconSymbolizer(sl)
     if symbolizerType == "Line":
-        symbolizer = _lineSymbolizer(sl)            
+        symbolizer = _lineSymbolizer(sl)
     if symbolizerType == "Fill":
         symbolizer = _fillSymbolizer(sl)
     if symbolizerType == "Mark":
@@ -127,7 +196,7 @@ def processSymbolizer(sl):
     if symbolizerType == "Text":
         symbolizer = _textSymbolizer(sl)
     if symbolizerType == "Raster":
-        symbolizer = _rasterSymbolizer(sl)        
+        symbolizer = _rasterSymbolizer(sl)
 
     geom = _geometryFromSymbolizer(sl)
     if geom is not None:
@@ -135,15 +204,17 @@ def processSymbolizer(sl):
 
     return symbolizer
 
+
 def _symbolProperty(sl, name):
-    if name in sl:        
-        return convertExpression(sl[name])      
+    if name in sl:
+        return convertExpression(sl[name])
     else:
         return None
 
+
 def _textSymbolizer(sl):
     layout = {}
-    paint = {} 
+    paint = {}
     color = _symbolProperty(sl, "color")
     fontFamily = _symbolProperty(sl, "font")
     label = _symbolProperty(sl, "label")
@@ -157,14 +228,13 @@ def _textSymbolizer(sl):
         offset = sl["perpendicularOffset"]
         layout["text-offset"] = offset
 
-            
-    if "haloColor" in sl and "haloSize" in sl:        
-        paint["text-halo-width"] =  _symbolProperty(sl, "haloSize")   
+    if "haloColor" in sl and "haloSize" in sl:
+        paint["text-halo-width"] = _symbolProperty(sl, "haloSize")
         paint["text-halo-color"] = _symbolProperty(sl, "haloColor")
 
-    layout["text-field"] = label    
+    layout["text-field"] = label
     layout["text-size"] = size
-    layout["text-font"] =  [fontFamily]
+    layout["text-font"] = [fontFamily]
 
     paint["text-color"] = color
 
@@ -181,10 +251,11 @@ def _textSymbolizer(sl):
 
     return {"type": "symbol", "paint": paint, "layout": layout}
 
-def _lineSymbolizer(sl, graphicStrokeLayer = 0):
+
+def _lineSymbolizer(sl, graphicStrokeLayer=0):
     opacity = _symbolProperty(sl, "opacity")
-    color =  sl.get("color", None)
-    graphicStroke =  sl.get("graphicStroke", None)
+    color = sl.get("color", None)
+    graphicStroke = sl.get("graphicStroke", None)
     width = _symbolProperty(sl, "width")
     dasharray = _symbolProperty(sl, "dasharray")
     cap = _symbolProperty(sl, "cap")
@@ -194,24 +265,26 @@ def _lineSymbolizer(sl, graphicStrokeLayer = 0):
     paint = {}
     if graphicStroke is not None:
         _warnings.append("Marker lines not supported for Mapbox GL conversion")
-        #TODO
+        # TODO
 
     if color is None:
         paint["visibility"] = "none"
     else:
         paint["line-width"] = width
         paint["line-opacity"] = opacity
-        paint["line-color"] = color                
+        paint["line-color"] = color
     if dasharray is not None:
         paint["line-dasharray"] = dasharray
     if offset is not None:
         paint["line-offset"] = offset
-    
+
     return {"type": "line", "paint": paint}
-    
+
+
 def _geometryFromSymbolizer(sl):
     geomExpr = convertExpression(sl.get("Geometry", None))
-    return geomExpr       
+    return geomExpr
+
 
 def _iconSymbolizer(sl):
     path = os.path.splitext(os.path.basename(sl["image"])[0])
@@ -222,11 +295,12 @@ def _iconSymbolizer(sl):
     paint["icon-rotate"] = rotation
     return {"type": "symbol", "paint": paint}
 
+
 def _markSymbolizer(sl):
-    shape = _symbolProperty(sl, "wellKnownName") 
+    shape = _symbolProperty(sl, "wellKnownName")
     if shape.startswith("file://"):
         svgFilename = shape.split("//")[-1]
-        name = os.path.splitext(svgFilename)[0]        
+        name = os.path.splitext(svgFilename)[0]
         paint = {}
         paint["icon-image"] = name
         rotation = _symbolProperty(sl, "rotate")
@@ -238,33 +312,35 @@ def _markSymbolizer(sl):
         color = _symbolProperty(sl, "color")
         outlineColor = _symbolProperty(sl, "strokeColor")
         outlineWidth = _symbolProperty(sl, "strokeWidth")
-        
+
         paint = {}
-        paint["circle-radius"] = ["/", size, 2]    
+        paint["circle-radius"] = ["/", size, 2]
         paint["circle-color"] = color
         paint["circle-opacity"] = opacity
         paint["circle-stroke-width"] = outlineWidth
         paint["circle-stroke-color"] = outlineColor
-        
+
         return {"type": "circle", "paint": paint}
+
 
 def _fillSymbolizer(sl):
     paint = {}
     opacity = _symbolProperty(sl, "opacity")
-    color =  sl.get("color", None)
-    graphicFill =  sl.get("graphicFill", None)
+    color = sl.get("color", None)
+    graphicFill = sl.get("graphicFill", None)
     if graphicFill is not None:
         _warnings.append("Marker fills not supported for Mapbox GL conversion")
-        #TODO
+        # TODO
     paint["fill-opacity"] = opacity
-    if color is not None:                
+    if color is not None:
         paint["fill-color"] = color
 
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
-        pass#TODO        
+        pass  # TODO
 
     return {"type": "fill", "paint": paint}
 
+
 def _rasterSymbolizer(sl):
-    return {"type": "raster"} #TODO
+    return {"type": "raster"}  # TODO
