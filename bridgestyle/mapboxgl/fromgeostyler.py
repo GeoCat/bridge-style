@@ -7,25 +7,19 @@ from ..qgis import togeostyler
 _warnings = []
 _source_name = "vector-source"
 
-def convertGroup(group, qgis_layers, baseUrl, workspace, name):
-    obj = {
-           "version": 8,
-           "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-           "name": name,
-           "sources": {
-               _source_name: {
-                   "type": "vector",
-                   "tiles": [
-                       tileURLFull(baseUrl,workspace,name)
-                   ],
-                   "minZoom": 0,
-                   "maxZoom": 20  # todo: might be able to determine these from style
-               },
-           },
-           "sprite": "spriteSheet"
-    }
+_processTextSymbolizer = False
 
-    obj["layers"] = []
+def convertGroup(group, qgis_layers, baseUrl, workspace, name):
+    obj = {"version": 8, "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf", "name": name, "sources": {
+        _source_name: {
+            "type": "vector",
+            "tiles": [
+                tileURLFull(baseUrl, workspace, name)
+            ],
+            "minZoom": 0,
+            "maxZoom": 20  # todo: might be able to determine these from style
+        },
+    }, "layers": []}
 
     geostylers = {}
     mapboxstyles = {}
@@ -85,8 +79,9 @@ def tileURLFull(baseurl, workspace, layer):
 
 def _toZoomLevel(scale):
     if scale < 1:  # scale=0 is valid in QGIS
-        return 30;
-    return int(math.log(1000000000 / scale, 2))
+        return 24  # 24 is largest value (according to mapbox spec)
+    val = int(math.log(1000000000 / scale, 2))
+    return min(max(val, 0), 24)  # keep between 0 and 24
 
 
 def processLayer(layer):
@@ -108,11 +103,13 @@ def processRule(rule, source, ruleNumber):
     if "scaleDenominator" in rule:
         scale = rule["scaleDenominator"]
         if "max" in scale:
-            maxzoom = _toZoomLevel(scale["max"])
+            minzoom = _toZoomLevel(scale["max"])  # mapbox gl has maxzoom as the larger zoom number
         if "min" in scale:
-            minzoom = _toZoomLevel(scale["min"])
+            maxzoom = _toZoomLevel(scale["min"])  # mapbox gl has minzoom as the smaller zoom number
     name = rule.get("name", "rule")
     layers = [processSymbolizer(s) for s in rule["symbolizers"]]
+    layers = [item for sublist in layers for item in sublist]   # flattens list
+    layers = [x for x in layers if x is not None]  # remove None symbolizers
     for i, lay in enumerate(layers):
         try:
             if filt is not None:
@@ -186,17 +183,17 @@ def convertExpression(exp):
 def processSymbolizer(sl):
     symbolizerType = sl["kind"]
     if symbolizerType == "Icon":
-        symbolizer = _iconSymbolizer(sl)
+        symbolizer = [_iconSymbolizer(sl)]
     if symbolizerType == "Line":
-        symbolizer = _lineSymbolizer(sl)
+        symbolizer = [_lineSymbolizer(sl)]
     if symbolizerType == "Fill":
         symbolizer = _fillSymbolizer(sl)
     if symbolizerType == "Mark":
-        symbolizer = _markSymbolizer(sl)
+        symbolizer =[ _markSymbolizer(sl)]
     if symbolizerType == "Text":
-        symbolizer = _textSymbolizer(sl)
+        symbolizer = [_textSymbolizer(sl)]
     if symbolizerType == "Raster":
-        symbolizer = _rasterSymbolizer(sl)
+        symbolizer = [_rasterSymbolizer(sl)]
 
     geom = _geometryFromSymbolizer(sl)
     if geom is not None:
@@ -205,14 +202,16 @@ def processSymbolizer(sl):
     return symbolizer
 
 
-def _symbolProperty(sl, name):
+def _symbolProperty(sl, name, default=None):
     if name in sl:
         return convertExpression(sl[name])
     else:
-        return None
+        return default
 
 
 def _textSymbolizer(sl):
+    if not _processTextSymbolizer:
+        return None
     layout = {}
     paint = {}
     color = _symbolProperty(sl, "color")
@@ -274,12 +273,21 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         paint["line-opacity"] = opacity
         paint["line-color"] = color
     if dasharray is not None:
-        paint["line-dasharray"] = dasharray
+        paint["line-dasharray"] = _parseSpaceArray(dasharray)
     if offset is not None:
         paint["line-offset"] = offset
 
     return {"type": "line", "paint": paint}
 
+def number(str):
+    try:
+        return int(str)
+    except ValueError:
+        return float(str)
+
+#"1 2" -> [1,2]
+def _parseSpaceArray(str):
+    return [number(x) for x in str.split(" ")]
 
 def _geometryFromSymbolizer(sl):
     geomExpr = convertExpression(sl.get("Geometry", None))
@@ -331,15 +339,28 @@ def _fillSymbolizer(sl):
     if graphicFill is not None:
         _warnings.append("Marker fills not supported for Mapbox GL conversion")
         # TODO
-    paint["fill-opacity"] = opacity
-    if color is not None:
-        paint["fill-color"] = color
-
+        # fill = {"type": "fill", "paint": {
+        #     "fill-color":   _symbolProperty(graphicFill[0], "color"),
+        #     "fill-opacity": opacity
+        # }}
+        fill = None # don't fill -- this causes issues either way...
+    else:
+        paint["fill-opacity"] = opacity * _symbolProperty(sl, "fillOpacity",1)
+        if color is not None:
+            paint["fill-color"] = color
+        fill = {"type": "fill", "paint": paint}
+    line = None
     outlineColor = _symbolProperty(sl, "outlineColor")
     if outlineColor is not None:
-        pass  # TODO
-
-    return {"type": "fill", "paint": paint}
+        line = {"type": "line",
+                "paint": {
+                    "line-width": _symbolProperty(sl, "outlineWidth") or 1,
+                    "line-opacity": (_symbolProperty(sl, "outlineOpacity") or 1) * opacity,
+                    "line-color": outlineColor
+                }}
+    if line:
+        return [fill, line]
+    return [fill]
 
 
 def _rasterSymbolizer(sl):
