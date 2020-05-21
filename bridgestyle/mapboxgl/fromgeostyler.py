@@ -4,31 +4,41 @@ import json
 
 from ..qgis import togeostyler
 
+import tempfile
+
 _warnings = []
 _source_name = "vector-source"
 
 _processTextSymbolizer = False
 
 def convertGroup(group, qgis_layers, baseUrl, workspace, name):
-    obj = {"version": 8, "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf", "name": name, "sources": {
-        _source_name: {
-            "type": "vector",
-            "tiles": [
-                tileURLFull(baseUrl, workspace, name)
-            ],
-            "minZoom": 0,
-            "maxZoom": 20  # todo: might be able to determine these from style
-        },
-    }, "layers": []}
+    obj = {"version": 8,
+        "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
+        "name": name,
+        "sources": {
+            _source_name: {
+                "type": "vector",
+                "tiles": [
+                    tileURLFull(baseUrl, workspace, name)
+                ],
+                "minZoom": 0,
+                "maxZoom": 20  # todo: might be able to determine these from style
+            },
+    },
+    "sprite": spriteURLFull(baseUrl, workspace, name),
+    "layers": []
+    }
 
     geostylers = {}
     mapboxstyles = {}
     mblayers = []
+    allSprites = {}
 
     # build geostyler and mapbox styles
     for layername in group["layers"]:
         layer = qgis_layers[layername]
-        geostyler, icons, warnings = togeostyler.convert(layer)
+        geostyler, icons, sprites, warnings = togeostyler.convert(layer)
+        allSprites.update(sprites)  # combine/accumulate sprites
         geostylers[layername] = geostyler
         mbox, mbWarnings, obj2 = convert(geostyler)
         mapboxstyles[layername] = obj2
@@ -36,12 +46,73 @@ def convertGroup(group, qgis_layers, baseUrl, workspace, name):
 
     obj["layers"] = mblayers
 
-    return json.dumps(obj, indent=4), _warnings, obj
+    return json.dumps(obj, indent=4), _warnings, obj, toSpriteSheet(allSprites)
+
+
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
+NO_ICON = "no_icon"
+from ..qgis.togeostyler import spriteSize
+
+# allSprites ::== sprite name -> {"image":Image, "image2x":Image}
+def toSpriteSheet(allSprites):
+    if allSprites:
+        height = spriteSize
+        width = spriteSize * len(allSprites)
+        img = QImage(width, height, QImage.Format_ARGB32)
+        img.fill(QColor(Qt.transparent))
+        img2x = QImage(width * 2, height * 2, QImage.Format_ARGB32)
+        img2x.fill(QColor(Qt.transparent))
+        painter = QPainter(img)
+        painter.begin(img)
+        painter2x = QPainter(img2x)
+        painter2x.begin(img2x)
+        spritesheet = {NO_ICON: {"width": 0,
+                                 "height": 0,
+                                 "x": 0,
+                                 "y": 0,
+                                 "pixelRatio": 1}}
+        spritesheet2x = {NO_ICON: {"width": 0,
+                                   "height": 0,
+                                   "x": 0,
+                                   "y": 0,
+                                   "pixelRatio": 1}}
+        x = 0
+        for name, _sprites in allSprites.items():
+            s = _sprites["image"]
+            s2x = _sprites["image2x"]
+            painter.drawImage(x, 0, s)
+            painter2x.drawImage(x * 2, 0, s2x)
+            spritesheet[name] = {"width": s.width(),
+                                 "height": s.height(),
+                                 "x": x,
+                                 "y": 0,
+                                 "pixelRatio": 1}
+            spritesheet2x[name] = {"width": s2x.width(),
+                                   "height": s2x.height(),
+                                   "x": x * 2,
+                                   "y": 0,
+                                   "pixelRatio": 2}
+            x += s.width()
+        painter.end()
+        painter2x.end()
+        folder = "/Users/ddd/delme/"
+        img.save(os.path.join(folder, "spriteSheet.png"))
+        img2x.save(os.path.join(folder, "spriteSheet@2x.png"))
+        with open(os.path.join(folder, "spriteSheet.json"), 'w') as f:
+            json.dump(spritesheet, f)
+        with open(os.path.join(folder, "spriteSheet@2x.json"), 'w') as f:
+            json.dump(spritesheet2x, f)
+
+        return {"img": img, "img2x": img2x, "json": json.dumps(spritesheet), "json2x": json.dumps(spritesheet2x)}
+
+    return None
 
 def convert(geostyler):
     global _warnings
     _warnings = []
     layers = processLayer(geostyler)
+    layers.sort(key=lambda l: l["Z"])
     obj = {
         "version": 8,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
@@ -77,10 +148,19 @@ def tileURLFull(baseurl, workspace, layer):
             "&TILEMATRIXSET=EPSG:900913&FORMAT=application/x-protobuf;type=mapbox-vector&TILECOL={{x}}&TILEROW={{y}}" \
             .format(baseurl, workspace, layer)
 
+def spriteURLFull(baseurl, workspace, layer):
+    return "{0}/styles/{1}/spriteSheet" \
+         .format(baseurl, workspace, layer)
+
 def _toZoomLevel(scale):
     if scale < 1:  # scale=0 is valid in QGIS
         return 24  # 24 is largest value (according to mapbox spec)
-    val = int(math.log(1000000000 / scale, 2))
+    #val = int(math.log(1000000000 / scale, 2))
+    # https://docs.mapbox.com/help/glossary/zoom-level/
+    # https://wiki.openstreetmap.org/wiki/Zoom_levels
+    # and experimentation
+    val = (math.log(279581257 / scale, 2))
+
     return min(max(val, 0), 24)  # keep between 0 and 24
 
 
@@ -103,7 +183,7 @@ def processRule(rule, source, ruleNumber):
     if "scaleDenominator" in rule:
         scale = rule["scaleDenominator"]
         if "max" in scale:
-            minzoom = _toZoomLevel(scale["max"])  # mapbox gl has maxzoom as the larger zoom number
+            minzoom = max(_toZoomLevel(scale["max"]), 0)  # mapbox gl has maxzoom as the larger zoom number
         if "min" in scale:
             maxzoom = _toZoomLevel(scale["min"])  # mapbox gl has minzoom as the smaller zoom number
     name = rule.get("name", "rule")
@@ -198,6 +278,10 @@ def processSymbolizer(sl):
     geom = _geometryFromSymbolizer(sl)
     if geom is not None:
         _warnings.append("Derived geometries are not supported in mapbox gl")
+
+    for s in symbolizer:
+        if s:  # might be None
+            s["Z"] = sl["Z"]
 
     return symbolizer
 
@@ -301,34 +385,49 @@ def _iconSymbolizer(sl):
     paint = {}
     paint["icon-image"] = path
     paint["icon-rotate"] = rotation
+    size = _symbolProperty(sl, "size", 16) / 64.0
+    paint["icon-size"] = size
     return {"type": "symbol", "paint": paint}
 
 
 def _markSymbolizer(sl):
-    shape = _symbolProperty(sl, "wellKnownName")
-    if shape.startswith("file://"):
-        svgFilename = shape.split("//")[-1]
-        name = os.path.splitext(svgFilename)[0]
-        paint = {}
-        paint["icon-image"] = name
-        rotation = _symbolProperty(sl, "rotate")
-        paint["icon-rotate"] = rotation
-        return {"type": "symbol", "paint": paint}
-    else:
-        size = _symbolProperty(sl, "size")
-        opacity = _symbolProperty(sl, "opacity")
-        color = _symbolProperty(sl, "color")
-        outlineColor = _symbolProperty(sl, "strokeColor")
-        outlineWidth = _symbolProperty(sl, "strokeWidth")
+    paint = {}
+    paint["icon-image"] = _symbolProperty(sl, "spriteName")
 
-        paint = {}
-        paint["circle-radius"] = ["/", size, 2]
-        paint["circle-color"] = color
-        paint["circle-opacity"] = opacity
-        paint["circle-stroke-width"] = outlineWidth
-        paint["circle-stroke-color"] = outlineColor
+    rotation = _symbolProperty(sl, "rotate")
+    paint["icon-rotate"] = rotation
 
-        return {"type": "circle", "paint": paint}
+    size = _symbolProperty(sl, "size", 16) / 64.0
+    paint["icon-size"] = size
+    return {"type": "symbol", "layout": paint}
+    # if shape.startswith("file://"):
+    #     svgFilename = shape.split("//")[-1]
+    #     name = os.path.splitext(svgFilename)[0]
+    #     paint = {}
+    #     paint["icon-image"] = name
+    #     rotation = _symbolProperty(sl, "rotate")
+    #     paint["icon-rotate"] = rotation
+    #
+    #     size = _symbolProperty(sl, "size", 16)/64.0
+    #     paint["icon-size"] = size
+    #
+    #     #paint["icon-rotate"] = rotation
+    #     return {"type": "symbol", "layout": paint}
+    # else:
+    #     size = _symbolProperty(sl, "size")
+    #     opacity = _symbolProperty(sl, "opacity")
+    #     color = _symbolProperty(sl, "color")
+    #     outlineColor = _symbolProperty(sl, "strokeColor")
+    #     outlineWidth = _symbolProperty(sl, "strokeWidth")
+    #
+    #     paint = {}
+    #     paint["circle-radius"] = ["/", size, 2]
+    #     paint["circle-color"] = color
+    #     paint["circle-opacity"] = opacity
+    #     paint["circle-stroke-width"] = outlineWidth
+    #     paint["circle-stroke-color"] = outlineColor
+    #
+    #     return {"type": "circle", "layout": paint}
 
 
 def _fillSymbolizer(sl):
