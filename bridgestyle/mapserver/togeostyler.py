@@ -1,2 +1,2 @@
 def convert(style):
-    pass  # TODO
+    raise NotImplementedError("togeostyler.convert() has not been implemented")  # TODO
