@@ -1,12 +1,15 @@
 import os
 import json
+import base64
+import uuid
+import tempfile
 
-_usedIcons = {}
+_usedIcons = []
 _warnings = []
 
 def convert(arcgis):
     global _usedIcons
-    _usedIcons = {}
+    _usedIcons = []
     global _warnings
     _warnings = []
     geostyler = processLayer(arcgis["layerDefinitions"][0])
@@ -115,13 +118,13 @@ def processSymbolReference(symbolref):
     if "symbolLayers" in symbol:
         for layer in symbol["symbolLayers"]:
             symbolizer = processSymbolLayer(layer)
-            if layer["type"] == "CIMVectorMarker":           
+            if layer["type"] in ["CIMVectorMarker", "CIMPictureFill"]:
                 if symbol["type"] == "CIMLineSymbol":                
                     symbolizer = {"kind": "Line",
                         "opacity": 1.0,
                         "perpendicularOffset": 0.0,
                         "graphicStroke": [symbolizer],
-                        "graphicStrokeInterval": 10, #TODO
+                        "graphicStrokeInterval": symbolizer["size"] * 2, #TODO
                         "graphicStrokeOffset": 0.0,
                         "Z": 0}
                 elif symbol["type"] == "CIMPolygonSymbol":
@@ -129,8 +132,8 @@ def processSymbolReference(symbolref):
                         "opacity": 1.0,
                         "perpendicularOffset": 0.0,
                         "graphicFill": [symbolizer],
-                        "graphicStrokeInterval": 10, #TODO
-                        "graphicStrokeOffset": 0.0,
+                        "graphicFillMarginX": symbolizer["size"] * 2, #TODO
+                        "graphicFillMarginY": symbolizer["size"] * 2,
                         "Z": 0}
             symbolizers.append(symbolizer)
     return symbolizers
@@ -231,7 +234,32 @@ def processSymbolLayer(layer):
         }
     elif layer["type"] == "CIMPictureFill":
         url = layer["url"]
-        #TODO
+        if not os.path.exists(url):
+            tokens = url.split(";")
+            if len(tokens) == 2:
+                ext = tokens[0].split("/")[-1]
+                data = tokens[1][len("base64,"):]
+                path = os.path.join(tempfile.gettempdir(), "bridgestyle", 
+                                    str(uuid.uuid4()).replace("-", ""))
+                iconName = f"{len(_usedIcons)}.{ext}"
+                iconFile = os.path.join(path, iconName)
+                os.makedirs(path, exist_ok=True)                
+                with open(iconFile, "wb") as f:
+                    f.write(base64.decodebytes(data.encode()))
+                    _usedIcons.append(iconFile)
+                url = iconFile
+
+        rotate = layer.get("rotation", 0)
+        height = layer["height"]
+        return {
+                "opacity": 1.0,
+                "rotate": 0.0,
+                "kind": "Icon",
+                "color": None,
+                "image": url,
+                "size": height,
+                "Z": 0
+                }        
     else:
         return {}
         
