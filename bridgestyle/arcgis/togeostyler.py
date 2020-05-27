@@ -21,18 +21,18 @@ def processLayer(layer):
         rules = []
         if renderer["type"] == "CIMSimpleRenderer":
             rules.append(processSimpleRenderer(renderer))
-        elif renderer["type"] == "CIMUniqueimpleRenderer":
+        elif renderer["type"] == "CIMUniqueValueRenderer":
             for group in renderer["groups"]:
                 rules.extend(processUniqueValueGroup(renderer["fields"], group))
         else:
             _warnings.append(
                 "Unsupported renderer type: %s" % str(renderer))
             return            
-        '''
-        labelingRules = processLabelingLayer(layer)
-        if labelingRules is not None:
-            rules = rules + labelingRules
-        '''
+        
+        if layer.get("labelVisibility", False):
+            for labelClass in layer.get("labelClasses", []):
+                rules.append(processLabelClass(labelClass))
+        
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
         rules = [{"name": layer["name"], "symbolizers": [
@@ -40,6 +40,34 @@ def processLayer(layer):
         geostyler["rules"] = rules
 
     return geostyler
+
+
+def processLabelClass(labelClass):
+    textSymbol = labelClass["textSymbol"]["symbol"]
+    expression = labelClass["expression"].replace("[", "").replace("]", "")
+    fontFamily = textSymbol.get('fontFamilyName', 'Arial')
+    fontSize = textSymbol.get('height', 12)
+    color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
+    fontWeight = textSymbol.get('fontStyleName', 'Regular')
+    #minimumScale = labelParse['minimumScale'] or ''           
+
+    return {
+            "kind": "Text",
+            "offset": [
+                0.0,
+                0.0
+            ],
+            "anchor": "right",
+            "rotate": 0.0,
+            "color": color,
+            "font": "MS Shell Dlg 2",
+            "label": [
+                "PropertyName",
+                expression
+            ],
+            "size": fontSize
+        }
+
 
 def processSimpleRenderer(renderer):
     rule = {"name": "",
@@ -59,6 +87,7 @@ def processUniqueValueGroup(fields, group):
                     ],
                     val
                 ]
+    rules = []
     for clazz in group["classes"]:
         rule = {"name": clazz["label"]}
         values = clazz["values"]
@@ -85,12 +114,45 @@ def processSymbolReference(symbolref):
     symbolizers = []
     if "symbolLayers" in symbol:
         for layer in symbol["symbolLayers"]:
-            symbolizers.append(processSymbolLayer(layer))
+            symbolizer = processSymbolLayer(layer)
+            if layer["type"] == "CIMVectorMarker":           
+                if symbol["type"] == "CIMLineSymbol":                
+                    symbolizer = {"kind": "Line",
+                        "opacity": 1.0,
+                        "perpendicularOffset": 0.0,
+                        "graphicStroke": [symbolizer],
+                        "graphicStrokeInterval": 10, #TODO
+                        "graphicStrokeOffset": 0.0,
+                        "Z": 0}
+                elif symbol["type"] == "CIMPolygonSymbol":
+                    symbolizer = {"kind": "Fill",
+                        "opacity": 1.0,
+                        "perpendicularOffset": 0.0,
+                        "graphicFill": [symbolizer],
+                        "graphicStrokeInterval": 10, #TODO
+                        "graphicStrokeOffset": 0.0,
+                        "Z": 0}
+            symbolizers.append(symbolizer)
     return symbolizers
+
+def processEffect(effect):
+    if effect["type"] == "CIMGeometricEffectDashes":
+        return {"dasharray": " ". join(str(v) for v in effect["dashTemplate"])}
+    else:
+        return {}
+
+def _hatchMarkerForAngle(angle):
+    quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
+    return [
+        "shape://horline",
+        "shape://backslash",
+        "shape://vertline",
+        "shape://slash"
+    ][quadrant]
 
 def processSymbolLayer(layer):
     if layer["type"] == "CIMSolidStroke":
-        return {
+        stroke = {
             "kind": "Line",
             "color": processColor(layer["color"]),
             "opacity": 1.0,
@@ -99,6 +161,10 @@ def processSymbolLayer(layer):
             "cap": layer["capStyle"].lower(),
             "join": layer["joinStyle"].lower(),            
         }
+        if "effects" in layer:
+            for effect in layer["effects"]:
+                stroke.update(processEffect(effect))
+        return stroke
     elif layer["type"] == "CIMSolidFill":
         return {
             "kind": "Fill",
@@ -109,6 +175,7 @@ def processSymbolLayer(layer):
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
         hexcode = hex(layer["characterIndex"])
+        rotate = layer.get("rotation", 0)
         name = "ttf://%s#%s" % (fontFamily, hexcode)
         try:
             color = processColor(layer["symbol"]["symbolLayers"][0]["color"])
@@ -116,15 +183,16 @@ def processSymbolLayer(layer):
             color = "#000000"
         return {
             "opacity": 1.0,
-            "rotate": 0.0,
+            "rotate": rotate,
             "kind": "Mark",
             "color": color,
-            "wellKnownName": "ttf://Dingbats#0x61",
+            "wellKnownName": name,
             "size": layer["size"],
             "Z": 0
             }
 
     elif layer["type"] == "CIMVectorMarker":
+        #TODO
         return{
             "opacity": 1.0,
             "rotate": 0.0,
@@ -138,12 +206,70 @@ def processSymbolLayer(layer):
             "fillOpacity": 1.0,
             "Z": 0
         }
+    elif layer["type"] == "CIMHatchFill":
+        rotation = layer["rotation"]
+        separation = layer["separation"]
+        symbolLayers = layer["lineSymbol"]["symbolLayers"]
+        color, width = _extractStroke(symbolLayers)
+
+
+        hatch = {
+            "kind": "Fill",
+            "opacity": 1.0,
+            "graphicFill": [
+                {
+                    "kind": "Mark",
+                    "color": color,
+                    "wellKnownName": _hatchMarkerForAngle(rotation),
+                    "size": separation,
+                    "strokeColor": color,
+                    "strokeWidth": width,
+                    "rotate": 0
+                }
+            ],
+            "Z": 0
+        }
+    elif layer["type"] == "CIMPictureFill":
+        url = layer["url"]
+        #TODO
     else:
         return {}
+        
+def _extractStroke(symbolLayers):
+    for sl in symbolLayers:
+        if sl["type"] == "CIMSolidStroke":
+            color = processColor(sl["color"])
+            width = sl["width"]
+            return color, width
+    return "#000000", 1
+
+def _extractFillColor(symbolLayers):
+    for sl in symbolLayers:
+        if sl["type"] == "CIMSolidFill":
+            color = processColor(sl["color"])            
+            return color
+    return "#000000"   
 
 def processColor(color):
-    if color["type"] == "CIMRGBColor":
-        values = color["values"]
+    values = color["values"]
+    if color["type"] == "CIMRGBColor":        
         return '#%02x%02x%02x' % (values[0], values[1], values[2])
+    elif color["type"] == 'CIMCMYKColor':
+        r, g, b = cmyk2Rgb(values)
+        return '#%02x%02x%02x' % (r, g, b)
     else:
         return "#000000"
+
+def cmyk2Rgb(cmyk_array):
+    c = cmyk_array[0]
+    m  = cmyk_array[1]
+    y  = cmyk_array[2]
+    k  = cmyk_array[3]
+    
+    r = int((1 - ((c + k)/100)) * 255)
+    g = int((1 - ((m + k)/100)) * 255)
+    b = int((1 - ((y + k)/100)) * 255)
+    
+    return r, g, b
+
+    
