@@ -204,21 +204,21 @@ def _textSymbolizer(sl):
     fontFamily = _symbolProperty(sl, "font")
     label = _symbolProperty(sl, "label")
     size = _symbolProperty(sl, "size")
-    if "perpendicularOffset" in sl:
-        offset = sl["perpendicularOffset"]
-        layout["text-offset"] = offset
-    elif "offset" in sl:
+    if "offset" in sl:
         offset = sl["offset"]
         offsetx = convertExpression(offset[0])
         offsety = convertExpression(offset[1])
         layout["text-offset"] = [offsetx, offsety]
+    elif "perpendicularOffset" in sl:
+        offset = sl["perpendicularOffset"]
+        layout["text-offset"] = offset
 
     if "haloColor" in sl and "haloSize" in sl:
         paint["text-halo-width"] = _symbolProperty(sl, "haloSize")
         paint["text-halo-color"] = _symbolProperty(sl, "haloColor")
 
     layout["text-field"] = label
-    layout["text-size"] = size
+    layout["text-size"] = float(size)
     layout["text-font"] = [fontFamily]
 
     paint["text-color"] = color
