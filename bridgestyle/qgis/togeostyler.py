@@ -329,23 +329,23 @@ def addBackground(textFormat, symbolizer):
     background_sizeUnit = background.sizeUnit()
 
     shapeType = "square"
-    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeRectangle:
+    if background_type == QgsTextBackgroundSettings.ShapeRectangle:
         shapeType = "rectangle"
-    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeSquare:
+    if background_type == QgsTextBackgroundSettings.ShapeSquare:
         shapeType = "square"
-    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeEllipse:
+    if background_type == QgsTextBackgroundSettings.ShapeEllipse:
         shapeType = "elipse"
-    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeCircle:
+    if background_type == QgsTextBackgroundSettings.ShapeCircle:
         shapeType = "circle"
 
     sizeType = "buffer"
-    if background_sizeType == QgsTextBackgroundSettings.SizeType.SizeFixed:
+    if background_sizeType == QgsTextBackgroundSettings.SizeFixed:
         sizeType = "fixed"
 
     sizeUnits = "MM"
-    if background_sizeUnit ==QgsUnitTypes.RenderUnit.RenderPixels:
+    if background_sizeUnit ==QgsUnitTypes.RenderPixels:
         sizeUnits = "Pixel"
-    if background_sizeUnit ==QgsUnitTypes.RenderUnit.RenderPoints:
+    if background_sizeUnit ==QgsUnitTypes.RenderPoints:
         sizeUnits = "Point"
 
     sizeX = _handleUnits(background_size.width(), sizeUnits)
@@ -450,12 +450,12 @@ POINT2PIXEL = MM2PIXEL * 0.353 # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 m
 def _handleUnits(value, units, propertyConstant=None):
     if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
         return 1  # hairline width
-    if units in ["Point", QgsUnitTypes.RenderUnit.RenderPoints]:
+    if units in ["Point", QgsUnitTypes.RenderPoints]:
         if isinstance(value, list):
             return ["Mul", POINT2PIXEL, value]
         else:
             return float(value) * POINT2PIXEL
-    if units in ["MM", QgsUnitTypes.RenderUnit.RenderMillimeters]:
+    if units in ["MM", QgsUnitTypes.RenderMillimeters]:
         if isinstance(value, list):
             return ["Mul", MM2PIXEL, value]
         else:
@@ -467,7 +467,7 @@ def _handleUnits(value, units, propertyConstant=None):
             return value
         else:
             return str(value) + "m"
-    elif units in ["Pixel", QgsUnitTypes.RenderUnit.RenderMillimeters]:
+    elif units in ["Pixel", QgsUnitTypes.RenderMillimeters]:
         return value
     else:
         _warnings.append("Unsupported units: '%s'" % units)
