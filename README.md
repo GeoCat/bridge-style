@@ -63,7 +63,7 @@ There is one such module and function for each  supported format, which
 takes a Python object representing the Geostyler json object and returns 
 a string with the style in the destination format	
 '''
-converted, warnings = sld.fromgeostyler.convert(geostyler)
+converted, warnings, obj = sld.fromgeostyler.convert(geostyler)
 
 #we save the resulting string in the destination file
 with open(output_file) as f:

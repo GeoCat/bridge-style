@@ -1,0 +1,358 @@
+{
+  "type" : "CIMLayerDocument",
+  "version" : "2.5.0",
+  "build" : 22081,
+  "layers" : [
+    "CIMPATH=layers/countries3.xml"
+  ],
+  "layerDefinitions" : [
+    {
+      "type" : "CIMFeatureLayer",
+      "name" : "Countries",
+      "uRI" : "CIMPATH=layers/countries3.xml",
+      "sourceModifiedTime" : {
+        "type" : "TimeInstant"
+      },
+      "metadataURI" : "CIMPATH=Metadata/9c4bc40e28bc6be855e7248547eea6a7.xml",
+      "useSourceMetadata" : false,
+      "description" : "Polygon layer with picture fill symbol.",
+      "expanded" : true,
+      "layerType" : "Operational",
+      "showLegends" : true,
+      "visibility" : true,
+      "displayCacheType" : "Permanent",
+      "maxDisplayCacheAge" : 5,
+      "showPopups" : true,
+      "serviceLayerID" : -1,
+      "refreshRate" : -1,
+      "refreshRateUnit" : "esriTimeUnitsSeconds",
+      "autoGenerateFeatureTemplates" : true,
+      "featureTable" : {
+        "type" : "CIMFeatureTable",
+        "displayField" : "NAME",
+        "editable" : true,
+        "timeFields" : {
+          "type" : "CIMTimeTableDefinition"
+        },
+        "timeDefinition" : {
+          "type" : "CIMTimeDataDefinition"
+        },
+        "timeDisplayDefinition" : {
+          "type" : "CIMTimeDisplayDefinition",
+          "timeInterval" : 0,
+          "timeIntervalUnits" : "esriTimeUnitsHours",
+          "timeOffsetUnits" : "esriTimeUnitsYears"
+        },
+        "dataConnection" : {
+          "type" : "CIMStandardDataConnection",
+          "workspaceConnectionString" : "DATABASE=..\\..\\..\\map_data",
+          "workspaceFactory" : "Shapefile",
+          "dataset" : "countries_europe",
+          "datasetType" : "esriDTFeatureClass"
+        },
+        "studyAreaSpatialRel" : "esriSpatialRelUndefined",
+        "searchOrder" : "esriSearchOrderSpatial"
+      },
+      "htmlPopupEnabled" : true,
+      "htmlPopupFormat" : {
+        "type" : "CIMHtmlPopupFormat",
+        "htmlUseCodedDomainValues" : true,
+        "htmlPresentationStyle" : "TwoColumnTable"
+      },
+      "isFlattened" : true,
+      "selectable" : true,
+      "selectionSymbol" : {
+        "type" : "CIMSymbolReference",
+        "symbol" : {
+          "type" : "CIMPolygonSymbol",
+          "symbolLayers" : [
+            {
+              "type" : "CIMSolidStroke",
+              "enable" : true,
+              "capStyle" : "Round",
+              "joinStyle" : "Round",
+              "lineStyle3D" : "Strip",
+              "miterLimit" : 10,
+              "width" : 2,
+              "color" : {
+                "type" : "CIMRGBColor",
+                "values" : [
+                  0,
+                  255,
+                  255,
+                  100
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "featureCacheType" : "None",
+      "labelClasses" : [
+        {
+          "type" : "CIMLabelClass",
+          "expression" : "[NAME]",
+          "expressionEngine" : "VBScript",
+          "featuresToLabel" : "AllVisibleFeatures",
+          "maplexLabelPlacementProperties" : {
+            "type" : "CIMMaplexLabelPlacementProperties",
+            "featureType" : "Line",
+            "avoidPolygonHoles" : true,
+            "canOverrunFeature" : true,
+            "canPlaceLabelOutsidePolygon" : true,
+            "canRemoveOverlappingLabel" : true,
+            "canStackLabel" : true,
+            "connectionType" : "Unambiguous",
+            "constrainOffset" : "NoConstraint",
+            "contourAlignmentType" : "Page",
+            "contourLadderType" : "Straight",
+            "contourMaximumAngle" : 90,
+            "enableConnection" : true,
+            "featureWeight" : 100,
+            "fontHeightReductionLimit" : 4,
+            "fontHeightReductionStep" : 0.5,
+            "fontWidthReductionLimit" : 90,
+            "fontWidthReductionStep" : 5,
+            "graticuleAlignmentType" : "Straight",
+            "labelBuffer" : 15,
+            "labelLargestPolygon" : true,
+            "labelPriority" : -1,
+            "labelStackingProperties" : {
+              "type" : "CIMMaplexLabelStackingProperties",
+              "stackAlignment" : "ChooseBest",
+              "maximumNumberOfLines" : 3,
+              "minimumNumberOfCharsPerLine" : 3,
+              "maximumNumberOfCharsPerLine" : 24
+            },
+            "lineFeatureType" : "General",
+            "linePlacementMethod" : "OffsetCurvedFromLine",
+            "maximumLabelOverrun" : 36,
+            "maximumLabelOverrunUnit" : "Point",
+            "minimumFeatureSizeUnit" : "Map",
+            "multiPartOption" : "OneLabelPerPart",
+            "offsetAlongLineProperties" : {
+              "type" : "CIMMaplexOffsetAlongLineProperties",
+              "placementMethod" : "BestPositionAlongLine",
+              "labelAnchorPoint" : "CenterOfLabel",
+              "distanceUnit" : "Percentage",
+              "useLineDirection" : true
+            },
+            "pointExternalZonePriorities" : {
+              "type" : "CIMMaplexExternalZonePriorities",
+              "aboveLeft" : 4,
+              "aboveCenter" : 2,
+              "aboveRight" : 1,
+              "centerRight" : 3,
+              "belowRight" : 5,
+              "belowCenter" : 7,
+              "belowLeft" : 8,
+              "centerLeft" : 6
+            },
+            "pointPlacementMethod" : "AroundPoint",
+            "polygonAnchorPointType" : "GeometricCenter",
+            "polygonBoundaryWeight" : 200,
+            "polygonExternalZones" : {
+              "type" : "CIMMaplexExternalZonePriorities",
+              "aboveLeft" : 4,
+              "aboveCenter" : 2,
+              "aboveRight" : 1,
+              "centerRight" : 3,
+              "belowRight" : 5,
+              "belowCenter" : 7,
+              "belowLeft" : 8,
+              "centerLeft" : 6
+            },
+            "polygonFeatureType" : "General",
+            "polygonInternalZones" : {
+              "type" : "CIMMaplexInternalZonePriorities",
+              "center" : 1
+            },
+            "polygonPlacementMethod" : "CurvedInPolygon",
+            "primaryOffset" : 1,
+            "primaryOffsetUnit" : "Point",
+            "removeExtraWhiteSpace" : true,
+            "repetitionIntervalUnit" : "Map",
+            "rotationProperties" : {
+              "type" : "CIMMaplexRotationProperties",
+              "rotationType" : "Arithmetic",
+              "alignmentType" : "Straight"
+            },
+            "secondaryOffset" : 100,
+            "strategyPriorities" : {
+              "type" : "CIMMaplexStrategyPriorities",
+              "stacking" : 1,
+              "overrun" : 2,
+              "fontCompression" : 3,
+              "fontReduction" : 4,
+              "abbreviation" : 5
+            },
+            "thinningDistanceUnit" : "Map",
+            "truncationMarkerCharacter" : ".",
+            "truncationMinimumLength" : 1,
+            "truncationPreferredCharacters" : "aeiou"
+          },
+          "name" : "Default",
+          "priority" : 2,
+          "standardLabelPlacementProperties" : {
+            "type" : "CIMStandardLabelPlacementProperties",
+            "featureType" : "Line",
+            "featureWeight" : "None",
+            "labelWeight" : "High",
+            "numLabelsOption" : "OneLabelPerPart",
+            "lineLabelPosition" : {
+              "type" : "CIMStandardLineLabelPosition",
+              "above" : true,
+              "inLine" : true,
+              "parallel" : true
+            },
+            "lineLabelPriorities" : {
+              "type" : "CIMStandardLineLabelPriorities",
+              "aboveStart" : 3,
+              "aboveAlong" : 3,
+              "aboveEnd" : 3,
+              "centerStart" : 3,
+              "centerAlong" : 3,
+              "centerEnd" : 3,
+              "belowStart" : 3,
+              "belowAlong" : 3,
+              "belowEnd" : 3
+            },
+            "pointPlacementMethod" : "AroundPoint",
+            "pointPlacementPriorities" : {
+              "type" : "CIMStandardPointPlacementPriorities",
+              "aboveLeft" : 2,
+              "aboveCenter" : 2,
+              "aboveRight" : 1,
+              "centerLeft" : 3,
+              "centerRight" : 2,
+              "belowLeft" : 3,
+              "belowCenter" : 3,
+              "belowRight" : 2
+            },
+            "rotationType" : "Arithmetic",
+            "polygonPlacementMethod" : "AlwaysHorizontal"
+          },
+          "textSymbol" : {
+            "type" : "CIMSymbolReference",
+            "symbol" : {
+              "type" : "CIMTextSymbol",
+              "blockProgression" : "TTB",
+              "compatibilityMode" : true,
+              "depth3D" : 1,
+              "drawSoftHyphen" : true,
+              "extrapolateBaselines" : true,
+              "flipAngle" : 90,
+              "fontEffects" : "Normal",
+              "fontEncoding" : "Unicode",
+              "fontFamilyName" : "Arial",
+              "fontStyleName" : "Regular",
+              "fontType" : "Unspecified",
+              "haloSize" : 1,
+              "height" : 8,
+              "hinting" : "Default",
+              "horizontalAlignment" : "Center",
+              "kerning" : true,
+              "letterWidth" : 100,
+              "ligatures" : true,
+              "lineGapType" : "ExtraLeading",
+              "shadowColor" : {
+                "type" : "CIMRGBColor",
+                "values" : [
+                  0,
+                  0,
+                  0,
+                  100
+                ]
+              },
+              "symbol" : {
+                "type" : "CIMPolygonSymbol",
+                "symbolLayers" : [
+                  {
+                    "type" : "CIMSolidFill",
+                    "enable" : true,
+                    "color" : {
+                      "type" : "CIMRGBColor",
+                      "values" : [
+                        0,
+                        0,
+                        0,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              },
+              "textCase" : "Normal",
+              "textDirection" : "LTR",
+              "verticalAlignment" : "Bottom",
+              "verticalGlyphOrientation" : "Right",
+              "wordSpacing" : 100,
+              "billboardMode3D" : "FaceNearPlane"
+            }
+          },
+          "useCodedValue" : true,
+          "visibility" : true,
+          "iD" : -1
+        }
+      ],
+      "renderer" : {
+        "type" : "CIMSimpleRenderer",
+        "patch" : "Default",
+        "symbol" : {
+          "type" : "CIMSymbolReference",
+          "symbol" : {
+            "type" : "CIMPolygonSymbol",
+            "symbolLayers" : [
+              {
+                "type" : "CIMSolidStroke",
+                "enable" : true,
+                "capStyle" : "Round",
+                "joinStyle" : "Round",
+                "lineStyle3D" : "Strip",
+                "miterLimit" : 10,
+                "width" : 1,
+                "color" : {
+                  "type" : "CIMRGBColor",
+                  "values" : [
+                    110,
+                    110,
+                    110,
+                    100
+                  ]
+                }
+              },
+              {
+                "type" : "CIMPictureFill",
+                "enable" : true,
+                "url" : "data:image/png;base64,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\nAABJRU5ErkJggg==",
+                "scaleX" : 1,
+                "height" : 19.199999999999999,
+                "textureFilter" : "Picture",
+                "tintColor" : {
+                  "type" : "CIMRGBColor",
+                  "values" : [
+                    255,
+                    255,
+                    255,
+                    100
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "scaleSymbols" : true,
+      "snappable" : true
+    }
+  ],
+  "binaryReferences" : [
+    {
+      "type" : "CIMBinaryReference",
+      "uRI" : "CIMPATH=Metadata/9c4bc40e28bc6be855e7248547eea6a7.xml",
+      "data" : "<?xml version=\"1.0\"?>\r\n<metadata xml:lang=\"en\"><Esri><CreaDate>20200514</CreaDate><CreaTime>14212700</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce></Esri><dataIdInfo><idCitation><resTitle>Countries</resTitle></idCitation><idAbs>Polygon layer with picture fill symbol.</idAbs><idCredit></idCredit></dataIdInfo></metadata>\r\n"
+    }
+  ],
+  "rGBColorProfile" : "sRGB IEC61966-2-1 noBPC",
+  "cMYKColorProfile" : "U.S. Web Coated (SWOP) v2"
+}

@@ -2,6 +2,7 @@ import os
 import json
 import math
 import zipfile
+import tempfile
 from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
@@ -11,6 +12,7 @@ except:
     pass
 
 _usedIcons = {}
+_usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
 _warnings = []
 
 
@@ -25,14 +27,16 @@ _expressionConverter = ExpressionConverter()
 
 
 def convert(layer):
-    global _usedIcons
+    global _usedIcons, _usedSprites
     _usedIcons = {}
+    _usedSprites = {}
     global _warnings
     _warnings = []
     geostyler = processLayer(layer)
     if geostyler is None:
         geostyler = {"name": layer.name()}
-    return geostyler, _usedIcons, _warnings
+
+    return geostyler, _usedIcons, _usedSprites, _warnings
 
 
 blendModes = {
@@ -532,12 +536,12 @@ def _createSymbolizers(symbol, layerOpacity=1):
 
     for indx in range(len(symbol.symbolLayers())):
         sl = symbol.symbolLayers()[indx]
-        symbolizer = _createSymbolizer(sl, opacity)        
+        symbolizer = _createSymbolizer(sl, opacity)
         if symbolizer is not None:
             if not isinstance(symbolizer, list):
                 symbolizer = [symbolizer]
             for s in symbolizer:
-                s["Z"] = sl.renderingPass()                            
+                s["Z"] = sl.renderingPass()
                 symbolizers.append(s)
 
     return symbolizers
@@ -706,6 +710,21 @@ wknReplacements = {"regular_star": "star",
                    "cross": "shape://plus",
                    "cross_filled": "shape://plus"}
 
+spriteSize = 64  #  should be power of 2
+
+def _createSprite(sl):
+    sl = sl.clone()
+    newSymbol = QgsMarkerSymbol()
+    newSymbol.appendSymbolLayer(sl)
+    newSymbol.deleteSymbolLayer(0)
+    newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
+
+    sl.setSize(spriteSize)
+    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    sl.setSize(spriteSize*2)
+    img2x = newSymbol.asImage(QSize(sl.size(), sl.size()))
+
+    return {"image": img, "image2x": img2x}
 
 def _markGraphic(sl):
     props = sl.properties()
@@ -716,10 +735,13 @@ def _markGraphic(sl):
         sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
     fillOpacity = _opacity(props["color"])
     strokeOpacity = _opacity(props["outline_color"])
+    spriteName = ""
     try:
         path = sl.path()
-        global _usedIcons
+        global _usedIcons, _usedSprites
+        spriteName = os.path.basename(path)
         _usedIcons[sl.path()] = sl
+        _usedSprites[spriteName] = _createSprite(sl)
         name = "file://" + os.path.basename(path)
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
@@ -730,6 +752,11 @@ def _markGraphic(sl):
             sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
             outlineWidth = 0
+        spriteName = name.replace(":", "_").replace("/", "_")
+        spriteName = spriteName + "-{0}-{1}-{2}-{3}-{4}" \
+                .format(color, fillOpacity, outlineColor, strokeOpacity, outlineWidth)
+        _usedSprites[spriteName] = _createSprite(sl)
+
 
     mark = {"kind": "Mark",
             "color": color,
@@ -740,6 +767,9 @@ def _markGraphic(sl):
             "strokeOpacity": strokeOpacity,
             "fillOpacity": fillOpacity
             }
+    if spriteName != "":
+        mark["spriteName"] = spriteName
+
     if outlineStyle not in ["solid", "no"]:
         mark["strokeDasharray"] = "5 2"
 
@@ -861,3 +891,89 @@ def _simpleFillSymbolizer(sl, opacity):
         # symbolizer["geometry"] = processExpression("translate(%s,%s)" % (str(x), str(y)))
 
     return symbolizer
+
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
+NO_ICON = "no_icon"
+
+def saveSymbolLayerSprite(symbolLayer):
+    sl = symbolLayer.clone()
+    if isinstance(sl, QgsSVGFillSymbolLayer):
+        patternWidth = sl.patternWidth()
+        color = sl.svgFillColor()
+        outlineColor = sl.svgOutlineColor()
+        sl = QgsSvgMarkerSymbolLayer(sl.svgFilePath())
+        sl.setFillColor(color)
+        sl.setOutlineColor(outlineColor)
+        sl.setSize(patternWidth)
+        sl.setOutputUnit(QgsSymbol.Pixel)
+    sl2x = sl.clone()
+    try:
+        sl.setSize(64)
+        sl2x.setSize(sl.size() * 2)
+    except AttributeError:
+        return None, None
+    newSymbol = QgsMarkerSymbol()
+    newSymbol.appendSymbolLayer(sl)
+    newSymbol.deleteSymbolLayer(0)
+    newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
+
+    newSymbol2x = QgsMarkerSymbol()
+    newSymbol2x.appendSymbolLayer(sl2x)
+    newSymbol2x.deleteSymbolLayer(0)
+    newSymbol2x.setSizeUnit(QgsUnitTypes.RenderPixels)
+
+    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    img2x = newSymbol2x.asImage(QSize(sl2x.size(), sl2x.size()))
+    return img, img2x
+
+def saveSpritesSheet(icons, folder):
+    sprites = {}
+    for iconPath, sl in icons.items():
+        iconName = os.path.splitext(os.path.basename(iconPath))[0]
+        sprites[iconName] = saveSymbolLayerSprite(sl)
+    if sprites:
+        height = max([s.height() for s,s2x in sprites.values()])
+        width = sum([s.width() for s,s2x in sprites.values()])
+        img = QImage(width, height, QImage.Format_ARGB32)
+        img.fill(QColor(Qt.transparent))
+        img2x = QImage(width * 2, height * 2, QImage.Format_ARGB32)
+        img2x.fill(QColor(Qt.transparent))
+        painter = QPainter(img)
+        painter.begin(img)
+        painter2x = QPainter(img2x)
+        painter2x.begin(img2x)
+        spritesheet = {NO_ICON:{"width": 0,
+                             "height": 0,
+                             "x": 0,
+                             "y": 0,
+                             "pixelRatio": 1}}
+        spritesheet2x = {NO_ICON:{"width": 0,
+                             "height": 0,
+                             "x": 0,
+                             "y": 0,
+                             "pixelRatio": 1}}
+        x = 0
+        for name, _sprites in sprites.items():
+            s, s2x = _sprites
+            painter.drawImage(x, 0, s)
+            painter2x.drawImage(x * 2, 0, s2x)
+            spritesheet[name] = {"width": s.width(),
+                                 "height": s.height(),
+                                 "x": x,
+                                 "y": 0,
+                                 "pixelRatio": 1}
+            spritesheet2x[name] = {"width": s2x.width(),
+                                 "height": s2x.height(),
+                                 "x": x * 2,
+                                 "y": 0,
+                                 "pixelRatio": 2}
+            x += s.width()
+        painter.end()
+        painter2x.end()
+        img.save(os.path.join(folder, "spriteSheet.png"))
+        img2x.save(os.path.join(folder, "spriteSheet@2x.png"))
+        with open(os.path.join(folder, "spriteSheet.json"), 'w') as f:
+            json.dump(spritesheet, f)
+        with open(os.path.join(folder, "spriteSheet@2x.json"), 'w') as f:
+            json.dump(spritesheet2x, f)
