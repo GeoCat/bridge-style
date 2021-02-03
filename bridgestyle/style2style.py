@@ -1,10 +1,11 @@
 import os
 import sys
-from bridgestyle import sld
-from bridgestyle import geostyler
-from bridgestyle import mapboxgl
+import sld
+import geostyler
+import mapboxgl
+import arcgis
 
-_exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl}
+_exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl, "lyrx": arcgis}
 
 
 def convert(fileA, fileB):
@@ -14,7 +15,7 @@ def convert(fileA, fileB):
         print("Unsupported style type: '%s'" % extA)
         return
     if extB not in _exts:
-        print("Unsupported style type: '%s'" % ext)
+        print("Unsupported style type: '%s'" % extB)
         return
 
     with open(fileA) as f:
@@ -23,14 +24,15 @@ def convert(fileA, fileB):
     geostyler = _exts[extA].toGeostyler(styleA)
     styleB = _exts[extB].fromGeostyler(geostyler)
 
+
     with open(fileB, "w") as f:
         f.write(styleB)
 
 
-def main():
-    if len(sys.argv) != 3:
-        print(
-            "Wrong number of parameters\nUsage: style2style original_style_file.ext destination_style_file.ext"
-        )
-    else:
-        convert(sys.argv[1], sys.argv[2])
+
+if len(sys.argv) != 3:
+    print(
+        "Wrong number of parameters\nUsage: style2style original_style_file.ext destination_style_file.ext"
+    )
+else:
+    convert(sys.argv[1], sys.argv[2])
