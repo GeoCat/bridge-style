@@ -22,15 +22,17 @@ _warnings = []
 def processRulesByZ(rules):
     result = {}
     for rule in rules:
-        for symbolizer in rule["symbolizers"]:
-            z = symbolizer.get("Z", 0)
-            if z not in result:
-                result[z] = []
-            r = result[z]
-            rule_copy = rule.copy()
-            rule_copy["symbolizers"] = [symbolizer]
-            rule_copy["name"] += ", Z=" + str(z)
-            r.append(rule_copy)
+        if "symbolizers" in rule:
+            for symbolizer in rule["symbolizers"]:
+                z = symbolizer.get("Z", 0)
+                if z not in result:
+                    result[z] = []
+                r = result[z]
+                rule_copy = rule.copy()
+                rule_copy["symbolizers"] = [symbolizer]
+                rule_copy["name"] += ", Z=" + str(z)
+                r.append(rule_copy)
+
     return result
 
 
