@@ -4,8 +4,6 @@ from xml.etree import ElementTree
 from xml.dom import minidom
 from .transformations import processTransformation
 
-import zipfile
-
 _warnings = []
 
 # return a dictionary<int,list of rules>, where int is the Z value
@@ -72,7 +70,7 @@ def convert(geostyler):
 
     sldstring = ElementTree.tostring(root, encoding="utf8", method="xml").decode()
     dom = minidom.parseString(sldstring)
-    result = dom.toprettyxml(indent="  "), _warnings
+    result = dom.toprettyxml(indent="  ", encoding="utf8").decode(), _warnings
     return result
 
 
