@@ -3,11 +3,11 @@ from . import togeostyler
 from . import fromgeostyler
 
 
-def toGeostyler(style):
-    geostyler, _, _ = togeostyler.convert(json.loads(style))
+def toGeostyler(style, options=None):
+    geostyler, _, _ = togeostyler.convert(json.loads(style), options)
     return geostyler
 
 
-def fromGeostyler(style):
-    arcgisjson, warnings = fromgeostyler.convert(style)
+def fromGeostyler(style, options=None):
+    arcgisjson, warnings = fromgeostyler.convert(style, options)
     return arcgisjson

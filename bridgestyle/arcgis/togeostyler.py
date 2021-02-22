@@ -8,17 +8,18 @@ _usedIcons = []
 _warnings = []
 
 
-def convert(arcgis):
+def convert(arcgis, options=None):
     global _usedIcons
     _usedIcons = []
     global _warnings
     _warnings = []
-    geostyler = processLayer(arcgis["layerDefinitions"][0])
+    geostyler = processLayer(arcgis["layerDefinitions"][0], options)
     return geostyler, _usedIcons, _warnings
 
 
-def processLayer(layer):
+def processLayer(layer, options=None):
     #layer is a dictionary with the ArcGIS Pro Json style
+    options = options or {}
     geostyler = {}
     geostyler = {"name": layer["name"]}
     if layer["type"] == "CIMFeatureLayer":
@@ -28,7 +29,8 @@ def processLayer(layer):
             rules.append(processSimpleRenderer(renderer))
         elif renderer["type"] == "CIMUniqueValueRenderer":
             for group in renderer["groups"]:
-                rules.extend(processUniqueValueGroup(renderer["fields"], group))
+                rules.extend(processUniqueValueGroup(renderer["fields"],
+                            group, options.get("tolowercase")))
         else:
             _warnings.append(
                 "Unsupported renderer type: %s" % str(renderer))
@@ -80,7 +82,7 @@ def processSimpleRenderer(renderer):
     return rule
 
 
-def processUniqueValueGroup(fields, group):
+def processUniqueValueGroup(fields, group, tolowercase):
     def _and(a, b):
         return ["And", a, b]
     def _or(a, b):
@@ -89,7 +91,7 @@ def processUniqueValueGroup(fields, group):
         return ["PropertyIsEqualTo",
                     [
                         "PropertyName",
-                        name
+                        name.lower() if tolowercase else name
                     ],
                     val
                 ]

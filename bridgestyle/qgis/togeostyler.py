@@ -26,7 +26,7 @@ class ExpressionConverter():
 _expressionConverter = ExpressionConverter()
 
 
-def convert(layer):
+def convert(layer, options=None):
     global _usedIcons, _usedSprites
     _usedIcons = {}
     _usedSprites = {}

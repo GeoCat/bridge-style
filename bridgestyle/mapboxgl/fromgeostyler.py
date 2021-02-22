@@ -2,15 +2,13 @@ import os
 import math
 import json
 
-import tempfile
-
 _warnings = []
 _source_name = "vector-source"
 
 _processTextSymbolizer = False
 
 
-def convert(geostyler):
+def convert(geostyler, options=None):
     global _warnings
     _warnings = []
     layers = processLayer(geostyler)

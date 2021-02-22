@@ -1,5 +1,7 @@
 import os
 import sys
+import argparse
+
 import sld
 import geostyler
 import mapboxgl
@@ -8,7 +10,7 @@ import arcgis
 _exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl, "lyrx": arcgis}
 
 
-def convert(fileA, fileB):
+def convert(fileA, fileB, options):
     extA = os.path.splitext(fileA)[1][1:]
     extB = os.path.splitext(fileB)[1][1:]
     if extA not in _exts:
@@ -21,18 +23,23 @@ def convert(fileA, fileB):
     with open(fileA) as f:
         styleA = f.read()
 
-    geostyler = _exts[extA].toGeostyler(styleA)
-    styleB = _exts[extB].fromGeostyler(geostyler)
-
+    geostyler = _exts[extA].toGeostyler(styleA, options)
+    styleB = _exts[extB].fromGeostyler(geostyler, options)
 
     with open(fileB, "w") as f:
         f.write(styleB)
 
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', action='store_true',
+                        help="convert attribute names to lower case",
+                        dest="tolowercase")
+    parser.add_argument('src')
+    parser.add_argument('dst')
+    args = parser.parse_args()
 
-if len(sys.argv) != 3:
-    print(
-        "Wrong number of parameters\nUsage: style2style original_style_file.ext destination_style_file.ext"
-    )
-else:
-    convert(sys.argv[1], sys.argv[2])
+    argsdict = dict(vars(args))
+    del argsdict["src"]
+    del argsdict["dst"]
+    convert(args.src, args.dst, argsdict)

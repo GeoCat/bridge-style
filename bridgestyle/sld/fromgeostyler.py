@@ -34,7 +34,7 @@ def processRulesByZ(rules):
     return result
 
 
-def convert(geostyler):
+def convert(geostyler, options=None):
     global _warnings
     _warnings = []
     attribs = {

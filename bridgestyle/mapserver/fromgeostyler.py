@@ -1,6 +1,4 @@
 import os
-import math
-import json
 
 _warnings = []
 
@@ -14,7 +12,7 @@ def convertToDict(geostyler):
     return layer, _symbols, _warnings
 
 
-def convert(geostyler):
+def convert(geostyler, options=None):
     d, _, _ = convertToDict(geostyler)
     mapfile = convertDictToMapfile(d)
     symbols = convertDictToMapfile({"SYMBOLS": _symbols})
@@ -177,10 +175,10 @@ def _textSymbolizer(sl):
     style["COLOR"] = color
 
     """
-    if "haloColor" in sl and "haloSize" in sl:        
-        paint["text-halo-width"] =  _symbolProperty(sl, "haloSize")   
+    if "haloColor" in sl and "haloSize" in sl:
+        paint["text-halo-width"] =  _symbolProperty(sl, "haloSize")
         paint["text-halo-color"] = _symbolProperty(sl, "haloColor")
-    
+
     rotation = -1 * float(qgisLayer.customProperty("labeling/angleOffset"))
     layout["text-rotate"] = rotation
 

@@ -1,2 +1,2 @@
-def convert(geostyler):
+def convert(geostyler, options=None):
     return {}, []

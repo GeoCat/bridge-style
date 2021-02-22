@@ -1,9 +1,9 @@
 import json
 
 
-def toGeostyler(style):
+def toGeostyler(style, options=None):
     return json.loads(style)
 
 
-def fromGeostyler(style):
+def fromGeostyler(style, options=None):
     return json.dumps(style)
