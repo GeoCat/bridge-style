@@ -4,6 +4,8 @@ import base64
 import uuid
 import tempfile
 
+ESRI_SYMBOLS_FONT = "ESRI Default Marker"
+
 _usedIcons = []
 _warnings = []
 
@@ -158,6 +160,12 @@ def _hatchMarkerForAngle(angle):
         "shape://slash"
     ][quadrant]
 
+def _esriFontToStandardSymbols(name):
+    # So far, we don't have a mapping of symbols, so we return a default one
+    _warnings.append(
+                f"Unsupported symbol from ESRI font ({name}) replaced by default marker")
+    return "circle"
+
 def processSymbolLayer(layer):
     if layer["type"] == "CIMSolidStroke":
         stroke = {
@@ -183,8 +191,11 @@ def processSymbolLayer(layer):
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
         hexcode = hex(layer["characterIndex"])
+        if fontFamily == ESRI_SYMBOLS_FONT:
+            name = _esriFontToStandardSymbols(hexcode)
+        else:
+            name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
-        name = "ttf://%s#%s" % (fontFamily, hexcode)
         try:
             color = processColor(layer["symbol"]["symbolLayers"][0]["color"])
         except KeyError:
