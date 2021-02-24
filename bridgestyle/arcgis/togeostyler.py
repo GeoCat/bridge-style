@@ -28,11 +28,11 @@ def processLayer(layer, options=None):
         renderer = layer["renderer"]
         rules = []
         if renderer["type"] == "CIMSimpleRenderer":
-            rules.append(processSimpleRenderer(renderer))
+            rules.append(processSimpleRenderer(renderer, options))
         elif renderer["type"] == "CIMUniqueValueRenderer":
             for group in renderer["groups"]:
                 rules.extend(processUniqueValueGroup(renderer["fields"],
-                            group, options.get("tolowercase")))
+                            group, options))
         else:
             _warnings.append(
                 "Unsupported renderer type: %s" % str(renderer))
@@ -40,7 +40,7 @@ def processLayer(layer, options=None):
 
         if layer.get("labelVisibility", False):
             for labelClass in layer.get("labelClasses", []):
-                rules.append(processLabelClass(labelClass, options.get("tolowercase")))
+                rules.append(processLabelClass(labelClass, options.get("tolowercase", False)))
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
@@ -81,13 +81,14 @@ def processLabelClass(labelClass, tolowercase=False):
     return rule
 
 
-def processSimpleRenderer(renderer):
+def processSimpleRenderer(renderer, options):
     rule = {"name": "",
-            "symbolizers": processSymbolReference(renderer["symbol"])}
+            "symbolizers": processSymbolReference(renderer["symbol"], options)}
     return rule
 
 
-def processUniqueValueGroup(fields, group, tolowercase):
+def processUniqueValueGroup(fields, group, options):
+    tolowercase = options.get("tolowercase", False)
     def _and(a, b):
         return ["And", a, b]
     def _or(a, b):
@@ -117,17 +118,17 @@ def processUniqueValueGroup(fields, group, tolowercase):
             ruleFilter = _or(ruleFilter, condition)
 
         rule["filter"] = ruleFilter
-        rule["symbolizers"] = processSymbolReference(clazz["symbol"])
+        rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
         rules.append(rule)
     return rules
 
 
-def processSymbolReference(symbolref):
+def processSymbolReference(symbolref, options):
     symbol = symbolref["symbol"]
     symbolizers = []
     if "symbolLayers" in symbol:
         for layer in symbol["symbolLayers"]:
-            symbolizer = processSymbolLayer(layer)
+            symbolizer = processSymbolLayer(layer, options)
             if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
                 if symbol["type"] == "CIMLineSymbol":
                     symbolizer = {"kind": "Line",
@@ -169,7 +170,8 @@ def _esriFontToStandardSymbols(name):
                 f"Unsupported symbol from ESRI font ({name}) replaced by default marker")
     return "circle"
 
-def processSymbolLayer(layer):
+def processSymbolLayer(layer, options):
+    replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
         stroke = {
             "kind": "Line",
@@ -194,7 +196,7 @@ def processSymbolLayer(layer):
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
         hexcode = hex(layer["characterIndex"])
-        if fontFamily == ESRI_SYMBOLS_FONT:
+        if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
             name = _esriFontToStandardSymbols(hexcode)
         else:
             name = "ttf://%s#%s" % (fontFamily, hexcode)

@@ -33,8 +33,11 @@ def convert(fileA, fileB, options):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true',
-                        help="convert attribute names to lower case",
+                        help="Convert attribute names to lower case",
                         dest="tolowercase")
+    parser.add_argument('-e', action='store_true',
+                        help="Replace Esri font markers with standard symbols",
+                        dest="replaceesri")
     parser.add_argument('src')
     parser.add_argument('dst')
     args = parser.parse_args()
