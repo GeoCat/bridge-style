@@ -40,7 +40,7 @@ def processLayer(layer, options=None):
 
         if layer.get("labelVisibility", False):
             for labelClass in layer.get("labelClasses", []):
-                rules.append(processLabelClass(labelClass))
+                rules.append(processLabelClass(labelClass, options.get("tolowercase")))
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
@@ -51,7 +51,7 @@ def processLayer(layer, options=None):
     return geostyler
 
 
-def processLabelClass(labelClass):
+def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = labelClass["expression"].replace("[", "").replace("]", "")
     fontFamily = textSymbol.get('fontFamilyName', 'Arial')
@@ -60,7 +60,7 @@ def processLabelClass(labelClass):
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
     #minimumScale = labelParse['minimumScale'] or ''
 
-    return {
+    symbolizer = {
             "kind": "Text",
             "offset": [
                 0.0,
@@ -72,10 +72,13 @@ def processLabelClass(labelClass):
             "font": "MS Shell Dlg 2",
             "label": [
                 "PropertyName",
-                expression
+                expression.lower() if tolowercase else expression
             ],
             "size": fontSize
         }
+    rule = {"name": "",
+            "symbolizers": [symbolizer]}
+    return rule
 
 
 def processSimpleRenderer(renderer):
