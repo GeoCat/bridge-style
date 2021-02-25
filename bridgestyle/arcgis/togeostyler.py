@@ -69,15 +69,23 @@ def processLabelClass(labelClass, tolowercase=False):
             "anchor": "right",
             "rotate": 0.0,
             "color": color,
-            "font": "MS Shell Dlg 2",
+            "font": fontFamily,
             "label": [
                 "PropertyName",
                 expression.lower() if tolowercase else expression
             ],
             "size": fontSize
         }
+
+    haloSize = textSymbol.get("haloSize")
+    if haloSize:
+        haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
+        symbolizer.update({"haloColor": haloColor,
+                           "haloSize": haloSize,
+                           "haloOpacity": 1})
     rule = {"name": "",
             "symbolizers": [symbolizer]}
+
     return rule
 
 
