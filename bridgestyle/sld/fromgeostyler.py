@@ -1,7 +1,8 @@
 import os
-from xml.etree.ElementTree import Element, SubElement
-from xml.etree import ElementTree
 from xml.dom import minidom
+from xml.etree import ElementTree
+from xml.etree.ElementTree import Element, SubElement
+
 from .transformations import processTransformation
 
 _warnings = []

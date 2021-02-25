@@ -1,11 +1,10 @@
-import os
-import sys
 import argparse
+import os
 
-import sld
+import arcgis
 import geostyler
 import mapboxgl
-import arcgis
+import sld
 
 _exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl, "lyrx": arcgis}
 

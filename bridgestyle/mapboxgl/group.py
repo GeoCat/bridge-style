@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QImage, QPainter
 NO_ICON = "no_icon"
 from ..qgis.togeostyler import spriteSize

@@ -1,5 +1,5 @@
-from . import togeostyler
 from . import fromgeostyler
+from . import togeostyler
 
 
 def toGeostyler(style, options=None):

@@ -1,6 +1,6 @@
-import os
-import math
 import json
+import math
+import os
 
 _warnings = []
 _source_name = "vector-source"

@@ -1,4 +1,4 @@
-from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
+from qgis.core import QgsExpressionNode, QgsExpression
 
 
 class UnsupportedExpressionException(Exception):
