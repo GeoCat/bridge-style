@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="bridgestyle",
@@ -10,6 +10,6 @@ setup(
     license="MIT",
     keywords="GeoCat",
     url="",
-    packages=["bridgestyle"],
+    packages=find_packages(),
     entry_points={"console_scripts": ["style2style=bridgestyle.style2style:main"]},
 )
