@@ -1,0 +1,24 @@
+name: 'Notify camptocamp/lyrx2sld on updates'
+
+on:
+  push:
+    branches:
+      - master
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  notify:
+    name: 'Notify lyrx2sld'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Github REST API Call
+      env:
+        CI_TOKEN: ${{ secrets.GOPASS_CI_GITHUB_TOKEN }}
+        PARENT_REPO: camptocamp/lyrx2sld
+        PARENT_BRANCH: master
+        WORKFLOW_ID: 8408298
+      run: |
+        curl -fL --retry 3 -X POST -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${{ env.CI_TOKEN }}" https://api.github.com/repos/${{ env.PARENT_REPO }}/actions/workflows/${{ env.WORKFLOW_ID }}/dispatches -d '{"ref":"${{ env.PARENT_BRANCH }}"}'
