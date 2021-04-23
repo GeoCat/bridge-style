@@ -28,6 +28,7 @@ def convert(fileA, fileB, options):
     with open(fileB, "w") as f:
         f.write(styleB)
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true',

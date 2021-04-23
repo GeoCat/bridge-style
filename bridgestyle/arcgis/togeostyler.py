@@ -172,11 +172,21 @@ def _hatchMarkerForAngle(angle):
         "shape://slash"
     ][quadrant]
 
-def _esriFontToStandardSymbols(name):
-    # So far, we don't have a mapping of symbols, so we return a default one
-    _warnings.append(
-                f"Unsupported symbol from ESRI font ({name}) replaced by default marker")
-    return "circle"
+
+def _esriFontToStandardSymbols(charindex):
+    mapping = {42: "triangle",
+               35: "triangle",
+               33: "square",
+               94: "star",
+               95: "star",
+               203: "cross",
+               204: "cross"}
+    if charindex in mapping:
+        return mapping[charindex]
+    else:
+        _warnings.append(
+                f"Unsupported symbol from ESRI font (character index {charindex}) replaced by default marker")
+        return "circle"
 
 def processSymbolLayer(layer, options):
     replaceesri = options.get("replaceesri", False)
@@ -203,9 +213,10 @@ def processSymbolLayer(layer, options):
         }
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
-        hexcode = hex(layer["characterIndex"])
+        charindex = layer["characterIndex"]
+        hexcode = hex(charindex)
         if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
-            name = _esriFontToStandardSymbols(hexcode)
+            name = _esriFontToStandardSymbols(charindex)
         else:
             name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
