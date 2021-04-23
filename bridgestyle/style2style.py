@@ -1,11 +1,10 @@
 import os
-import sys
 import argparse
 
-import sld
-import geostyler
-import mapboxgl
-import arcgis
+from . import sld
+from . import geostyler
+from . import mapboxgl
+from . import arcgis
 
 _exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl, "lyrx": arcgis}
 
@@ -29,8 +28,7 @@ def convert(fileA, fileB, options):
     with open(fileB, "w") as f:
         f.write(styleB)
 
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true',
                         help="Convert attribute names to lower case",
