@@ -316,6 +316,9 @@ def processColor(color):
     elif color["type"] == 'CIMCMYKColor':
         r, g, b = cmyk2Rgb(values)
         return '#%02x%02x%02x' % (r, g, b)
+    elif color["type"] == 'CIMHSVColor':
+        r, g, b = hsv2rgb(values)
+        return '#%02x%02x%02x' % (int(r), int(g), int(b))
     else:
         return "#000000"
 
@@ -331,3 +334,31 @@ def cmyk2Rgb(cmyk_array):
     b = int((1 - ((y + k)/100)) * 255)
 
     return r, g, b
+
+
+def hsv2rgb(hsv_array):
+    h = hsv_array[0] / 360
+    s = hsv_array[1] / 100
+    v = hsv_array[2] / 100
+    if s == 0.0:
+        v *= 255
+        return (v, v, v)
+    i = int(h * 6.)
+    f = (h * 6.) - i
+    p = 255 * (v * (1. - s))
+    q = 255 * (v * (1. - s * f))
+    t = 255 * (v*(1. - s * (1. - f)))
+    v *= 255
+    i %= 6
+    if i == 0:
+        return (v, t, p)
+    if i == 1:
+        return (q, v, p)
+    if i == 2:
+        return (p, v, t)
+    if i == 3:
+        return (p, q, v)
+    if i == 4:
+        return (t, p, v)
+    if i == 5:
+        return (v, p, q)
