@@ -1,9 +1,10 @@
 import os
 from setuptools import setup, find_packages
 
+exec(open('bridgestyle/version.py').read())
 setup(
     name="bridgestyle",
-    version="0.1",
+    version=__version__,
     author="GeoCat",
     author_email="volaya@geocat.net",
     description="A library to convert between different map style formats",
