@@ -263,12 +263,9 @@ def _hatchMarkerForAngle(angle):
 
 
 def _esriFontToStandardSymbols(charindex):
-    mapping = {33: "circle",
-               34: "square",
+    mapping = {42: "triangle",
                35: "triangle",
-               40: "circle",
-               41: "square",
-               42: "triangle",
+               33: "square",
                94: "star",
                95: "star",
                203: "cross",
