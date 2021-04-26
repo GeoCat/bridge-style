@@ -251,7 +251,7 @@ def processSymbolLayer(layer, options):
         }
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        separation = layer.get("separation", 3)
+        separation =  layer.get("separation", 2) #This parameter can't really be translated to geostyler
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
 
@@ -263,7 +263,7 @@ def processSymbolLayer(layer, options):
                     "kind": "Mark",
                     "color": color,
                     "wellKnownName": _hatchMarkerForAngle(rotation),
-                    "size": separation,
+                    "size": 3,
                     "strokeColor": color,
                     "strokeWidth": width,
                     "rotate": 0
