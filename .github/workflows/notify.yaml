@@ -17,4 +17,3 @@ jobs:
           --header "Authorization: token ${{ secrets.GOPASS_CI_GITHUB_TOKEN }}"
           https://api.github.com/repos/camptocamp/lyrx2sld/dispatches
           --data '{"event_type": "bridge-style_updated"}'
-        if: ${{ env.HAS_SECRETS == 'HAS_SECRETS' }}
