@@ -172,11 +172,21 @@ def _hatchMarkerForAngle(angle):
         "shape://slash"
     ][quadrant]
 
-def _esriFontToStandardSymbols(name):
-    # So far, we don't have a mapping of symbols, so we return a default one
-    _warnings.append(
-                f"Unsupported symbol from ESRI font ({name}) replaced by default marker")
-    return "circle"
+
+def _esriFontToStandardSymbols(charindex):
+    mapping = {42: "triangle",
+               35: "triangle",
+               33: "square",
+               94: "star",
+               95: "star",
+               203: "cross",
+               204: "cross"}
+    if charindex in mapping:
+        return mapping[charindex]
+    else:
+        _warnings.append(
+                f"Unsupported symbol from ESRI font (character index {charindex}) replaced by default marker")
+        return "circle"
 
 def processSymbolLayer(layer, options):
     replaceesri = options.get("replaceesri", False)
@@ -203,9 +213,10 @@ def processSymbolLayer(layer, options):
         }
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
-        hexcode = hex(layer["characterIndex"])
+        charindex = layer["characterIndex"]
+        hexcode = hex(charindex)
         if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
-            name = _esriFontToStandardSymbols(hexcode)
+            name = _esriFontToStandardSymbols(charindex)
         else:
             name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
@@ -240,7 +251,7 @@ def processSymbolLayer(layer, options):
         }
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        separation = layer.get("separation", 3)
+        separation =  layer.get("separation", 2) #This parameter can't really be translated to geostyler
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
 
@@ -252,7 +263,7 @@ def processSymbolLayer(layer, options):
                     "kind": "Mark",
                     "color": color,
                     "wellKnownName": _hatchMarkerForAngle(rotation),
-                    "size": separation,
+                    "size": 3,
                     "strokeColor": color,
                     "strokeWidth": width,
                     "rotate": 0
@@ -316,6 +327,9 @@ def processColor(color):
     elif color["type"] == 'CIMCMYKColor':
         r, g, b = cmyk2Rgb(values)
         return '#%02x%02x%02x' % (r, g, b)
+    elif color["type"] == 'CIMHSVColor':
+        r, g, b = hsv2rgb(values)
+        return '#%02x%02x%02x' % (int(r), int(g), int(b))
     else:
         return "#000000"
 
@@ -331,3 +345,31 @@ def cmyk2Rgb(cmyk_array):
     b = int((1 - ((y + k)/100)) * 255)
 
     return r, g, b
+
+
+def hsv2rgb(hsv_array):
+    h = hsv_array[0] / 360
+    s = hsv_array[1] / 100
+    v = hsv_array[2] / 100
+    if s == 0.0:
+        v *= 255
+        return (v, v, v)
+    i = int(h * 6.)
+    f = (h * 6.) - i
+    p = 255 * (v * (1. - s))
+    q = 255 * (v * (1. - s * f))
+    t = 255 * (v*(1. - s * (1. - f)))
+    v *= 255
+    i %= 6
+    if i == 0:
+        return (v, t, p)
+    if i == 1:
+        return (q, v, p)
+    if i == 2:
+        return (p, v, t)
+    if i == 3:
+        return (p, q, v)
+    if i == 4:
+        return (t, p, v)
+    if i == 5:
+        return (v, p, q)
