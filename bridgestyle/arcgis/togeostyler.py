@@ -196,7 +196,7 @@ def processSymbolLayer(layer, options):
     if layer["type"] == "CIMSolidStroke":
         stroke = {
             "kind": "Line",
-            "color": processColor(layer["color"]),
+            "color": processColor(layer.get("color")),
             "opacity": 1.0,
             "width": layer["width"],
             "perpendicularOffset": 0.0,
@@ -211,7 +211,7 @@ def processSymbolLayer(layer, options):
         return {
             "kind": "Fill",
             "opacity": 1.0,
-            "color": processColor(layer["color"]),
+            "color": processColor(layer.get("color")),
             "fillOpacity": 1.0
         }
     elif layer["type"] == "CIMCharacterMarker":
@@ -224,7 +224,7 @@ def processSymbolLayer(layer, options):
             name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
         try:
-            color = processColor(layer["symbol"]["symbolLayers"][0]["color"])
+            color = processColor(layer["symbol"]["symbolLayers"][0].get("color"))
         except KeyError:
             color = "#000000"
         return {
@@ -309,7 +309,7 @@ def processSymbolLayer(layer, options):
 def _extractStroke(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidStroke":
-            color = processColor(sl["color"])
+            color = processColor(sl.get("color"))
             width = sl["width"]
             return color, width
     return "#000000", 1
@@ -318,12 +318,14 @@ def _extractStroke(symbolLayers):
 def _extractFillColor(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidFill":
-            color = processColor(sl["color"])
+            color = processColor(sl.get("color"))
             return color
     return "#000000"
 
 
 def processColor(color):
+    if color is None:
+        return "#000000"
     values = color["values"]
     if color["type"] == "CIMRGBColor":
         return '#%02x%02x%02x' % (values[0], values[1], values[2])
