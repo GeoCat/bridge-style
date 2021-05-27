@@ -79,7 +79,10 @@ def processLabelClass(labelClass, tolowercase=False):
 
     haloSize = textSymbol.get("haloSize")
     if haloSize:
-        haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
+        if "haloSymbol" in textSymbol:
+            haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
+        else:
+            haloColor = "#FFFFFF"
         symbolizer.update({"haloColor": haloColor,
                            "haloSize": haloSize,
                            "haloOpacity": 1})
