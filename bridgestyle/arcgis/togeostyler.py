@@ -213,7 +213,6 @@ def processUniqueValueGroup(fields, group, options):
             rule["filter"] = ruleFilter
             rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
             rules.append(rule)
-
     return rules
 
 
