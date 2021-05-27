@@ -30,9 +30,17 @@ def processLayer(layer, options=None):
         if renderer["type"] == "CIMSimpleRenderer":
             rules.append(processSimpleRenderer(renderer, options))
         elif renderer["type"] == "CIMUniqueValueRenderer":
-            for group in renderer["groups"]:
-                rules.extend(processUniqueValueGroup(renderer["fields"],
-                            group, options))
+            if "groups" in renderer:
+                for group in renderer["groups"]:
+                    rules.extend(processUniqueValueGroup(renderer["fields"],
+                                 group, options))
+            else:
+                if "defaultSymbol" in renderer:
+                    # this is really a simple renderer
+                    rule = {"name": "",
+                            "symbolizers": processSymbolReference(renderer["defaultSymbol"], options)}
+                    rules.append(rule)
+
         else:
             _warnings.append(
                 "Unsupported renderer type: %s" % str(renderer))
@@ -58,7 +66,7 @@ def processLabelClass(labelClass, tolowercase=False):
     fontSize = textSymbol.get('height', 12)
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
-    #minimumScale = labelParse['minimumScale'] or ''
+    # minimumScale = labelParse['minimumScale'] or ''
 
     symbolizer = {
             "kind": "Text",
