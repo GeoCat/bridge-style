@@ -115,19 +115,20 @@ def processUniqueValueGroup(fields, group, options):
         values = clazz["values"]
         conditions = []
         for v in values:
-            fieldValues = v["fieldValues"]
-            condition = _equal(fields[0], fieldValues[0])
-            for fieldValue, fieldName in zip(fieldValues[1:], fields[1:]):
-                condition = _and(condition, _equal(fieldName, fieldValue))
-            conditions.append(condition)
+            if "fieldValues" in v:
+                fieldValues = v["fieldValues"]
+                condition = _equal(fields[0], fieldValues[0])
+                for fieldValue, fieldName in zip(fieldValues[1:], fields[1:]):
+                    condition = _and(condition, _equal(fieldName, fieldValue))
+                conditions.append(condition)
+        if conditions:
+            ruleFilter = conditions[0]
+            for condition in conditions[1:]:
+                ruleFilter = _or(ruleFilter, condition)
 
-        ruleFilter = conditions[0]
-        for condition in conditions[1:]:
-            ruleFilter = _or(ruleFilter, condition)
-
-        rule["filter"] = ruleFilter
-        rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
-        rules.append(rule)
+            rule["filter"] = ruleFilter
+            rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
+            rules.append(rule)
     return rules
 
 
