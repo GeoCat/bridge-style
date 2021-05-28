@@ -286,7 +286,7 @@ def processSymbolLayer(layer, options):
             ],
             "Z": 0
         }
-    elif layer["type"] == "CIMPictureFill":
+    elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
         url = layer["url"]
         if not os.path.exists(url):
             tokens = url.split(";")
@@ -304,14 +304,14 @@ def processSymbolLayer(layer, options):
                 url = iconFile
 
         rotate = layer.get("rotation", 0)
-        height = layer["height"]
+        size = layer.get("height", layer.get("size"))
         return {
                 "opacity": 1.0,
                 "rotate": 0.0,
                 "kind": "Icon",
                 "color": None,
                 "image": url,
-                "size": height,
+                "size": size,
                 "Z": 0
                 }
     else:
