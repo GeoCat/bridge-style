@@ -43,7 +43,6 @@ def convert(fileA, fileB, options):
               "original style containing only unsupported elements)")
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true',
