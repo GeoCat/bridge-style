@@ -24,16 +24,23 @@ def convert(fileA, fileB, options):
         styleA = f.read()
 
     geostyler, icons, geostylerwarnings = _exts[extA].toGeostyler(styleA, options)
-    styleB, warningsB = _exts[extB].fromGeostyler(geostyler, options)
-    outputfolder = os.path.dirname(fileB)
-    for f in icons:
-        dst = os.path.join(outputfolder, os.path.basename(f))
-        shutil.copy(f, dst)
-    for w in geostylerwarnings + warningsB:
-        print(f"WARNING: {w}")
+    if geostyler.get("rules", []):
+        styleB, warningsB = _exts[extB].fromGeostyler(geostyler, options)
+        outputfolder = os.path.dirname(fileB)
+        for f in icons:
+            dst = os.path.join(outputfolder, os.path.basename(f))
+            shutil.copy(f, dst)
 
-    with open(fileB, "w") as f:
-        f.write(styleB)
+        with open(fileB, "w") as f:
+            f.write(styleB)
+
+        for w in geostylerwarnings + warningsB:
+            print(f"WARNING: {w}")
+    else:
+        for w in geostylerwarnings:
+            print(f"WARNING: {w}")
+        print("ERROR: Empty geostyler result (This is most likely caused by the "
+              "original style containing only unsupported elements)")
 
 
 def main():
