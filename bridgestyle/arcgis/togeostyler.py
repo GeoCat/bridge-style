@@ -391,7 +391,7 @@ def processColor(color):
         return "#000000"
     values = color["values"]
     if color["type"] == "CIMRGBColor":
-        return '#%02x%02x%02x' % (values[0], values[1], values[2])
+        return '#%02x%02x%02x' % (int(values[0]), int(values[1]), int(values[2]))
     elif color["type"] == 'CIMCMYKColor':
         r, g, b = cmyk2Rgb(values)
         return '#%02x%02x%02x' % (r, g, b)
