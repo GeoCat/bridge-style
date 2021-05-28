@@ -8,4 +8,4 @@ def toGeostyler(style, options=None):
 
 def fromGeostyler(style, options=None):
     mb, symbols, warnings = fromgeostyler.convert(style, options)
-    return mb
+    return mb, warnings

@@ -1,5 +1,6 @@
 import os
 import argparse
+import shutil
 
 from . import sld
 from . import geostyler
@@ -22,8 +23,14 @@ def convert(fileA, fileB, options):
     with open(fileA) as f:
         styleA = f.read()
 
-    geostyler = _exts[extA].toGeostyler(styleA, options)
-    styleB = _exts[extB].fromGeostyler(geostyler, options)
+    geostyler, icons, geostylerwarnings = _exts[extA].toGeostyler(styleA, options)
+    styleB, warningsB = _exts[extB].fromGeostyler(geostyler, options)
+    outputfolder = os.path.dirname(fileB)
+    for f in icons:
+        dst = os.path.join(outputfolder, os.path.basename(f))
+        shutil.copy(f, dst)
+    for w in geostylerwarnings + warningsB:
+        print(f"WARNING: {w}")
 
     with open(fileB, "w") as f:
         f.write(styleB)

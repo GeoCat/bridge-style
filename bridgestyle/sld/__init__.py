@@ -7,5 +7,4 @@ def toGeostyler(style, options=None):
 
 
 def fromGeostyler(style, options=None):
-    sld, warnings = fromgeostyler.convert(style, options)
-    return sld
+    return fromgeostyler.convert(style, options)

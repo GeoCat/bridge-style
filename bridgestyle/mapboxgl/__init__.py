@@ -7,5 +7,4 @@ def toGeostyler(style, options=None):
 
 
 def fromGeostyler(style, options=None):
-    mb, warnings = fromgeostyler.convert(style, options)
-    return mb
+    return fromgeostyler.convert(style, options)
