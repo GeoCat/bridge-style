@@ -41,10 +41,13 @@ def processLayer(layer, options=None):
                             "symbolizers": processSymbolReference(renderer["defaultSymbol"], options)}
                     rules.append(rule)
 
+        elif (renderer["type"] == "CIMClassBreaksRenderer"
+              and renderer.get("classBreakType") == "GraduatedColor"):
+            rules.extend(processClassBreaksRenderer(renderer, options))
         else:
             _warnings.append(
                 "Unsupported renderer type: %s" % str(renderer))
-            return
+            return geostyler
 
         if layer.get("labelVisibility", False):
             for labelClass in layer.get("labelClasses", []):
@@ -58,6 +61,54 @@ def processLayer(layer, options=None):
 
     return geostyler
 
+
+def processClassBreaksRenderer(renderer, options):
+    rules = []
+    field = renderer["field"]
+    lastbound = None
+    for classbreak in renderer.get("breaks", []):
+        tolowercase = options.get("tolowercase", False)
+        symbolizers = processSymbolReference(classbreak["symbol"], options)
+        upperbound = classbreak.get("upperBound")
+        if upperbound is not None:
+            if lastbound:
+                filt = ["And",
+                            ["PropertyIsGreaterThan",
+                                [
+                                    "PropertyName",
+                                    field.lower() if tolowercase else field
+                                ],
+                                lastbound
+                            ],
+                            ["PropertyIsLessThan",
+                                [
+                                    "PropertyName",
+                                    field.lower() if tolowercase else field
+                                ],
+                                upperbound
+                            ],
+                       ]
+            else:
+                filt = ["PropertyIslessThan",
+                            [
+                                "PropertyName",
+                                field.lower() if tolowercase else field
+                            ],
+                            upperbound
+                       ]
+            lastbound = upperbound
+            ruledef = {"name": classbreak.get("label", "classbreak"),
+                       "symbolizers": symbolizers,
+                       "filter": filt}
+            rules.append(ruledef)
+        else:
+            elserule = {"name": classbreak.get("label", "ELSE"),
+                        "symbolizers": symbolizers,
+                        "filter": "ELSE"}
+
+    if elserule is not None:
+        rules.append(elserule)
+    return rules
 
 def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
