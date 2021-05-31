@@ -220,11 +220,13 @@ def processSymbolReference(symbolref, options):
             symbolizers.append(symbolizer)
     return symbolizers
 
+
 def processEffect(effect):
     if effect["type"] == "CIMGeometricEffectDashes":
-        return {"dasharray": " ". join(str(v) for v in effect["dashTemplate"])}
+        return {"dasharray": " ". join(str(math.ceil(v)) for v in effect["dashTemplate"])}
     else:
         return {}
+
 
 def _hatchMarkerForAngle(angle):
     quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
@@ -253,6 +255,7 @@ def _esriFontToStandardSymbols(charindex):
         _warnings.append(
                 f"Unsupported symbol from ESRI font (character index {charindex}) replaced by default marker")
         return "circle"
+
 
 def processSymbolLayer(layer, options):
     replaceesri = options.get("replaceesri", False)
