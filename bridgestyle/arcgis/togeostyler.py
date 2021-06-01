@@ -66,6 +66,7 @@ def processClassBreaksRenderer(renderer, options):
     rules = []
     field = renderer["field"]
     lastbound = None
+    elserule = None
     for classbreak in renderer.get("breaks", []):
         tolowercase = options.get("tolowercase", False)
         symbolizers = processSymbolReference(classbreak["symbol"], options)
@@ -109,6 +110,7 @@ def processClassBreaksRenderer(renderer, options):
     if elserule is not None:
         rules.append(elserule)
     return rules
+
 
 def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
