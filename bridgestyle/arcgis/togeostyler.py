@@ -119,7 +119,6 @@ def processLabelClass(labelClass, tolowercase=False):
     fontSize = textSymbol.get('height', 12)
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
-    # minimumScale = labelParse['minimumScale'] or ''
 
     symbolizer = {
             "kind": "Text",
@@ -149,6 +148,10 @@ def processLabelClass(labelClass, tolowercase=False):
                            "haloOpacity": 1})
     rule = {"name": "",
             "symbolizers": [symbolizer]}
+
+    minimumScale = labelClass.get("minimumScale")
+    if minimumScale is not None:
+        rule["scaleDenominator"] = {"min": minimumScale}
 
     return rule
 
@@ -413,9 +416,9 @@ def cmyk2Rgb(cmyk_array):
     y = cmyk_array[2]
     k = cmyk_array[3]
 
-    r = int((1 - ((c + k)/100)) * 255)
-    g = int((1 - ((m + k)/100)) * 255)
-    b = int((1 - ((y + k)/100)) * 255)
+    r = int(255* (1 - c / 100) * (1 - k / 100))
+    g = int(255* (1 - m / 100) * (1 - k / 100))
+    b = int(255* (1 - y / 100) * (1 - k / 100))
 
     return r, g, b
 
