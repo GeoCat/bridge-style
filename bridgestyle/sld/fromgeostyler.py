@@ -14,7 +14,6 @@ from ..version import __version__
 
 _warnings = []
 
-
 def convert(geostyler, options=None):
     global _warnings
     _warnings = []
