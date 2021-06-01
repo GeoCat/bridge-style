@@ -29,7 +29,7 @@ def processRulesByZ(rules):
                 r = result[z]
                 rule_copy = rule.copy()
                 rule_copy["symbolizers"] = [symbolizer]
-                rule_copy["name"] += ", Z=" + str(z)
+                #rule_copy["name"] += ", Z=" + str(z)
                 r.append(rule_copy)
 
     return result

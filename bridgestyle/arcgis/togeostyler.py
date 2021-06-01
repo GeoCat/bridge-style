@@ -53,7 +53,7 @@ def processLayer(layer, options=None):
             for labelClass in layer.get("labelClasses", []):
                 rules.append(processLabelClass(labelClass, options.get("tolowercase", False)))
 
-        geostyler["rules"] = rules
+        geostyler["rules"] = rules[::-1] #drawing order gor geostyler is inverse of rule order
     elif layer["type"] == "CIMRasterLayer":
         rules = [{"name": layer["name"], "symbolizers": [
             rasterSymbolizer(layer)]}]
@@ -81,7 +81,7 @@ def processClassBreaksRenderer(renderer, options):
                                 ],
                                 lastbound
                             ],
-                            ["PropertyIsLessThan",
+                            ["PropertyIsLessThanOrEqualTo",
                                 [
                                     "PropertyName",
                                     field.lower() if tolowercase else field
@@ -90,7 +90,7 @@ def processClassBreaksRenderer(renderer, options):
                             ],
                        ]
             else:
-                filt = ["PropertyIslessThan",
+                filt = ["PropertyIsLessThanOrEqualTo",
                             [
                                 "PropertyName",
                                 field.lower() if tolowercase else field
