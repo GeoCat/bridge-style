@@ -55,7 +55,7 @@ def processLayer(layer, options=None):
             for labelClass in layer.get("labelClasses", []):
                 rules.append(processLabelClass(labelClass, options.get("tolowercase", False)))
 
-        geostyler["rules"] = rules[::-1] #drawing order gor geostyler is inverse of rule order
+        geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
         rules = [{"name": layer["name"], "symbolizers": [
             rasterSymbolizer(layer)]}]
@@ -224,6 +224,7 @@ def processUniqueValueGroup(fields, group, options):
             rule["filter"] = ruleFilter
             rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
             rules.append(rule)
+
     return rules
 
 
