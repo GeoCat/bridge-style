@@ -204,7 +204,7 @@ def processSymbolReference(symbolref, options):
     symbol = symbolref["symbol"]
     symbolizers = []
     if "symbolLayers" in symbol:
-        for layer in symbol["symbolLayers"][::1]: #drawing order gor geostyler is inverse of rule order
+        for layer in symbol["symbolLayers"][::-1]: #drawing order gor geostyler is inverse of rule order
             symbolizer = processSymbolLayer(layer, options)
             if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
                 if symbol["type"] == "CIMLineSymbol":
