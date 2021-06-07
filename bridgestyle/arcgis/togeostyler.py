@@ -295,7 +295,6 @@ def _esriFontToStandardSymbols(charindex):
 def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
-        effects = {}
         if "effects" in layer:
             for effect in layer["effects"]:
                 effects.update(processEffect(effect))
