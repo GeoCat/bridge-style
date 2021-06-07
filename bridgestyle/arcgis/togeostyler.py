@@ -205,7 +205,7 @@ def processSymbolReference(symbolref, options):
     symbolizers = []
     if "symbolLayers" in symbol:
         for layer in symbol["symbolLayers"][::-1]: #drawing order for geostyler is inverse of rule order
-            symbolizer = processSymbolLayer(layer, options)
+            symbolizer = processSymbolLayer(layer, symbol["type"], options)
             if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
                 if symbol["type"] == "CIMLineSymbol":
                     symbolizer = {"kind": "Line",
@@ -263,18 +263,26 @@ def _esriFontToStandardSymbols(charindex):
         return "circle"
 
 
-def processSymbolLayer(layer, options):
+def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
-        stroke = {
-            "kind": "Line",
-            "color": processColor(layer.get("color")),
-            "opacity": 1.0,
-            "width": layer["width"],
-            "perpendicularOffset": 0.0,
-            "cap": layer["capStyle"].lower(),
-            "join": layer["joinStyle"].lower(),
-        }
+        if symboltype == "CIMPolygonSymbol":
+            stroke = {
+                "kind": "Fill",
+                "outlineColor": processColor(layer.get("color")),
+                "outlineOpacity": 1.0,
+                "outlineWidth": layer["width"],
+            }
+        else:
+            stroke = {
+                "kind": "Line",
+                "color": processColor(layer.get("color")),
+                "opacity": 1.0,
+                "width": layer["width"],
+                "perpendicularOffset": 0.0,
+                "cap": layer["capStyle"].lower(),
+                "join": layer["joinStyle"].lower(),
+            }
         if "effects" in layer:
             for effect in layer["effects"]:
                 stroke.update(processEffect(effect))
@@ -326,7 +334,7 @@ def processSymbolLayer(layer, options):
         }
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        separation =  layer.get("separation", 2) #This parameter can't really be translated to geostyler
+        separation = layer.get("separation", 2) #This parameter can't really be translated to geostyler
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
 
