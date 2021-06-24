@@ -229,7 +229,7 @@ def processSymbolReference(symbolref, options):
 
 def processEffect(effect):
     if effect["type"] == "CIMGeometricEffectDashes":
-        return {"dasharray": " ". join(str(math.ceil(v)) for v in effect["dashTemplate"])}
+        return {"dasharray": " ".join(str(math.ceil(v)) for v in effect["dashTemplate"])}
     else:
         return {}
 
@@ -237,10 +237,10 @@ def processEffect(effect):
 def _hatchMarkerForAngle(angle):
     quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
     return [
-        "shape://horline",
-        "shape://backslash",
         "shape://vertline",
-        "shape://slash"
+        "shape://slash",
+        "shape://horline",
+        "shape://backslash"
     ][quadrant]
 
 
@@ -266,6 +266,10 @@ def _esriFontToStandardSymbols(charindex):
 def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
+        effects = {}
+        if "effects" in layer:
+            for effect in layer["effects"]:
+                effects.update(processEffect(effect))
         if symboltype == "CIMPolygonSymbol":
             stroke = {
                 "kind": "Fill",
@@ -273,6 +277,8 @@ def processSymbolLayer(layer, symboltype, options):
                 "outlineOpacity": 1.0,
                 "outlineWidth": layer["width"],
             }
+            if "dasharray" in effects:
+                stroke["outlineDasharray"] = effects["dasharray"]
         else:
             stroke = {
                 "kind": "Line",
@@ -283,9 +289,8 @@ def processSymbolLayer(layer, symboltype, options):
                 "cap": layer["capStyle"].lower(),
                 "join": layer["joinStyle"].lower(),
             }
-        if "effects" in layer:
-            for effect in layer["effects"]:
-                stroke.update(processEffect(effect))
+            if "dasharray" in effects:
+                stroke["asharray"] = effects["dasharray"]
         return stroke
     elif layer["type"] == "CIMSolidFill":
         return {
@@ -334,7 +339,7 @@ def processSymbolLayer(layer, symboltype, options):
         }
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        separation = layer.get("separation", 2) #This parameter can't really be translated to geostyler
+        separation = layer.get("separation", 2)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
 
@@ -346,7 +351,7 @@ def processSymbolLayer(layer, symboltype, options):
                     "kind": "Mark",
                     "color": color,
                     "wellKnownName": _hatchMarkerForAngle(rotation),
-                    "size": 3,
+                    "size": separation + width,
                     "strokeColor": color,
                     "strokeWidth": width,
                     "rotate": 0

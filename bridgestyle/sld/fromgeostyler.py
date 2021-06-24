@@ -490,7 +490,7 @@ def _fillSymbolizer(sl, graphicFillLayer=0):
         # _addCssParameter(stroke, "stroke-linecap", cap)
         if outlineDasharray is not None:
             _addCssParameter(
-                stroke, "stroke-dasharray", " ".join(str(v) for v in outlineDasharray)
+                stroke, "stroke-dasharray", outlineDasharray
             )
 
     if offset:
