@@ -7,6 +7,7 @@ from .transformations import processTransformation
 
 _warnings = []
 
+
 # return a dictionary<int,list of rules>, where int is the Z value
 # symbolizers are marked with a Z
 #
@@ -21,16 +22,15 @@ _warnings = []
 def processRulesByZ(rules):
     result = {}
     for rule in rules:
-        if "symbolizers" in rule:
-            for symbolizer in rule["symbolizers"]:
-                z = symbolizer.get("Z", 0)
-                if z not in result:
-                    result[z] = []
-                r = result[z]
-                rule_copy = rule.copy()
-                rule_copy["symbolizers"] = [symbolizer]
-                rule_copy["name"] += ", Z=" + str(z)
-                r.append(rule_copy)
+        for symbolizer in rule.get("symbolizers", []):
+            z = symbolizer.get("Z", 0)
+            if z not in result:
+                result[z] = []
+            r = result[z]
+            rule_copy = rule.copy()
+            rule_copy["symbolizers"] = [symbolizer]
+            rule_copy["name"] += f"{', ' if rule_copy['name'] else ''}Z={z}"
+            r.append(rule_copy)
 
     return result
 

@@ -161,29 +161,33 @@ def convertExpression(exp):
 
 
 def processSymbolizer(sl):
-    symbolizerType = sl["kind"]
-    if symbolizerType == "Icon":
-        symbolizer = [_iconSymbolizer(sl)]
-    if symbolizerType == "Line":
-        symbolizer = [_lineSymbolizer(sl)]
-    if symbolizerType == "Fill":
-        symbolizer = _fillSymbolizer(sl)
-    if symbolizerType == "Mark":
-        symbolizer =[ _markSymbolizer(sl)]
-    if symbolizerType == "Text":
-        symbolizer = [_textSymbolizer(sl)]
-    if symbolizerType == "Raster":
-        symbolizer = [_rasterSymbolizer(sl)]
+    sl_type = sl.get('kind')
+    processor = {
+        "Icon": _iconSymbolizer,
+        "Line": _lineSymbolizer,
+        "Fill": _fillSymbolizer,
+        "Mark": _markSymbolizer,
+        "Text": _textSymbolizer,
+        "Raster": _rasterSymbolizer
+    }.get(sl_type)
+    if not processor:
+        _warnings.append(f"Unknown or unsupported symbol type '{sl_type}'")
 
     geom = _geometryFromSymbolizer(sl)
     if geom is not None:
         _warnings.append("Derived geometries are not supported in mapbox gl")
 
-    for s in symbolizer:
-        if s:  # might be None
-            s["Z"] = sl["Z"]
+    result = processor(sl)
+    symbolizers = []
+    if result:
+        if isinstance(result, list):
+            symbolizers.extend(r for r in result if r)
+        else:
+            symbolizers.append(result)
+    for s in symbolizers:
+        s["Z"] = sl.get("Z", 0)
 
-    return symbolizer
+    return symbolizers
 
 
 def _symbolProperty(sl, name, default=None):
@@ -247,7 +251,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
 
     paint = {}
     if graphicStroke is not None:
-        _warnings.append("Marker lines not supported for Mapbox GL conversion")
+        _warnings.append("Marker lines not supported for mapbox conversion")
         # TODO
 
     if color is None:
@@ -279,7 +283,11 @@ def _geometryFromSymbolizer(sl):
 
 
 def _iconSymbolizer(sl):
-    path = os.path.splitext(os.path.basename(sl["image"])[0])
+    image = sl.get('image')
+    if not image:
+        _warnings.append("Icon symbol has no image")
+        return {"type": "symbol"}
+    path = os.path.splitext(os.path.basename(image)[0])
     rotation = _symbolProperty(sl, "rotate")
 
     paint = {}
@@ -359,7 +367,7 @@ def _fillSymbolizer(sl):
                 }}
     if line:
         return [fill, line]
-    return [fill]
+    return fill
 
 
 def _rasterSymbolizer(sl):
