@@ -6,6 +6,8 @@ import uuid
 
 from .expressions import convertExpression, convertWhereClause
 
+from .expressions import convertExpression
+
 ESRI_SYMBOLS_FONT = "ESRI Default Marker"
 
 _usedIcons = []
