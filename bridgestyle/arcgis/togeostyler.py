@@ -4,6 +4,8 @@ import base64
 import uuid
 import tempfile
 
+from .expressions import convertExpression
+
 ESRI_SYMBOLS_FONT = "ESRI Default Marker"
 
 _usedIcons = []
@@ -114,7 +116,7 @@ def processClassBreaksRenderer(renderer, options):
 
 def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
-    expression = labelClass["expression"].replace("[", "").replace("]", "")
+    expression = convertExpression(labelClass["expression"], tolowercase)
     fontFamily = textSymbol.get('fontFamilyName', 'Arial')
     fontSize = textSymbol.get('height', 12)
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
@@ -130,10 +132,7 @@ def processLabelClass(labelClass, tolowercase=False):
             "rotate": 0.0,
             "color": color,
             "font": fontFamily,
-            "label": [
-                "PropertyName",
-                expression.lower() if tolowercase else expression
-            ],
+            "label": expression,
             "size": fontSize
         }
 
