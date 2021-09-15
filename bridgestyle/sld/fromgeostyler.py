@@ -47,7 +47,7 @@ def convert(geostyler, options=None):
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
     }
 
-    rulesByZ = processRulesByZ(geostyler["rules"])
+    rulesByZ = processRulesByZ(geostyler.get("rules", []))
 
     root = Element("StyledLayerDescriptor", attrib=attribs)
     namedLayer = SubElement(root, "NamedLayer")
@@ -69,9 +69,9 @@ def convert(geostyler, options=None):
         if "blendMode" in geostyler:
             _addVendorOption(featureTypeStyle, "composite", geostyler["blendMode"])
 
-    sldstring = ElementTree.tostring(root, encoding="utf8", method="xml").decode()
+    sldstring = ElementTree.tostring(root, encoding="utf-8", method="xml").decode()
     dom = minidom.parseString(sldstring)
-    result = dom.toprettyxml(indent="  ", encoding="utf8").decode(), _warnings
+    result = dom.toprettyxml(indent="  ", encoding="utf-8").decode(), _warnings
     return result
 
 
@@ -118,20 +118,20 @@ def _createSymbolizers(symbolizers):
 
 
 def _createSymbolizer(sl):
-    symbolizerType = sl["kind"]
-    if symbolizerType == "Icon":
-        symbolizer = _iconSymbolizer(sl)
-    if symbolizerType == "Line":
-        symbolizer = _lineSymbolizer(sl)
-    if symbolizerType == "Fill":
-        symbolizer = _fillSymbolizer(sl)
-    if symbolizerType == "Mark":
-        symbolizer = _markSymbolizer(sl)
-    if symbolizerType == "Text":
-        symbolizer = _textSymbolizer(sl)
-    if symbolizerType == "Raster":
-        symbolizer = _rasterSymbolizer(sl)
+    symbol_type = sl["kind"]
+    symbol_func = {
+        "Icon": _iconSymbolizer,
+        "Line": _lineSymbolizer,
+        "Fill": _fillSymbolizer,
+        "Mark": _markSymbolizer,
+        "Text": _textSymbolizer,
+        "Raster": _rasterSymbolizer,
+    }.get(symbol_type, None)
 
+    if not symbol_func:
+        return None
+
+    symbolizer = symbol_func(sl)
     if not isinstance(symbolizer, list):
         symbolizer = [symbolizer]
     for s in symbolizer:
@@ -237,9 +237,9 @@ def _textSymbolizer(sl):
             anchor = sl["anchor"]
             # TODO: Use anchor
         # centers
-        achorLoc = _addSubElement(pointPlacement, "AnchorPoint")
-        _addSubElement(achorLoc, "AnchorPointX", "0.5")
-        _addSubElement(achorLoc, "AnchorPointY", "0.5")
+        anchorLoc = _addSubElement(pointPlacement, "AnchorPoint")
+        _addSubElement(anchorLoc, "AnchorPointX", "0.5")
+        _addSubElement(anchorLoc, "AnchorPointY", "0.5")
 
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
