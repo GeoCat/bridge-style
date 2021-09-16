@@ -121,7 +121,9 @@ def processLabelClass(labelClass, tolowercase=False):
     fontSize = textSymbol.get('height', 12)
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
-
+    rotationProps = (labelClass.get("maplexLabelPlacementProperties", {})
+                              .get("rotationProperties", {}))
+    rotationField = rotationProps.get("rotationField")
     symbolizer = {
             "kind": "Text",
             "offset": [
@@ -136,6 +138,13 @@ def processLabelClass(labelClass, tolowercase=False):
             "size": fontSize
         }
 
+    if rotationField is not None:
+        symbolizer["rotate"] =  [
+                                    "PropertyName",
+                                    rotationField.lower() if tolowercase else rotationField
+                                ]
+    else:
+        symbolizer["rotate"] =  0.0
     haloSize = textSymbol.get("haloSize")
     if haloSize:
         if "haloSymbol" in textSymbol:
@@ -148,9 +157,15 @@ def processLabelClass(labelClass, tolowercase=False):
     rule = {"name": "",
             "symbolizers": [symbolizer]}
 
+    scaleDenominator = {}
     minimumScale = labelClass.get("minimumScale")
     if minimumScale is not None:
-        rule["scaleDenominator"] = {"min": minimumScale}
+        scaleDenominator = {"max": minimumScale}
+    maximumScale = labelClass.get("maximumScale")
+    if maximumScale is not None:
+        scaleDenominator = {"min": maximumScale}
+    if scaleDenominator:
+        rule["scaleDenominator"] = scaleDenominator
 
     return rule
 
