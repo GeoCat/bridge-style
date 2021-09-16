@@ -5,17 +5,15 @@ def convertExpression(expression, tolowercase):
         expression = expression.lower()
     if "+" in expression or "&" in expression:
         if "+" in expression:
-            tokens = expression.split("+")
+            tokens = expression.split("+")[::-1]
         else:
-            tokens = expression.split("&")
+            tokens = expression.split("&")[::-1]
         addends = []
         for token in tokens:
             if "[" in token:
                 addends.append(["PropertyName", token.replace("[", "").replace("]", "").strip()])
             else:
-                addends.append(token)
-
-
+                addends.append(token.replace('"', ''))
             allOps = addends[0]
             for attr in addends[1:]:
                 allOps = ["Concatenate", attr, allOps]
