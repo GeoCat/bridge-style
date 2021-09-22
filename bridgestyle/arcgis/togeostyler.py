@@ -139,9 +139,12 @@ def processLabelClass(labelClass, tolowercase=False):
         }
 
     if rotationField is not None:
-        symbolizer["rotate"] =  [
-                                    "PropertyName",
-                                    rotationField.lower() if tolowercase else rotationField
+        symbolizer["rotate"] =  ["Mul",
+                                    [
+                                        "PropertyName",
+                                        rotationField.lower() if tolowercase else rotationField
+                                    ],
+                                    -1
                                 ]
     else:
         symbolizer["rotate"] =  0.0
