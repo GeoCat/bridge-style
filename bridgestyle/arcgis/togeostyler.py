@@ -329,8 +329,14 @@ def processSymbolLayer(layer, symboltype, options):
             color = processColor(layer["symbol"]["symbolLayers"][0].get("color"))
         except KeyError:
             color = "#000000"
+        try:
+            opacity = layer["symbol"]["symbolLayers"][0].get("color").get("values")[3]/100
+        except (KeyError, IndexError):
+            opacity = 1.0
         return {
             "opacity": 1.0,
+            "fillOpacity": opacity,
+            "strokeOpacity": opacity,
             "rotate": rotate,
             "kind": "Mark",
             "color": color,
