@@ -1,5 +1,4 @@
-
-#For now, this is limited to compound labels using the python or VB syntax
+# For now, this is limited to compound labels using the python or VB syntax
 def convertExpression(expression, tolowercase):
     if tolowercase:
         expression = expression.lower()
@@ -21,3 +20,43 @@ def convertExpression(expression, tolowercase):
     else:
         expression = ["PropertyName", expression.replace("[", "").replace("]", "")]
     return expression
+
+
+def stringToParameter(s, tolowercase):
+    s = s.strip()
+    if "'" in s or '"' in s:
+        return s.strip("'\"")
+    else:
+        s = s.lower() if tolowercase else s
+        return ["PropertyName", s]
+
+
+# For now, limited to = or IN statements
+# There is no formal parsing, just a naive conversion
+def convertWhereClause(clause, tolowercase):
+    if "=" in clause:
+        tokens = clause.split("=")
+        expression = ["PropertyIsEqualTo",
+                      stringToParameter(tokens[0], tolowercase),
+                      stringToParameter(tokens[1], tolowercase)]
+        return expression
+    elif " in " in clause.lower():
+        clause = clause.replace(" IN ", " in ")
+        tokens = clause.split(" in ")
+        attribute = tokens[0]
+        values = tokens[1].strip("() ").split(",")
+        subexpressions = []
+        for v in values:
+            subexpressions.append(["PropertyIsEqualTo",
+                                  stringToParameter(attribute, tolowercase),
+                                  stringToParameter(v, tolowercase)])
+        expression = []
+        if len(values) == 1:
+            return subexpressions[0]
+        else:
+            accum = ["Or", subexpressions[0], subexpressions[1]]
+            for subexpression in subexpressions[2:]:
+                accum = ["Or", accum, subexpression]
+            return accum
+
+    return clause

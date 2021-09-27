@@ -4,7 +4,7 @@ import base64
 import uuid
 import tempfile
 
-from .expressions import convertExpression
+from .expressions import convertExpression, convertWhereClause
 
 ESRI_SYMBOLS_FONT = "ESRI Default Marker"
 
@@ -122,7 +122,7 @@ def processLabelClass(labelClass, tolowercase=False):
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
     rotationProps = (labelClass.get("maplexLabelPlacementProperties", {})
-                              .get("rotationProperties", {}))
+                     .get("rotationProperties", {}))
     rotationField = rotationProps.get("rotationField")
     symbolizer = {
             "kind": "Text",
@@ -139,7 +139,7 @@ def processLabelClass(labelClass, tolowercase=False):
         }
 
     if rotationField is not None:
-        symbolizer["rotate"] =  ["Mul",
+        symbolizer["rotate"] = ["Mul",
                                     [
                                         "PropertyName",
                                         rotationField.lower() if tolowercase else rotationField
@@ -147,7 +147,7 @@ def processLabelClass(labelClass, tolowercase=False):
                                     -1
                                 ]
     else:
-        symbolizer["rotate"] =  0.0
+        symbolizer["rotate"] = 0.0
     haloSize = textSymbol.get("haloSize")
     if haloSize:
         if "haloSymbol" in textSymbol:
@@ -157,6 +157,7 @@ def processLabelClass(labelClass, tolowercase=False):
         symbolizer.update({"haloColor": haloColor,
                            "haloSize": haloSize,
                            "haloOpacity": 1})
+
     rule = {"name": "",
             "symbolizers": [symbolizer]}
 
@@ -169,6 +170,9 @@ def processLabelClass(labelClass, tolowercase=False):
         scaleDenominator = {"min": maximumScale}
     if scaleDenominator:
         rule["scaleDenominator"] = scaleDenominator
+
+    if "whereClause" in labelClass:
+        rule["filter"] = convertWhereClause(labelClass["whereClause"], tolowercase)
 
     return rule
 
