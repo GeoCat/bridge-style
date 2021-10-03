@@ -2,10 +2,9 @@ import os
 import zipfile
 from shutil import copyfile
 
-from bridgestyle import mapboxgl
-from bridgestyle import mapserver
-from bridgestyle import qgis
-from bridgestyle import sld
+from .. import mapboxgl
+from .. import mapserver
+from .. import sld
 from . import fromgeostyler
 from . import togeostyler
 
