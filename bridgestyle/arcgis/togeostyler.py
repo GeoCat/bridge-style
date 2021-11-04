@@ -352,14 +352,10 @@ def processSymbolLayer(layer, symboltype, options):
             fillOpacity = 1.0
             strokeOpacity = 0
             strokeWidth = 0.0
-        try:
-            opacity = layer["symbol"]["symbolLayers"][0].get("color").get("values")[3]/100
-        except (KeyError, IndexError):
-            opacity = 1.0
         return {
             "opacity": 1.0,
-            "fillOpacity": opacity,
-            "strokeOpacity": opacity,
+            "fillOpacity": fillOpacity,
+            "strokeOpacity": strokeOpacity,
             "strokeWidth": strokeWidth,
             "rotate": rotate,
             "kind": "Mark",
