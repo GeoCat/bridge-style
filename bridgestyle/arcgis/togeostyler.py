@@ -330,20 +330,24 @@ def processSymbolLayer(layer, symboltype, options):
             name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
         try:
-            color = processColor(layer["symbol"]["symbolLayers"][0].get("color"))
+            symbolLayers = layer["symbol"]["symbolLayers"]
+            fillColor = _extractFillColor(symbolLayers)
+            fillOpacity = _extractFillOpacity(symbolLayers)
+            strokeOpacity = _extractStrokeOpacity(symbolLayers)
+            strokeColor, strokeWidth = _extractStroke(symbolLayers)
         except KeyError:
-            color = "#000000"
-        try:
-            opacity = layer["symbol"]["symbolLayers"][0].get("color").get("values")[3]/100
-        except (KeyError, IndexError):
-            opacity = 1.0
+            fillColor = "#000000"
+            fillOpacity = 1.0
+            strokeOpacity = 0
+            strokeWidth = 0.0
         return {
             "opacity": 1.0,
-            "fillOpacity": opacity,
-            "strokeOpacity": opacity,
+            "fillOpacity": fillOpacity,
+            "strokeOpacity": strokeOpacity,
+            "strokeWidth": strokeWidth,
             "rotate": rotate,
             "kind": "Mark",
-            "color": color,
+            "color": fillColor,
             "wellKnownName": name,
             "size": layer["size"],
             "Z": 0
@@ -424,7 +428,17 @@ def _extractStroke(symbolLayers):
             color = processColor(sl.get("color"))
             width = sl["width"]
             return color, width
-    return "#000000", 1
+    return "#000000", 0
+
+def _extractStrokeOpacity(symbolLayers):
+    for sl in symbolLayers:
+        if sl["type"] == "CIMSolidStroke":
+            try:
+                opacity = sl["color"]["values"][3] / 100
+            except (KeyError, IndexError):
+                opacity = 1.0
+            return opacity
+    return 1.0
 
 
 def _extractFillColor(symbolLayers):
@@ -432,7 +446,17 @@ def _extractFillColor(symbolLayers):
         if sl["type"] == "CIMSolidFill":
             color = processColor(sl.get("color"))
             return color
-    return "#000000"
+    return "#ffffff"
+
+def _extractFillOpacity(symbolLayers):
+    for sl in symbolLayers:
+        if sl["type"] == "CIMSolidFill":
+            try:
+                opacity = sl["color"]["values"][3] / 100
+            except (KeyError, IndexError):
+                opacity = 1.0
+            return opacity
+    return 1.0
 
 
 def processColor(color):
