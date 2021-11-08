@@ -512,6 +512,7 @@ operators = [
     "PropertyIsLessThan",
     "PropertyIsGreaterThan",
     "PropertyIsLike",
+    "PropertyIsNull",
     "Add",
     "Sub",
     "Mul",

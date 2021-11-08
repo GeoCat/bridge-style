@@ -190,6 +190,13 @@ def processUniqueValueGroup(fields, group, options):
     def _or(a, b):
         return ["Or", a, b]
     def _equal(name, val):
+        if val == "<Null>":
+            return ["PropertyIsNull",
+                        [
+                            "PropertyName",
+                            name.lower() if tolowercase else name
+                        ]
+                    ]
         return ["PropertyIsEqualTo",
                     [
                         "PropertyName",
