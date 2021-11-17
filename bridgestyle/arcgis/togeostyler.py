@@ -365,15 +365,24 @@ def processSymbolLayer(layer, symboltype, options):
 
     elif layer["type"] == "CIMVectorMarker":
         #TODO
+        #we do not take the shape, but just the colors and stroke width
+        markerGraphics = layer.get("markerGraphics",[])
+        if markerGraphics:
+            sublayers = markerGraphics[0]["symbol"]["symbolLayers"]
+            fillColor = _extractFillColor(sublayers)
+            strokeColor, strokeWidth = _extractStroke(sublayers)
+        else:
+            fillColor = "#ff0000"
+            strokeColor = "#000000"
         return{
             "opacity": 1.0,
             "rotate": 0.0,
             "kind": "Mark",
-            "color": "#ff0000",
+            "color": fillColor,
             "wellKnownName": "circle",
             "size": 10,
-            "strokeColor": "#000000",
-            "strokeWidth": 1,
+            "strokeColor": strokeColor,
+            "strokeWidth": strokeWidth,
             "strokeOpacity": 1.0,
             "fillOpacity": 1.0,
             "Z": 0
