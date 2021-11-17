@@ -481,6 +481,8 @@ def processColor(color):
     elif color["type"] == 'CIMHSVColor':
         r, g, b = hsv2rgb(values)
         return '#%02x%02x%02x' % (int(r), int(g), int(b))
+    elif color["type"] == 'CIMGrayColor':
+        return '#%02x%02x%02x' % (int(values[0]), int(values[0]), int(values[0]))
     else:
         return "#000000"
 
