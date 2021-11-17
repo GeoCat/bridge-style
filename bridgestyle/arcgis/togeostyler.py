@@ -234,24 +234,25 @@ def processSymbolReference(symbolref, options):
     if "symbolLayers" in symbol:
         for layer in symbol["symbolLayers"][::-1]: #drawing order for geostyler is inverse of rule order
             symbolizer = processSymbolLayer(layer, symbol["type"], options)
-            if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
-                if symbol["type"] == "CIMLineSymbol":
-                    symbolizer = {"kind": "Line",
-                        "opacity": 1.0,
-                        "perpendicularOffset": 0.0,
-                        "graphicStroke": [symbolizer],
-                        "graphicStrokeInterval": symbolizer["size"] * 2, #TODO
-                        "graphicStrokeOffset": 0.0,
-                        "Z": 0}
-                elif symbol["type"] == "CIMPolygonSymbol":
-                    symbolizer = {"kind": "Fill",
-                        "opacity": 1.0,
-                        "perpendicularOffset": 0.0,
-                        "graphicFill": [symbolizer],
-                        "graphicFillMarginX": symbolizer["size"] * 2, #TODO
-                        "graphicFillMarginY": symbolizer["size"] * 2,
-                        "Z": 0}
-            symbolizers.append(symbolizer)
+            if symbolizer is not None:
+                if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
+                    if symbol["type"] == "CIMLineSymbol":
+                        symbolizer = {"kind": "Line",
+                            "opacity": 1.0,
+                            "perpendicularOffset": 0.0,
+                            "graphicStroke": [symbolizer],
+                            "graphicStrokeInterval": symbolizer["size"] * 2, #TODO
+                            "graphicStrokeOffset": 0.0,
+                            "Z": 0}
+                    elif symbol["type"] == "CIMPolygonSymbol":
+                        symbolizer = {"kind": "Fill",
+                            "opacity": 1.0,
+                            "perpendicularOffset": 0.0,
+                            "graphicFill": [symbolizer],
+                            "graphicFillMarginX": symbolizer["size"] * 2, #TODO
+                            "graphicFillMarginY": symbolizer["size"] * 2,
+                            "Z": 0}
+                symbolizers.append(symbolizer)
     return symbolizers
 
 
@@ -321,12 +322,14 @@ def processSymbolLayer(layer, symboltype, options):
                 stroke["asharray"] = effects["dasharray"]
         return stroke
     elif layer["type"] == "CIMSolidFill":
-        return {
-            "kind": "Fill",
-            "opacity": 1.0,
-            "color": processColor(layer.get("color")),
-            "fillOpacity": 1.0
-        }
+        color = layer.get("color")
+        if color is not None:
+            return {
+                "kind": "Fill",
+                "opacity": 1.0,
+                "color": processColor(color),
+                "fillOpacity": 1.0
+            }
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
         charindex = layer["characterIndex"]
@@ -426,7 +429,7 @@ def processSymbolLayer(layer, symboltype, options):
                 "Z": 0
                 }
     else:
-        return {}
+        return None
 
 
 def _extractStroke(symbolLayers):
