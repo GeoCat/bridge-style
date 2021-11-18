@@ -238,9 +238,9 @@ def _textSymbolizer(sl):
     followLine = sl.get("followLine", False)
     if followLine:
         _addVendorOption(root, "followLine", True)
-        _addVendorOption(root, "group", "yes")
     elif "background" not in sl:
         _addVendorOption(root, "autoWrap", 50)
+    _addVendorOption(root, "group", "yes")
 
     if "background" in sl:
         background = sl["background"]
