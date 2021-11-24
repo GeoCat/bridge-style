@@ -70,49 +70,41 @@ def processClassBreaksRenderer(renderer, options):
     rules = []
     field = renderer["field"]
     lastbound = None
-    elserule = None
     for classbreak in renderer.get("breaks", []):
         tolowercase = options.get("tolowercase", False)
         symbolizers = processSymbolReference(classbreak["symbol"], options)
         upperbound = classbreak.get("upperBound", 0)
-        if upperbound is not None:
-            if lastbound:
-                filt = ["And",
-                            ["PropertyIsGreaterThan",
-                                [
-                                    "PropertyName",
-                                    field.lower() if tolowercase else field
-                                ],
-                                lastbound
+        if lastbound is not None:
+            filt = ["And",
+                        ["PropertyIsGreaterThan",
+                            [
+                                "PropertyName",
+                                field.lower() if tolowercase else field
                             ],
-                            ["PropertyIsLessThanOrEqualTo",
-                                [
-                                    "PropertyName",
-                                    field.lower() if tolowercase else field
-                                ],
-                                upperbound
-                            ],
-                       ]
-            else:
-                filt = ["PropertyIsLessThanOrEqualTo",
+                            lastbound
+                        ],
+                        ["PropertyIsLessThanOrEqualTo",
                             [
                                 "PropertyName",
                                 field.lower() if tolowercase else field
                             ],
                             upperbound
-                       ]
-            lastbound = upperbound
-            ruledef = {"name": classbreak.get("label", "classbreak"),
-                       "symbolizers": symbolizers,
-                       "filter": filt}
-            rules.append(ruledef)
+                        ],
+                   ]
         else:
-            elserule = {"name": classbreak.get("label", "ELSE"),
-                        "symbolizers": symbolizers,
-                        "filter": "ELSE"}
+            filt = ["PropertyIsLessThanOrEqualTo",
+                        [
+                            "PropertyName",
+                            field.lower() if tolowercase else field
+                        ],
+                        upperbound
+                   ]
+        lastbound = upperbound
+        ruledef = {"name": classbreak.get("label", "classbreak"),
+                   "symbolizers": symbolizers,
+                   "filter": filt}
+        rules.append(ruledef)
 
-    if elserule is not None:
-        rules.append(elserule)
     return rules
 
 
@@ -151,11 +143,8 @@ def processLabelClass(labelClass, tolowercase=False):
     else:
         symbolizer["rotate"] = 0.0
     haloSize = textSymbol.get("haloSize")
-    if haloSize:
-        if "haloSymbol" in textSymbol:
-            haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
-        else:
-            haloColor = "#FFFFFF"
+    if haloSize and "haloSymbol" in textSymbol:
+        haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
         symbolizer.update({"haloColor": haloColor,
                            "haloSize": haloSize,
                            "haloOpacity": 1})
