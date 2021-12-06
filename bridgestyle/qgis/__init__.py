@@ -1,18 +1,12 @@
-from . import togeostyler
-from . import fromgeostyler
-
 import os
 import zipfile
-import json
 from shutil import copyfile
-from bridgestyle import qgis
-from bridgestyle import sld
-from bridgestyle import mapboxgl
-from bridgestyle import mapserver
-from qgis.core import QgsWkbTypes, QgsMarkerSymbol, QgsSymbol, QgsSVGFillSymbolLayer, QgsSvgMarkerSymbolLayer, \
-    QgsRasterLayer, QgsVectorLayer
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QColor, QImage, QPainter
+
+from .. import mapboxgl
+from .. import mapserver
+from .. import sld
+from . import fromgeostyler
+from . import togeostyler
 
 
 def layerStyleAsSld(layer):

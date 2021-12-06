@@ -1,8 +1,8 @@
+import base64
 import math
 import os
-import base64
-import uuid
 import tempfile
+import uuid
 
 from .expressions import convertExpression, convertWhereClause
 

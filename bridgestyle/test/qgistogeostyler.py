@@ -1,10 +1,10 @@
+import json
 import os
 import unittest
-import json
-
-from bridgestyle import qgis
 
 from qgis.core import QgsRasterLayer, QgsVectorLayer
+
+from bridgestyle import qgis
 
 
 class QgisToStylerTest(unittest.TestCase):

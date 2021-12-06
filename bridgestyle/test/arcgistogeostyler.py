@@ -1,7 +1,6 @@
+import json
 import os
 import unittest
-import json
-import context
 
 from bridgestyle.arcgis import togeostyler
 

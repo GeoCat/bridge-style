@@ -1,8 +1,7 @@
-import os
 import json
 import math
-import zipfile
-import tempfile
+import os
+
 from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
