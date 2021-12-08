@@ -5,10 +5,9 @@ from . import togeostyler
 
 
 def toGeostyler(style, options=None):
-    geostyler, _, _ = togeostyler.convert(json.loads(style), options)
-    return geostyler
+    return togeostyler.convert(json.loads(style), options)
 
 
 def fromGeostyler(style, options=None):
-    arcgisjson, warnings = fromgeostyler.convert(style, options)
-    return arcgisjson
+    return fromgeostyler.convert(style, options)
+

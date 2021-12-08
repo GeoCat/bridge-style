@@ -158,9 +158,7 @@ def handleUnary(node, layer):
 
 def handleLiteral(node):
     val = node.value()
-    quote = ""
     if isinstance(val, basestring):
-        quote = "'"
         val = val.replace("\n", "\\n")
     elif val is None:
         val = "null"

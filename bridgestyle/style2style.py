@@ -1,10 +1,11 @@
 import argparse
 import os
+import shutil
 
-import arcgis
-import geostyler
-import mapboxgl
-import sld
+from . import arcgis
+from . import geostyler
+from . import mapboxgl
+from . import sld
 
 _exts = {"sld": sld, "geostyler": geostyler, "mapbox": mapboxgl, "lyrx": arcgis}
 
@@ -22,14 +23,27 @@ def convert(fileA, fileB, options):
     with open(fileA) as f:
         styleA = f.read()
 
-    geostyler = _exts[extA].toGeostyler(styleA, options)
-    styleB = _exts[extB].fromGeostyler(geostyler, options)
+    geostyler, icons, geostylerwarnings = _exts[extA].toGeostyler(styleA, options)
+    if geostyler.get("rules", []):
+        styleB, warningsB = _exts[extB].fromGeostyler(geostyler, options)
+        outputfolder = os.path.dirname(fileB)
+        for f in icons:
+            dst = os.path.join(outputfolder, os.path.basename(f))
+            shutil.copy(f, dst)
 
-    with open(fileB, "w") as f:
-        f.write(styleB)
+        with open(fileB, "w") as f:
+            f.write(styleB)
+
+        for w in geostylerwarnings + warningsB:
+            print(f"WARNING: {w}")
+    else:
+        for w in geostylerwarnings:
+            print(f"WARNING: {w}")
+        print("ERROR: Empty geostyler result (This is most likely caused by the "
+              "original style containing only unsupported elements)")
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', action='store_true',
                         help="Convert attribute names to lower case",
