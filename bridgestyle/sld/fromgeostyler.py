@@ -4,7 +4,7 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 
 from .transformations import processTransformation
-from bridgestyle.version import __version__
+from ..version import __version__
 
 _warnings = []
 
