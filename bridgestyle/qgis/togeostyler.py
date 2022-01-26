@@ -2,6 +2,9 @@ import json
 import math
 import os
 
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
+
 from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
@@ -10,12 +13,50 @@ try:
 except:
     pass
 
+# Globals
 _usedIcons = {}
 _usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
 _warnings = []
 
+# Constants
+NO_ICON = "no_icon"
+MM2PIXEL = 3.571428571428571  # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
+POINT2PIXEL = MM2PIXEL * 0.353  # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
+SPRITE_SIZE = 64  # should be power of 2
+BLEND_MODES = {
+    QPainter.CompositionMode_Plus: "addition",
+    QPainter.CompositionMode_Multiply: "multiply",
+    QPainter.CompositionMode_Screen: "screen",
+    QPainter.CompositionMode_Overlay: "overlay",
+    QPainter.CompositionMode_Darken: "darken",
+    QPainter.CompositionMode_Lighten: "lighten",
+    QPainter.CompositionMode_ColorDodge: "dodge",
+    QPainter.CompositionMode_ColorBurn: "color-burn",
+    QPainter.CompositionMode_HardLight: "hard-light",
+    QPainter.CompositionMode_SoftLight: "soft-light",
+    QPainter.CompositionMode_Difference: "difference"
+}
+PATTERN_NAMES = {
+    "horizontal": "shape://horline",
+    "vertical": "shape://vertline",
+    "cross": "shape://times"
+    # TODO
+}
+FIXED_PATTERN_SIZE = 10
+SHAPE_NAMES = {
+    "regular_star": "star",
+    "cross2": "shape://times",
+    "equilateral_triangle": "triangle",
+    "rectangle": "square",
+    "arrowhead": "shape://oarrow",
+    "filled_arrowhead": "shape://coarrow",
+    "line": "shape://vertline",
+    "cross": "shape://plus",
+    "cross_filled": "shape://plus"
+}
 
-class ExpressionConverter():
+
+class ExpressionConverter:
     layer = None
 
     def walkExpression(self, node):
@@ -38,21 +79,6 @@ def convert(layer, options=None):
     return geostyler, _usedIcons, _usedSprites, _warnings
 
 
-blendModes = {
-    QPainter.CompositionMode_Plus: "addition",
-    QPainter.CompositionMode_Multiply: "multiply",
-    QPainter.CompositionMode_Screen: "screen",
-    QPainter.CompositionMode_Overlay: "overlay",
-    QPainter.CompositionMode_Darken: "darken",
-    QPainter.CompositionMode_Lighten: "lighten",
-    QPainter.CompositionMode_ColorDodge: "dodge",
-    QPainter.CompositionMode_ColorBurn: "color-burn",
-    QPainter.CompositionMode_HardLight: "hard-light",
-    QPainter.CompositionMode_SoftLight: "soft-light",
-    QPainter.CompositionMode_Difference: "difference"
-}
-
-
 def processLayer(layer):
     _expressionConverter.layer = layer
 
@@ -62,9 +88,10 @@ def processLayer(layer):
         renderer = layer.renderer()
         if isinstance(renderer, QgsHeatmapRenderer):
             symbolizer, transformation = heatmapRenderer(renderer)
-            rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
-            geostyler["rules"] = rules
-            geostyler["transformation"] = transformation
+            if symbolizer and transformation:
+                rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
+                geostyler["rules"] = rules
+                geostyler["transformation"] = transformation
         else:
             if not isinstance(renderer, QgsNullSymbolRenderer):
                 if not isinstance(renderer, QgsRuleBasedRenderer):
@@ -78,9 +105,9 @@ def processLayer(layer):
                     return
                 for rule in ruleRenderer.rootRule().children():
                     if rule.active():
-                        rules.extend(processRule(rule,None,layer.opacity(),layer))
+                        rules.extend(processRule(rule, None, layer.opacity(), layer))
             labelingRules = processLabelingLayer(layer)
-            if labelingRules is not None:
+            if labelingRules:
                 rules = rules + labelingRules
             geostyler["rules"] = rules
     elif layer.type() == layer.RasterLayer:
@@ -88,8 +115,8 @@ def processLayer(layer):
             rasterSymbolizer(layer)]}]
         geostyler["rules"] = rules
 
-    if layer.blendMode() in blendModes:
-        geostyler["blendMode"] = blendModes[layer.blendMode()]
+    if layer.blendMode() in BLEND_MODES:
+        geostyler["blendMode"] = BLEND_MODES[layer.blendMode()]
 
     return geostyler
 
@@ -99,7 +126,7 @@ def heatmapRenderer(renderer):
     colorRamp = renderer.colorRamp()
     if not isinstance(colorRamp, QgsGradientColorRamp):
         _warnings.append("Unsupported color ramp class: %s" % str(colorRamp))
-        return
+        return None, None
     colMap = {}
     colMap["type"] = "intervals" if colorRamp.isDiscrete() else "ramp"
     mapEntries = []
@@ -158,7 +185,7 @@ def channelSelection(renderer):
     else:
         _warnings.append(
             "Unsupported raster renderer class: '%s'" % str(renderer))
-        return None
+        return {}
 
 
 def colorMap(renderer):
@@ -220,36 +247,38 @@ def labelThisRule(labeling):
 
 def processLabelingLayer(layer):
     if not layer.labelsEnabled():
-        return None
+        return []
     labeling = layer.labeling()
     if labeling is None:
-        return None
+        return []
 
     if isinstance(labeling, QgsRuleBasedLabeling):
         return processRuleLabeling(layer, labeling.rootRule(), "labeling")
     if not isinstance(labeling, QgsVectorLayerSimpleLabeling):
         _warnings.append("Unsupported labeling class: '%s'" % str(labeling))
-        return None
+        return []
     return [processLabeling(layer, labeling)]
+
 
 # given a rule, calculate the full filter
 # i.e. its an AND of the rule and its parents (and grand parents)
-def getHeirarchicalFilter(rule,filter=None):
+def getHierarchicalFilter(rule, filter=None):
     if rule is None:
         return filter
     filter = andFilter(
         processExpression(rule.filterExpression()),
-        getHeirarchicalFilter(rule.parent()))
+        getHierarchicalFilter(rule.parent()))
     return filter
+
 
 def processRuleLabeling(layer, labeling, name):
     result = []
     for child in labeling.children():
         if child.active():
             fullname = name + " - " + child.description()
-            #filter = andFilter(filter, processExpression(
+            # filter = andFilter(filter, processExpression(
             #    child.filterExpression()))
-            filter = getHeirarchicalFilter(child)
+            filter = getHierarchicalFilter(child)
             if labelThisRule(child):
                 symbolizer = processLabeling(layer, child, fullname, filter)
                 result.append(symbolizer)
@@ -265,7 +294,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     size = _labelingProperty(settings, textFormat,
                              "size", QgsPalLayerSettings.Size)
     sizeUnits = _labelingProperty(settings, textFormat,
-                             "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
+                                  "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
     size = str(_handleUnits(size, sizeUnits))
     color = textFormat.color().name()
     font = textFormat.font().family()
@@ -298,7 +327,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     exp = settings.getLabelExpression()
     try:
         if not exp.isValid():
-            label=''
+            label = ''
         else:
             label = _expressionConverter.walkExpression(exp.rootNode())
     except UnsupportedExpressionException as e:
@@ -309,7 +338,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
                        "label": label,
                        "size": size})
     # background (i.e. road shields)
-    addBackground(textFormat,symbolizer)
+    addBackground(textFormat, symbolizer)
 
     result = {"symbolizers": [symbolizer], "name": name}
     if filter is not None:
@@ -346,27 +375,28 @@ def addBackground(textFormat, symbolizer):
         sizeType = "fixed"
 
     sizeUnits = "MM"
-    if background_sizeUnit ==QgsUnitTypes.RenderPixels:
+    if background_sizeUnit == QgsUnitTypes.RenderPixels:
         sizeUnits = "Pixel"
-    if background_sizeUnit ==QgsUnitTypes.RenderPoints:
+    if background_sizeUnit == QgsUnitTypes.RenderPoints:
         sizeUnits = "Point"
 
     sizeX = _handleUnits(background_size.width(), sizeUnits)
     sizeY = _handleUnits(background_size.height(), sizeUnits)
 
-    fillColor =_toHexColorQColor(background.fillColor())
+    fillColor = _toHexColorQColor(background.fillColor())
     strokeColor = _toHexColorQColor(background.strokeColor())
     opacity = background.opacity()
 
-    result = {"shapeType":shapeType,
-        "sizeType":sizeType,
-        "sizeX":sizeX,
-        "sizeY":sizeY,
-        "fillColor":fillColor,
-        "strokeColor":strokeColor,
-        "opacity":opacity}
+    result = {"shapeType": shapeType,
+              "sizeType": sizeType,
+              "sizeX": sizeX,
+              "sizeY": sizeY,
+              "fillColor": fillColor,
+              "strokeColor": strokeColor,
+              "opacity": opacity}
 
     symbolizer["background"] = result
+
 
 # AND two expressions together (handle nulls)
 def andFilter(f1, f2):
@@ -379,7 +409,7 @@ def andFilter(f1, f2):
     return ['And', f1, f2]
 
 
-def processRule(rule, filters=None,layerOpacity=1,layer=None):
+def processRule(rule, filters=None, layerOpacity=1, layer=None):
     ruledefs = []
 
     if rule.isElse():
@@ -389,17 +419,17 @@ def processRule(rule, filters=None,layerOpacity=1,layer=None):
 
     for subrule in rule.children():
         if subrule.active():
-            ruledefs.extend(processRule(subrule, filt,layerOpacity,layer))
+            ruledefs.extend(processRule(subrule, filt, layerOpacity, layer))
 
     symbol = rule.symbol()
     if symbol is not None:
-        symbolizers = _createSymbolizers(rule.symbol(),layerOpacity)
+        symbolizers = _createSymbolizers(rule.symbol(), layerOpacity)
         name = rule.label()
         ruledef = {"name": name,
                    "symbolizers": symbolizers}
         if filt is not None:
             ruledef["filter"] = filt
-        scaleRule = getScaleRule(rule,layer)
+        scaleRule = getScaleRule(rule, layer)
         if scaleRule is not None:
             scale = processRuleScale(scaleRule)
             ruledef["scaleDenominator"] = scale
@@ -407,16 +437,18 @@ def processRule(rule, filters=None,layerOpacity=1,layer=None):
 
     return ruledefs
 
+
 # note - this will usually return a Rule, but could return the layer
 #  they both have the same .minimumScale() functions, so this isn't a problem.
-def getScaleRule(rule,layer):
+def getScaleRule(rule, layer):
     if rule is None:
         if layer.hasScaleBasedVisibility():
             return layer
         return None
     if rule.dependsOnScale():
         return rule
-    return getScaleRule(rule.parent(),layer)
+    return getScaleRule(rule.parent(), layer)
+
 
 def processRuleScale(rule):
     # in QGIS, minimumScale() is a large number (i.e. very zoomed out).
@@ -446,9 +478,6 @@ def _cast(v):
     else:
         return v
 
-
-MM2PIXEL = 3.571428571428571 # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
-POINT2PIXEL = MM2PIXEL * 0.353 # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
 
 def _handleUnits(value, units, propertyConstant=None):
     if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
@@ -507,11 +536,13 @@ def _symbolProperty(symbolLayer, name, propertyConstant=-1, default=0):
         v = _handleUnits(v, units, propertyConstant)
     return _cast(v)
 
+
 def _toHexColorQColor(qcolor):
     try:
-        return '#%02x%02x%02x' % (qcolor.red(),qcolor.green(),qcolor.blue())
+        return '#%02x%02x%02x' % (qcolor.red(), qcolor.green(), qcolor.blue())
     except:
         return qcolor
+
 
 def _toHexColor(color):
     try:
@@ -699,18 +730,6 @@ def _basePointSimbolizer(sl, opacity):
     return symbolizer
 
 
-wknReplacements = {"regular_star": "star",
-                   "cross2": "shape://times",
-                   "equilateral_triangle": "triangle",
-                   "rectangle": "square",
-                   "arrowhead": "shape://oarrow",
-                   "filled_arrowhead": "shape://coarrow",
-                   "line": "shape://vertline",
-                   "cross": "shape://plus",
-                   "cross_filled": "shape://plus"}
-
-spriteSize = 64  #  should be power of 2
-
 def _createSprite(sl):
     sl = sl.clone()
     newSymbol = QgsMarkerSymbol()
@@ -718,14 +737,17 @@ def _createSprite(sl):
     newSymbol.deleteSymbolLayer(0)
     newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
 
-    sl.setSize(spriteSize)
+    sl.setSize(SPRITE_SIZE)
     img = newSymbol.asImage(QSize(sl.size(), sl.size()))
-    sl.setSize(spriteSize*2)
+    sl.setSize(SPRITE_SIZE * 2)
     img2x = newSymbol.asImage(QSize(sl.size(), sl.size()))
 
     return {"image": img, "image2x": img2x}
 
+
 def _markGraphic(sl):
+    global _usedIcons, _usedSprites
+
     props = sl.properties()
     size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
     color = _toHexColor(props["color"])
@@ -737,7 +759,6 @@ def _markGraphic(sl):
     spriteName = ""
     try:
         path = sl.path()
-        global _usedIcons, _usedSprites
         spriteName = os.path.basename(path)
         _usedIcons[sl.path()] = sl
         _usedSprites[spriteName] = _createSprite(sl)
@@ -746,16 +767,15 @@ def _markGraphic(sl):
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
         name = props["name"]
-        name = wknReplacements.get(name, name.replace("_", ""))
+        name = SHAPE_NAMES.get(name, name.replace("_", ""))
         outlineStyle = _symbolProperty(
             sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
         if outlineStyle == "no":
             outlineWidth = 0
         spriteName = name.replace(":", "_").replace("/", "_")
         spriteName = spriteName + "-{0}-{1}-{2}-{3}-{4}" \
-                .format(color, fillOpacity, outlineColor, strokeOpacity, outlineWidth)
+            .format(color, fillOpacity, outlineColor, strokeOpacity, outlineWidth)
         _usedSprites[spriteName] = _createSprite(sl)
-
 
     mark = {"kind": "Mark",
             "color": color,
@@ -775,11 +795,8 @@ def _markGraphic(sl):
     return mark
 
 
-FIXED_PATTERN_SIZE = 10
-
-
 def _markFillPattern(shape, color, size=FIXED_PATTERN_SIZE, strokeWidth=1, rotation=0):
-    shape = wknReplacements.get(shape, shape)
+    shape = SHAPE_NAMES.get(shape, shape)
     return {"kind": "Mark",
             "color": color,
             "wellKnownName": shape,
@@ -847,11 +864,6 @@ def _pointPatternFillSymbolizer(sl, opacity):
     return symbolizer
 
 
-patternNamesReplacement = {"horizontal": "shape://horline",
-                           "vertical": "shape://vertline",
-                           "cross": "shape://times"}  # TODO
-
-
 def _simpleFillSymbolizer(sl, opacity):
     props = sl.properties()
     style = props["style"]
@@ -865,7 +877,7 @@ def _simpleFillSymbolizer(sl, opacity):
             symbolizer["color"] = color
             symbolizer["fillOpacity"] = fillOpacity
         else:
-            style = patternNamesReplacement.get(style, style)
+            style = PATTERN_NAMES.get(style, style)
             marker = _markFillPattern(style, color)
             symbolizer["graphicFill"] = [marker]
             symbolizer["graphicFillDistanceX"] = FIXED_PATTERN_SIZE / 2.0
@@ -891,9 +903,6 @@ def _simpleFillSymbolizer(sl, opacity):
 
     return symbolizer
 
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QColor, QImage, QPainter
-NO_ICON = "no_icon"
 
 def saveSymbolLayerSprite(symbolLayer):
     sl = symbolLayer.clone()
@@ -926,53 +935,68 @@ def saveSymbolLayerSprite(symbolLayer):
     img2x = newSymbol2x.asImage(QSize(sl2x.size(), sl2x.size()))
     return img, img2x
 
+
+def initSpriteSheet(width, height):
+    img = QImage(width, height, QImage.Format_ARGB32)
+    img.fill(QColor(Qt.transparent))
+    img2x = QImage(width * 2, height * 2, QImage.Format_ARGB32)
+    img2x.fill(QColor(Qt.transparent))
+    painter = QPainter(img)
+    painter.begin(img)
+    painter2x = QPainter(img2x)
+    painter2x.begin(img2x)
+    spritesheet = {NO_ICON: {"width": 0,
+                             "height": 0,
+                             "x": 0,
+                             "y": 0,
+                             "pixelRatio": 1}}
+    spritesheet2x = {NO_ICON: {"width": 0,
+                               "height": 0,
+                               "x": 0,
+                               "y": 0,
+                               "pixelRatio": 1}}
+    return img, img2x, painter, painter2x, spritesheet, spritesheet2x
+
+
+def drawSpriteSheet(name, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x):
+    painter.drawImage(x, 0, s)
+    painter2x.drawImage(x * 2, 0, s2x)
+    spritesheet[name] = {"width": s.width(),
+                         "height": s.height(),
+                         "x": x,
+                         "y": 0,
+                         "pixelRatio": 1}
+    spritesheet2x[name] = {"width": s2x.width(),
+                           "height": s2x.height(),
+                           "x": x * 2,
+                           "y": 0,
+                           "pixelRatio": 2}
+
+
+def writeSpritesOutput(folder, img, img2x, spritesheet, spritesheet2x):
+    img.save(os.path.join(folder, "spriteSheet.png"))
+    img2x.save(os.path.join(folder, "spriteSheet@2x.png"))
+    with open(os.path.join(folder, "spriteSheet.json"), 'w') as f:
+        json.dump(spritesheet, f)
+    with open(os.path.join(folder, "spriteSheet@2x.json"), 'w') as f:
+        json.dump(spritesheet2x, f)
+
+
 def saveSpritesSheet(icons, folder):
     sprites = {}
     for iconPath, sl in icons.items():
         iconName = os.path.splitext(os.path.basename(iconPath))[0]
         sprites[iconName] = saveSymbolLayerSprite(sl)
-    if sprites:
-        height = max([s.height() for s,s2x in sprites.values()])
-        width = sum([s.width() for s,s2x in sprites.values()])
-        img = QImage(width, height, QImage.Format_ARGB32)
-        img.fill(QColor(Qt.transparent))
-        img2x = QImage(width * 2, height * 2, QImage.Format_ARGB32)
-        img2x.fill(QColor(Qt.transparent))
-        painter = QPainter(img)
-        painter.begin(img)
-        painter2x = QPainter(img2x)
-        painter2x.begin(img2x)
-        spritesheet = {NO_ICON:{"width": 0,
-                             "height": 0,
-                             "x": 0,
-                             "y": 0,
-                             "pixelRatio": 1}}
-        spritesheet2x = {NO_ICON:{"width": 0,
-                             "height": 0,
-                             "x": 0,
-                             "y": 0,
-                             "pixelRatio": 1}}
-        x = 0
-        for name, _sprites in sprites.items():
-            s, s2x = _sprites
-            painter.drawImage(x, 0, s)
-            painter2x.drawImage(x * 2, 0, s2x)
-            spritesheet[name] = {"width": s.width(),
-                                 "height": s.height(),
-                                 "x": x,
-                                 "y": 0,
-                                 "pixelRatio": 1}
-            spritesheet2x[name] = {"width": s2x.width(),
-                                 "height": s2x.height(),
-                                 "x": x * 2,
-                                 "y": 0,
-                                 "pixelRatio": 2}
-            x += s.width()
-        painter.end()
-        painter2x.end()
-        img.save(os.path.join(folder, "spriteSheet.png"))
-        img2x.save(os.path.join(folder, "spriteSheet@2x.png"))
-        with open(os.path.join(folder, "spriteSheet.json"), 'w') as f:
-            json.dump(spritesheet, f)
-        with open(os.path.join(folder, "spriteSheet@2x.json"), 'w') as f:
-            json.dump(spritesheet2x, f)
+    if not sprites:
+        return
+    height = max([s.height() for s, s2x in sprites.values()])
+    width = sum([s.width() for s, s2x in sprites.values()])
+    img, img2x, painter, painter2x, spritesheet, spritesheet2x = initSpriteSheet(width, height)
+    x = 0
+    for name, _sprites in sprites.items():
+        s, s2x = _sprites
+        drawSpriteSheet(name, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
+        x += s.width()
+    painter.end()
+    painter2x.end()
+    writeSpritesOutput(folder, img, img2x, spritesheet, spritesheet2x)

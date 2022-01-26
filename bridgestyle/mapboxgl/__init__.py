@@ -7,4 +7,4 @@ def toGeostyler(style, options=None):
 
 
 def fromGeostyler(style, options=None):
-    return fromgeostyler.convert(style, options)
+    return fromgeostyler.convert(style, options)[:2]

@@ -1,11 +1,79 @@
 import json
 import math
 import os
+import tempfile
 
+from ..qgis import togeostyler as qgis2geostyler
+
+# Globals
 _warnings = []
-_source_name = "vector-source"
-
 _processTextSymbolizer = False
+
+# Constants
+SOURCE_NAME = "vector-source"
+
+
+def convertGroup(group, qgis_layers, baseUrl, workspace, name):
+    obj = {
+        "version": 8,
+        "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
+        "name": name,
+        "sources": {
+            SOURCE_NAME: {
+                "type": "vector",
+                "tiles": [
+                    tileURLFull(baseUrl, workspace, name)
+                ],
+                "minZoom": 0,
+                "maxZoom": 20  # todo: might be able to determine these from style
+            },
+        },
+        "sprite": spriteURLFull(baseUrl, workspace, name),
+        "layers": []
+    }
+
+    geostylers = {}
+    mapboxstyles = {}
+    mblayers = []
+    allSprites = {}
+    allWarnings = []
+
+    # build geostyler and mapbox styles
+    for layername in group["layers"]:
+        layer = qgis_layers[layername]
+        geostyler, icons, sprites, warnings = qgis2geostyler.convert(layer)
+        allSprites.update(sprites)  # combine/accumulate sprites
+        geostylers[layername] = geostyler
+        mbox, mbWarnings = convert(geostyler, None)
+        allWarnings.extend(mbWarnings)
+        mbox_obj = json.loads(mbox)
+        mapboxstyles[layername] = mbox_obj
+        mblayers.extend(mbox_obj.get("layers", []))
+
+    obj["layers"] = mblayers
+
+    return json.dumps(obj, indent=4), allWarnings, obj, toSpriteSheet(allSprites)
+
+
+# allSprites ::== sprite name -> {"image":Image, "image2x":Image}
+def toSpriteSheet(allSprites):
+    if not allSprites:
+        return None
+
+    height = qgis2geostyler.SPRITE_SIZE
+    width = qgis2geostyler.SPRITE_SIZE * len(allSprites)
+    img, img2x, painter, painter2x, spritesheet, spritesheet2x = qgis2geostyler.initSpriteSheet(width, height)
+    x = 0
+    for name, _sprites in allSprites.items():
+        s = _sprites["image"]
+        s2x = _sprites["image2x"]
+        qgis2geostyler.drawSpriteSheet(name, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
+        x += s.width()
+    painter.end()
+    painter2x.end()
+    folder = tempfile.gettempdir()
+    qgis2geostyler.writeSpritesOutput(folder, img, img2x, spritesheet, spritesheet2x)
+    return {"img": img, "img2x": img2x, "json": json.dumps(spritesheet), "json2x": json.dumps(spritesheet2x)}
 
 
 def convert(geostyler, options=None):
@@ -19,13 +87,13 @@ def convert(geostyler, options=None):
 
         "name": geostyler["name"],
         "sources": {
-            _source_name: {
+            SOURCE_NAME: {
                 "type": "vector",
                 "tiles": [
                     tileURL(geostyler)
                 ],
                 "minZoom": 0,
-                "maxZoom": 20 # todo: might be able to determine these from style
+                "maxZoom": 20  # todo: might be able to determine these from style
             },
         },
         "layers": layers,
@@ -33,6 +101,7 @@ def convert(geostyler, options=None):
     }
 
     return json.dumps(obj, indent=4), _warnings
+
 
 # requires configuration with the tiles server URL
 # This is only available during publishing
@@ -42,20 +111,23 @@ def convert(geostyler, options=None):
 def tileURL(geostyler):
     return "URL to tiles - " + geostyler["name"]
 
+
 def tileURLFull(baseurl, workspace, layer):
     return "{0}/gwc/service/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&LAYER={1}:{2}" \
-            "&STYLE=&TILEMATRIX=EPSG:900913:{{z}}" \
-            "&TILEMATRIXSET=EPSG:900913&FORMAT=application/x-protobuf;type=mapbox-vector&TILECOL={{x}}&TILEROW={{y}}" \
-            .format(baseurl, workspace, layer)
+           "&STYLE=&TILEMATRIX=EPSG:900913:{{z}}" \
+           "&TILEMATRIXSET=EPSG:900913&FORMAT=application/x-protobuf;type=mapbox-vector&TILECOL={{x}}&TILEROW={{y}}" \
+        .format(baseurl, workspace, layer)
+
 
 def spriteURLFull(baseurl, workspace, layer):
     return "{0}/styles/{1}/spriteSheet" \
-         .format(baseurl, workspace, layer)
+        .format(baseurl, workspace, layer)
+
 
 def _toZoomLevel(scale):
     if scale < 1:  # scale=0 is valid in QGIS
         return 24  # 24 is largest value (according to mapbox spec)
-    #val = int(math.log(1000000000 / scale, 2))
+    # val = int(math.log(1000000000 / scale, 2))
     # https://docs.mapbox.com/help/glossary/zoom-level/
     # https://wiki.openstreetmap.org/wiki/Zoom_levels
     # and experimentation
@@ -88,20 +160,21 @@ def processRule(rule, source, ruleNumber):
             maxzoom = _toZoomLevel(scale["min"])  # mapbox gl has minzoom as the smaller zoom number
     name = rule.get("name", "rule")
     layers = [processSymbolizer(s) for s in rule["symbolizers"]]
-    layers = [item for sublist in layers for item in sublist]   # flattens list
+    layers = [item for sublist in layers for item in sublist]  # flattens list
     layers = [x for x in layers if x is not None]  # remove None symbolizers
     for i, lay in enumerate(layers):
         try:
             if filt is not None:
-                lay["filter"] = filt
-            lay["source"] = _source_name
+                lay["filter"] = filt  # noqa
+            lay["source"] = SOURCE_NAME
             lay["source-layer"] = source
-            lay["id"] = source + ":"  + "(rule#"+str(ruleNumber)+")" + name + ":" + str(i)  # this needs to be globally unique
+            lay["id"] = source + ":" + "(rule#" + str(ruleNumber) + ")" + name + ":" + str(
+                i)  # this needs to be globally unique
             if minzoom is not None:
-                lay["minzoom"] = minzoom
+                lay["minzoom"] = minzoom  # noqa
             if maxzoom is not None:
-                lay["maxzoom"] = maxzoom
-        except Exception as e:
+                lay["maxzoom"] = maxzoom  # noqa
+        except Exception:
             _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
     return layers
 
@@ -251,7 +324,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
 
     paint = {}
     if graphicStroke is not None:
-        _warnings.append("Marker lines not supported for mapbox conversion")
+        _warnings.append("Marker lines not supported for Mapbox GL conversion")
         # TODO
 
     if color is None:
@@ -260,22 +333,25 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         paint["line-width"] = width
         paint["line-opacity"] = opacity
         paint["line-color"] = color
-    if dasharray is not None:
+    if isinstance(dasharray, str):
         paint["line-dasharray"] = _parseSpaceArray(dasharray)
     if offset is not None:
         paint["line-offset"] = offset
 
     return {"type": "line", "paint": paint}
 
-def number(str):
-    try:
-        return int(str)
-    except ValueError:
-        return float(str)
 
-#"1 2" -> [1,2]
-def _parseSpaceArray(str):
-    return [number(x) for x in str.split(" ")]
+def number(string):
+    try:
+        return int(string)
+    except ValueError:
+        return float(string)
+
+
+# "1 2" -> [1,2]
+def _parseSpaceArray(string):
+    return [number(x) for x in string.split(" ")]
+
 
 def _geometryFromSymbolizer(sl):
     geomExpr = convertExpression(sl.get("Geometry", None))
@@ -350,9 +426,9 @@ def _fillSymbolizer(sl):
         #     "fill-color":   _symbolProperty(graphicFill[0], "color"),
         #     "fill-opacity": opacity
         # }}
-        fill = None # don't fill -- this causes issues either way...
+        fill = None  # don't fill -- this causes issues either way...
     else:
-        paint["fill-opacity"] = opacity * _symbolProperty(sl, "fillOpacity",1)
+        paint["fill-opacity"] = opacity * _symbolProperty(sl, "fillOpacity", 1)
         if color is not None:
             paint["fill-color"] = color
         fill = {"type": "fill", "paint": paint}

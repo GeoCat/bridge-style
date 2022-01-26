@@ -1,2 +1,2 @@
-def convert(style, options):
+def convert(style, options=None):
     pass  # TODO
