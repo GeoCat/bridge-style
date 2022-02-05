@@ -292,7 +292,7 @@ def processSymbolLayer(layer, symboltype, options):
             stroke = {
                 "kind": "Fill",
                 "outlineColor": processColor(layer.get("color")),
-                "outlineOpacity": 1.0,
+                "outlineOpacity": processOpacity(layer.get("color")),
                 "outlineWidth": layer["width"],
             }
             if "dasharray" in effects:
@@ -301,7 +301,7 @@ def processSymbolLayer(layer, symboltype, options):
             stroke = {
                 "kind": "Line",
                 "color": processColor(layer.get("color")),
-                "opacity": 1.0,
+                "opacity": processOpacity(layer.get("color")),
                 "width": layer["width"],
                 "perpendicularOffset": 0.0,
                 "cap": layer["capStyle"].lower(),
@@ -315,7 +315,7 @@ def processSymbolLayer(layer, symboltype, options):
         if color is not None:
             return {
                 "kind": "Fill",
-                "opacity": 1.0,
+                "opacity": processOpacity(color),
                 "color": processColor(color),
                 "fillOpacity": 1.0
             }
@@ -438,6 +438,7 @@ def _extractStroke(symbolLayers):
             return color, width
     return "#000000", 0
 
+
 def _extractStrokeOpacity(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidStroke":
@@ -456,15 +457,22 @@ def _extractFillColor(symbolLayers):
             return color
     return "#ffffff"
 
+
 def _extractFillOpacity(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidFill":
             try:
-                opacity = sl["color"]["values"][3] / 100
+                opacity = sl["color"]["values"][-1] / 100
             except (KeyError, IndexError):
                 opacity = 1.0
             return opacity
     return 1.0
+
+
+def processOpacity(color):
+    if color is None:
+        return 1.0
+    return color["values"][-1] / 100
 
 
 def processColor(color):
