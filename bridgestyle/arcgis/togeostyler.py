@@ -147,6 +147,13 @@ def processLabelClass(labelClass, tolowercase=False):
                            "haloSize": haloSize,
                            "haloOpacity": 1})
 
+    symbolizer["group"] = (
+        labelClass.get("maplexLabelPlacementProperties", {})
+                  .get("thinDuplicateLabels") or
+        labelClass.get("standardLabelPlacementProperties", {})
+                  .get("numLabelsOption") == "OneLabelPerName"
+    )
+
     rule = {"name": "",
             "symbolizers": [symbolizer]}
 
