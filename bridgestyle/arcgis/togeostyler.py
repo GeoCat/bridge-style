@@ -315,7 +315,7 @@ def processSymbolLayer(layer, symboltype, options):
                 "join": layer["joinStyle"].lower(),
             }
             if "dasharray" in effects:
-                stroke["asharray"] = effects["dasharray"]
+                stroke["dasharray"] = effects["dasharray"]
         return stroke
     elif layer["type"] == "CIMSolidFill":
         color = layer.get("color")
