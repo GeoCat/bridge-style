@@ -25,17 +25,17 @@ def convertExpression(expression, tolowercase):
 def stringToParameter(s, tolowercase):
     s = s.strip()
     if "'" in s or '"' in s:
-        return s.strip("'\"")
+        return ["PropertyName", s.strip("'\"")]
     else:
-        s = s.lower() if tolowercase else s
-        return ["PropertyName", s]
+        return s
 
 
 # For now, limited to = or IN statements
 # There is no formal parsing, just a naive conversion
 def convertWhereClause(clause, tolowercase):
+    clause = clause.replace("(", "").replace(")", "")
     if "=" in clause:
-        tokens = clause.split("=")
+        tokens = [t.strip() for t in clause.split("=")]
         expression = ["PropertyIsEqualTo",
                       stringToParameter(tokens[0], tolowercase),
                       stringToParameter(tokens[1], tolowercase)]
