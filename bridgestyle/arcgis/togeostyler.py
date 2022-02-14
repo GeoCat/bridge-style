@@ -120,10 +120,6 @@ def processLabelClass(labelClass, tolowercase=False):
     rotationField = rotationProps.get("rotationField")
     symbolizer = {
             "kind": "Text",
-            "offset": [
-                0.0,
-                0.0
-            ],
             "anchor": "right",
             "rotate": 0.0,
             "color": color,
@@ -131,7 +127,14 @@ def processLabelClass(labelClass, tolowercase=False):
             "label": expression,
             "size": fontSize
         }
-
+    if labelClass.get("maplexLabelPlacementProperties", {}).get("featureType") == "Line":
+        # We use this as a flag to later indicate the it is a line label when converting to SLD
+        symbolizer["perpendicularOffset"] = 0
+    else:
+        symbolizer["offset"]: [
+                0.0,
+                0.0
+            ]
     if rotationField is not None:
         symbolizer["rotate"] = ["Mul",
                                     [
@@ -264,10 +267,10 @@ def processEffect(effect):
 def _hatchMarkerForAngle(angle):
     quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
     return [
-        "shape://vertline",
-        "shape://slash",
         "shape://horline",
         "shape://backslash"
+        "shape://vertline",
+        "shape://slash",
     ][quadrant]
 
 
