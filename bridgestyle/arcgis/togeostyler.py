@@ -266,7 +266,7 @@ def _hatchMarkerForAngle(angle):
     quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
     return [
         "shape://horline",
-        "shape://backslash"
+        "shape://backslash",
         "shape://vertline",
         "shape://slash",
     ][quadrant]
