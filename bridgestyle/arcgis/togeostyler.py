@@ -110,7 +110,7 @@ def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = convertExpression(labelClass["expression"], tolowercase)
     fontFamily = textSymbol.get('fontFamilyName', 'Arial')
-    fontSize = textSymbol.get('height', 12)
+    fontSize = float(textSymbol.get('height', 12))
     color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
     fontWeight = textSymbol.get('fontStyleName', 'Regular')
     rotationProps = (labelClass.get("maplexLabelPlacementProperties", {})
@@ -127,7 +127,8 @@ def processLabelClass(labelClass, tolowercase=False):
         }
     if labelClass.get("maplexLabelPlacementProperties", {}).get("featureType") == "Line":
         # We use this as a flag to later indicate the it is a line label when converting to SLD
-        symbolizer["perpendicularOffset"] = 0
+        primaryOffset = float(textSymbol.get('primaryOffset', 0))
+        symbolizer["perpendicularOffset"] = primaryOffset + fontSize
     else:
         symbolizer["offset"]: [
                 0.0,
