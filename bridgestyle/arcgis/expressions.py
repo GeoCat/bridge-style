@@ -2,6 +2,7 @@
 def convertExpression(expression, tolowercase):
     if tolowercase:
         expression = expression.lower()
+    print(expression)
     if "+" in expression or "&" in expression:
         if "+" in expression:
             tokens = expression.split("+")[::-1]
@@ -24,6 +25,8 @@ def convertExpression(expression, tolowercase):
 
 def stringToParameter(s, tolowercase):
     s = s.strip()
+    if tolowercase:
+        s = s.lower()
     if "'" in s or '"' in s:
         return ["PropertyName", s.strip("'\"")]
     else:
