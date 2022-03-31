@@ -24,7 +24,7 @@ def convert(arcgis, options=None):
 
 
 def processLayer(layer, options=None):
-    #layer is a dictionary with the ArcGIS Pro Json style
+    # layer is a dictionary with the ArcGIS Pro Json style
     options = options or {}
     geostyler = {}
     geostyler = {"name": layer["name"]}
@@ -36,31 +36,38 @@ def processLayer(layer, options=None):
         elif renderer["type"] == "CIMUniqueValueRenderer":
             if "groups" in renderer:
                 for group in renderer["groups"]:
-                    rules.extend(processUniqueValueGroup(renderer["fields"],
-                                 group, options))
+                    rules.extend(
+                        processUniqueValueGroup(renderer["fields"], group, options)
+                    )
             else:
                 if "defaultSymbol" in renderer:
                     # this is really a simple renderer
-                    rule = {"name": "",
-                            "symbolizers": processSymbolReference(renderer["defaultSymbol"], options)}
+                    rule = {
+                        "name": "",
+                        "symbolizers": processSymbolReference(
+                            renderer["defaultSymbol"], options
+                        ),
+                    }
                     rules.append(rule)
 
-        elif (renderer["type"] == "CIMClassBreaksRenderer"
-              and renderer.get("classBreakType") == "GraduatedColor"):
+        elif (
+            renderer["type"] == "CIMClassBreaksRenderer"
+            and renderer.get("classBreakType") == "GraduatedColor"
+        ):
             rules.extend(processClassBreaksRenderer(renderer, options))
         else:
-            _warnings.append(
-                "Unsupported renderer type: %s" % str(renderer))
+            _warnings.append("Unsupported renderer type: %s" % str(renderer))
             return geostyler
 
         if layer.get("labelVisibility", False):
             for labelClass in layer.get("labelClasses", []):
-                rules.append(processLabelClass(labelClass, options.get("tolowercase", False)))
+                rules.append(
+                    processLabelClass(labelClass, options.get("tolowercase", False))
+                )
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
-        rules = [{"name": layer["name"], "symbolizers": [
-            rasterSymbolizer(layer)]}]
+        rules = [{"name": layer["name"], "symbolizers": [rasterSymbolizer(layer)]}]
         geostyler["rules"] = rules
 
     return geostyler
@@ -75,34 +82,31 @@ def processClassBreaksRenderer(renderer, options):
         symbolizers = processSymbolReference(classbreak["symbol"], options)
         upperbound = classbreak.get("upperBound", 0)
         if lastbound is not None:
-            filt = ["And",
-                        ["PropertyIsGreaterThan",
-                            [
-                                "PropertyName",
-                                field.lower() if tolowercase else field
-                            ],
-                            lastbound
-                        ],
-                        ["PropertyIsLessThanOrEqualTo",
-                            [
-                                "PropertyName",
-                                field.lower() if tolowercase else field
-                            ],
-                            upperbound
-                        ],
-                   ]
+            filt = [
+                "And",
+                [
+                    "PropertyIsGreaterThan",
+                    ["PropertyName", field.lower() if tolowercase else field],
+                    lastbound,
+                ],
+                [
+                    "PropertyIsLessThanOrEqualTo",
+                    ["PropertyName", field.lower() if tolowercase else field],
+                    upperbound,
+                ],
+            ]
         else:
-            filt = ["PropertyIsLessThanOrEqualTo",
-                        [
-                            "PropertyName",
-                            field.lower() if tolowercase else field
-                        ],
-                        upperbound
-                   ]
+            filt = [
+                "PropertyIsLessThanOrEqualTo",
+                ["PropertyName", field.lower() if tolowercase else field],
+                upperbound,
+            ]
         lastbound = upperbound
-        ruledef = {"name": classbreak.get("label", "classbreak"),
-                   "symbolizers": symbolizers,
-                   "filter": filt}
+        ruledef = {
+            "name": classbreak.get("label", "classbreak"),
+            "symbolizers": symbolizers,
+            "filter": filt,
+        }
         rules.append(ruledef)
 
     return rules
@@ -111,57 +115,58 @@ def processClassBreaksRenderer(renderer, options):
 def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = convertExpression(labelClass["expression"], tolowercase)
-    fontFamily = textSymbol.get('fontFamilyName', 'Arial')
-    fontSize = float(textSymbol.get('height', 12))
-    color = _extractFillColor(textSymbol["symbol"]['symbolLayers'])
-    fontWeight = textSymbol.get('fontStyleName', 'Regular')
-    rotationProps = (labelClass.get("maplexLabelPlacementProperties", {})
-                     .get("rotationProperties", {}))
+    fontFamily = textSymbol.get("fontFamilyName", "Arial")
+    fontSize = float(textSymbol.get("height", 12))
+    color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
+    fontWeight = textSymbol.get("fontStyleName", "Regular")
+    rotationProps = labelClass.get("maplexLabelPlacementProperties", {}).get(
+        "rotationProperties", {}
+    )
     rotationField = rotationProps.get("rotationField")
     symbolizer = {
-            "kind": "Text",
-            "anchor": "right",
-            "rotate": 0.0,
-            "color": color,
-            "font": fontFamily,
-            "label": expression,
-            "size": fontSize
-        }
-    if labelClass.get("maplexLabelPlacementProperties", {}).get("featureType") == "Line":
+        "kind": "Text",
+        "anchor": "right",
+        "rotate": 0.0,
+        "color": color,
+        "font": fontFamily,
+        "label": expression,
+        "size": fontSize,
+    }
+
+    stdPlacementType = labelClass.get("standardLabelPlacementProperties", {}).get(
+        "featureType"
+    )
+    maplexPlacementType = labelClass.get("maplexLabelPlacementProperties", {}).get(
+        "featureType"
+    )
+    if stdPlacementType == "Line" and maplexPlacementType == "Line":
         # We use this as a flag to later indicate the it is a line label when converting to SLD
-        primaryOffset = float(textSymbol.get('primaryOffset', 0))
+        primaryOffset = float(textSymbol.get("primaryOffset", 0))
         symbolizer["perpendicularOffset"] = primaryOffset + fontSize
     else:
-        symbolizer["offset"]: [
-                0.0,
-                0.0
-            ]
+        symbolizer["offset"]: [0.0, 0.0]
     if rotationField is not None:
-        symbolizer["rotate"] = ["Mul",
-                                    [
-                                        "PropertyName",
-                                        rotationField.lower() if tolowercase else rotationField
-                                    ],
-                                    -1
-                                ]
+        symbolizer["rotate"] = [
+            "Mul",
+            ["PropertyName", rotationField.lower() if tolowercase else rotationField],
+            -1,
+        ]
     else:
         symbolizer["rotate"] = 0.0
     haloSize = textSymbol.get("haloSize")
     if haloSize and "haloSymbol" in textSymbol:
-        haloColor = _extractFillColor(textSymbol["haloSymbol"]['symbolLayers'])
-        symbolizer.update({"haloColor": haloColor,
-                           "haloSize": haloSize,
-                           "haloOpacity": 1})
+        haloColor = _extractFillColor(textSymbol["haloSymbol"]["symbolLayers"])
+        symbolizer.update(
+            {"haloColor": haloColor, "haloSize": haloSize, "haloOpacity": 1}
+        )
 
     symbolizer["group"] = (
-        labelClass.get("maplexLabelPlacementProperties", {})
-                  .get("thinDuplicateLabels") or
-        labelClass.get("standardLabelPlacementProperties", {})
-                  .get("numLabelsOption") == "OneLabelPerName"
+        labelClass.get("maplexLabelPlacementProperties", {}).get("thinDuplicateLabels")
+        or labelClass.get("standardLabelPlacementProperties", {}).get("numLabelsOption")
+        == "OneLabelPerName"
     )
 
-    rule = {"name": "",
-            "symbolizers": [symbolizer]}
+    rule = {"name": "", "symbolizers": [symbolizer]}
 
     scaleDenominator = {}
     minimumScale = labelClass.get("minimumScale")
@@ -180,32 +185,34 @@ def processLabelClass(labelClass, tolowercase=False):
 
 
 def processSimpleRenderer(renderer, options):
-    rule = {"name": "",
-            "symbolizers": processSymbolReference(renderer["symbol"], options)}
+    rule = {
+        "name": "",
+        "symbolizers": processSymbolReference(renderer["symbol"], options),
+    }
     return rule
 
 
 def processUniqueValueGroup(fields, group, options):
     tolowercase = options.get("tolowercase", False)
+
     def _and(a, b):
         return ["And", a, b]
+
     def _or(a, b):
         return ["Or", a, b]
+
     def _equal(name, val):
         if val == "<Null>":
-            return ["PropertyIsNull",
-                        [
-                            "PropertyName",
-                            name.lower() if tolowercase else name
-                        ]
-                    ]
-        return ["PropertyIsEqualTo",
-                    [
-                        "PropertyName",
-                        name.lower() if tolowercase else name
-                    ],
-                    val
-                ]
+            return [
+                "PropertyIsNull",
+                ["PropertyName", name.lower() if tolowercase else name],
+            ]
+        return [
+            "PropertyIsEqualTo",
+            ["PropertyName", name.lower() if tolowercase else name],
+            val,
+        ]
+
     rules = []
     for clazz in group["classes"]:
         rule = {"name": clazz.get("label", "label")}
@@ -234,33 +241,45 @@ def processSymbolReference(symbolref, options):
     symbol = symbolref["symbol"]
     symbolizers = []
     if "symbolLayers" in symbol:
-        for layer in symbol["symbolLayers"][::-1]: #drawing order for geostyler is inverse of rule order
+        for layer in symbol["symbolLayers"][
+            ::-1
+        ]:  # drawing order for geostyler is inverse of rule order
             symbolizer = processSymbolLayer(layer, symbol["type"], options)
             if symbolizer is not None:
-                if layer["type"] in ["CIMVectorMarker", "CIMPictureFill", "CIMCharacterMarker"]:
+                if layer["type"] in [
+                    "CIMVectorMarker",
+                    "CIMPictureFill",
+                    "CIMCharacterMarker",
+                ]:
                     if symbol["type"] == "CIMLineSymbol":
-                        symbolizer = {"kind": "Line",
+                        symbolizer = {
+                            "kind": "Line",
                             "opacity": 1.0,
                             "perpendicularOffset": 0.0,
                             "graphicStroke": [symbolizer],
-                            "graphicStrokeInterval": symbolizer["size"] * 2, #TODO
+                            "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
                             "graphicStrokeOffset": 0.0,
-                            "Z": 0}
+                            "Z": 0,
+                        }
                     elif symbol["type"] == "CIMPolygonSymbol":
-                        symbolizer = {"kind": "Fill",
+                        symbolizer = {
+                            "kind": "Fill",
                             "opacity": 1.0,
                             "perpendicularOffset": 0.0,
                             "graphicFill": [symbolizer],
-                            "graphicFillMarginX": symbolizer["size"] * 2, #TODO
+                            "graphicFillMarginX": symbolizer["size"] * 2,  # TODO
                             "graphicFillMarginY": symbolizer["size"] * 2,
-                            "Z": 0}
+                            "Z": 0,
+                        }
                 symbolizers.append(symbolizer)
     return symbolizers
 
 
 def processEffect(effect):
     if effect["type"] == "CIMGeometricEffectDashes":
-        return {"dasharray": " ".join(str(math.ceil(v)) for v in effect["dashTemplate"])}
+        return {
+            "dasharray": " ".join(str(math.ceil(v)) for v in effect["dashTemplate"])
+        }
     else:
         return {}
 
@@ -276,21 +295,24 @@ def _hatchMarkerForAngle(angle):
 
 
 def _esriFontToStandardSymbols(charindex):
-    mapping = {33: "circle",
-               34: "square",
-               35: "triangle",
-               40: "circle",
-               41: "square",
-               42: "triangle",
-               94: "star",
-               95: "star",
-               203: "cross",
-               204: "cross"}
+    mapping = {
+        33: "circle",
+        34: "square",
+        35: "triangle",
+        40: "circle",
+        41: "square",
+        42: "triangle",
+        94: "star",
+        95: "star",
+        203: "cross",
+        204: "cross",
+    }
     if charindex in mapping:
         return mapping[charindex]
     else:
         _warnings.append(
-                f"Unsupported symbol from ESRI font (character index {charindex}) replaced by default marker")
+            f"Unsupported symbol from ESRI font (character index {charindex}) replaced by default marker"
+        )
         return "circle"
 
 
@@ -330,7 +352,7 @@ def processSymbolLayer(layer, symboltype, options):
                 "kind": "Fill",
                 "opacity": processOpacity(color),
                 "color": processColor(color),
-                "fillOpacity": 1.0
+                "fillOpacity": 1.0,
             }
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
@@ -362,13 +384,13 @@ def processSymbolLayer(layer, symboltype, options):
             "color": fillColor,
             "wellKnownName": name,
             "size": layer["size"],
-            "Z": 0
-            }
+            "Z": 0,
+        }
 
     elif layer["type"] == "CIMVectorMarker":
-        #TODO
-        #we do not take the shape, but just the colors and stroke width
-        markerGraphics = layer.get("markerGraphics",[])
+        # TODO
+        # we do not take the shape, but just the colors and stroke width
+        markerGraphics = layer.get("markerGraphics", [])
         if markerGraphics:
             sublayers = markerGraphics[0]["symbol"]["symbolLayers"]
             fillColor = _extractFillColor(sublayers)
@@ -376,7 +398,7 @@ def processSymbolLayer(layer, symboltype, options):
         else:
             fillColor = "#ff0000"
             strokeColor = "#000000"
-        return{
+        return {
             "opacity": 1.0,
             "rotate": 0.0,
             "kind": "Mark",
@@ -387,7 +409,7 @@ def processSymbolLayer(layer, symboltype, options):
             "strokeWidth": strokeWidth,
             "strokeOpacity": 1.0,
             "fillOpacity": 1.0,
-            "Z": 0
+            "Z": 0,
         }
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
@@ -406,10 +428,10 @@ def processSymbolLayer(layer, symboltype, options):
                     "size": separation + width,
                     "strokeColor": color,
                     "strokeWidth": width,
-                    "rotate": 0
+                    "rotate": 0,
                 }
             ],
-            "Z": 0
+            "Z": 0,
         }
     elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
         url = layer["url"]
@@ -417,9 +439,12 @@ def processSymbolLayer(layer, symboltype, options):
             tokens = url.split(";")
             if len(tokens) == 2:
                 ext = tokens[0].split("/")[-1]
-                data = tokens[1][len("base64,"):]
-                path = os.path.join(tempfile.gettempdir(), "bridgestyle",
-                                    str(uuid.uuid4()).replace("-", ""))
+                data = tokens[1][len("base64,") :]
+                path = os.path.join(
+                    tempfile.gettempdir(),
+                    "bridgestyle",
+                    str(uuid.uuid4()).replace("-", ""),
+                )
                 iconName = f"{len(_usedIcons)}.{ext}"
                 iconFile = os.path.join(path, iconName)
                 os.makedirs(path, exist_ok=True)
@@ -431,14 +456,14 @@ def processSymbolLayer(layer, symboltype, options):
         rotate = layer.get("rotation", 0)
         size = layer.get("height", layer.get("size"))
         return {
-                "opacity": 1.0,
-                "rotate": 0.0,
-                "kind": "Icon",
-                "color": None,
-                "image": url,
-                "size": size,
-                "Z": 0
-                }
+            "opacity": 1.0,
+            "rotate": 0.0,
+            "kind": "Icon",
+            "color": None,
+            "image": url,
+            "size": size,
+            "Z": 0,
+        }
     else:
         return None
 
@@ -493,15 +518,15 @@ def processColor(color):
         return "#000000"
     values = color["values"]
     if color["type"] == "CIMRGBColor":
-        return '#%02x%02x%02x' % (int(values[0]), int(values[1]), int(values[2]))
-    elif color["type"] == 'CIMCMYKColor':
+        return "#%02x%02x%02x" % (int(values[0]), int(values[1]), int(values[2]))
+    elif color["type"] == "CIMCMYKColor":
         r, g, b = cmyk2Rgb(values)
-        return '#%02x%02x%02x' % (r, g, b)
-    elif color["type"] == 'CIMHSVColor':
+        return "#%02x%02x%02x" % (r, g, b)
+    elif color["type"] == "CIMHSVColor":
         r, g, b = hsv2rgb(values)
-        return '#%02x%02x%02x' % (int(r), int(g), int(b))
-    elif color["type"] == 'CIMGrayColor':
-        return '#%02x%02x%02x' % (int(values[0]), int(values[0]), int(values[0]))
+        return "#%02x%02x%02x" % (int(r), int(g), int(b))
+    elif color["type"] == "CIMGrayColor":
+        return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
     else:
         return "#000000"
 
@@ -512,9 +537,9 @@ def cmyk2Rgb(cmyk_array):
     y = cmyk_array[2]
     k = cmyk_array[3]
 
-    r = int(255* (1 - c / 100) * (1 - k / 100))
-    g = int(255* (1 - m / 100) * (1 - k / 100))
-    b = int(255* (1 - y / 100) * (1 - k / 100))
+    r = int(255 * (1 - c / 100) * (1 - k / 100))
+    g = int(255 * (1 - m / 100) * (1 - k / 100))
+    b = int(255 * (1 - y / 100) * (1 - k / 100))
 
     return r, g, b
 
@@ -526,11 +551,11 @@ def hsv2rgb(hsv_array):
     if s == 0.0:
         v *= 255
         return (v, v, v)
-    i = int(h * 6.)
-    f = (h * 6.) - i
-    p = 255 * (v * (1. - s))
-    q = 255 * (v * (1. - s * f))
-    t = 255 * (v*(1. - s * (1. - f)))
+    i = int(h * 6.0)
+    f = (h * 6.0) - i
+    p = 255 * (v * (1.0 - s))
+    q = 255 * (v * (1.0 - s * f))
+    t = 255 * (v * (1.0 - s * (1.0 - f)))
     v *= 255
     i %= 6
     if i == 0:
