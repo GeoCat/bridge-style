@@ -2,7 +2,6 @@
 def convertExpression(expression, tolowercase):
     if tolowercase:
         expression = expression.lower()
-    print(expression)
     if "+" in expression or "&" in expression:
         if "+" in expression:
             tokens = expression.split("+")[::-1]
@@ -11,9 +10,11 @@ def convertExpression(expression, tolowercase):
         addends = []
         for token in tokens:
             if "[" in token:
-                addends.append(["PropertyName", token.replace("[", "").replace("]", "").strip()])
+                addends.append(
+                    ["PropertyName", token.replace("[", "").replace("]", "").strip()]
+                )
             else:
-                addends.append(token.replace('"', ''))
+                addends.append(token.replace('"', ""))
             allOps = addends[0]
             for attr in addends[1:]:
                 allOps = ["Concatenate", attr, allOps]
@@ -39,9 +40,19 @@ def convertWhereClause(clause, tolowercase):
     clause = clause.replace("(", "").replace(")", "")
     if "=" in clause:
         tokens = [t.strip() for t in clause.split("=")]
-        expression = ["PropertyIsEqualTo",
-                      stringToParameter(tokens[0], tolowercase),
-                      stringToParameter(tokens[1], tolowercase)]
+        expression = [
+            "PropertyIsEqualTo",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
+        return expression
+    if "<>" in clause:
+        tokens = [t.strip() for t in clause.split("<>")]
+        expression = [
+            "PropertyIsNotEqualTo",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
         return expression
     elif " in " in clause.lower():
         clause = clause.replace(" IN ", " in ")
@@ -50,9 +61,13 @@ def convertWhereClause(clause, tolowercase):
         values = tokens[1].strip("() ").split(",")
         subexpressions = []
         for v in values:
-            subexpressions.append(["PropertyIsEqualTo",
-                                  stringToParameter(attribute, tolowercase),
-                                  stringToParameter(v, tolowercase)])
+            subexpressions.append(
+                [
+                    "PropertyIsEqualTo",
+                    stringToParameter(attribute, tolowercase),
+                    stringToParameter(v, tolowercase),
+                ]
+            )
         expression = []
         if len(values) == 1:
             return subexpressions[0]
