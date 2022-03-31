@@ -26,12 +26,15 @@ def convertExpression(expression, tolowercase):
 
 def stringToParameter(s, tolowercase):
     s = s.strip()
-    if tolowercase:
-        s = s.lower()
     if "'" in s or '"' in s:
-        return ["PropertyName", s.strip("'\"")]
+        return s.strip("'\"")
     else:
-        return s
+        if s.isalpha():
+            if tolowercase:
+                s = s.lower()
+            return ["PropertyName", s]
+        else:
+            return s
 
 
 # For now, limited to = or IN statements
