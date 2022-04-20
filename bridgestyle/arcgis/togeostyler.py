@@ -443,7 +443,7 @@ def processSymbolLayer(layer, symboltype, options):
                     "bridgestyle",
                     str(uuid.uuid4()).replace("-", ""),
                 )
-                iconName = f"{len(_usedIcons)}.{ext}"
+                iconName = f"{str(uuid.uuid4())}.{ext}"
                 iconFile = os.path.join(path, iconName)
                 os.makedirs(path, exist_ok=True)
                 with open(iconFile, "wb") as f:
