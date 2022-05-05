@@ -142,7 +142,7 @@ def processLabelClass(labelClass, tolowercase=False):
         primaryOffset = float(textSymbol.get("primaryOffset", 0))
         symbolizer["perpendicularOffset"] = primaryOffset + fontSize
     else:
-        symbolizer["offset"]: [0.0, 0.0]
+        symbolizer["offset"] = [0.0, 0.0]
     if rotationField is not None:
         symbolizer["rotate"] = [
             "Mul",
