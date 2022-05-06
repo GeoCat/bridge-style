@@ -158,10 +158,13 @@ def processLabelClass(labelClass, tolowercase=False):
             {"haloColor": haloColor, "haloSize": haloSize, "haloOpacity": 1}
         )
 
+    # Grouping labels if thinDuplicateLabels is true, or in case of polygons, if numLabelsOption is OneLabelPerName
     symbolizer["group"] = (
-        labelClass.get("maplexLabelPlacementProperties", {}).get("thinDuplicateLabels")
-        or labelClass.get("standardLabelPlacementProperties", {}).get("numLabelsOption")
-        == "OneLabelPerName"
+        (labelClass.get("maplexLabelPlacementProperties", {}).get("thinDuplicateLabels"))
+        or (
+            (maplexPlacementType == "Polygon")
+            and (labelClass.get("standardLabelPlacementProperties", {}).get("numLabelsOption") == "OneLabelPerName")
+        )
     )
 
     rule = {"name": "", "symbolizers": [symbolizer]}
