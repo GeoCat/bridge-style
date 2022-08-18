@@ -293,7 +293,7 @@ def _textSymbolizer(sl):
         paint["text-halo-color"] = _symbolProperty(sl, "haloColor")
 
     layout["text-field"] = label
-    layout["text-size"] = size
+    layout["text-size"] = float(size)
     layout["text-font"] = [fontFamily]
 
     paint["text-color"] = color
