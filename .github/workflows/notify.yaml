@@ -14,6 +14,6 @@ jobs:
         run: >
           curl --request POST --header "Content-Type: application/json"
           --header 'Accept: application/vnd.github+json'
-          --header "Authorization: Bearer ${{ secrets.GOPASS_CI_GITHUB_TOKEN }}"
+          --header "Authorization: token ${{ secrets.GOPASS_CI_GITHUB_TOKEN }}"
           https://api.github.com/repos/camptocamp/lyrx2sld/dispatches
           --data '{"event_type": "bridge-style_updated"}'
