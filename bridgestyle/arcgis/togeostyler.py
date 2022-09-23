@@ -50,7 +50,7 @@ def processLayer(layer, options=None):
 
         elif (
             renderer["type"] == "CIMClassBreaksRenderer"
-            and renderer.get("classBreakType") == "GraduatedColor"
+            and renderer.get("classBreakType") in ["GraduatedColor", "GraduatedSymbol"]
         ):
             rules.extend(processClassBreaksRenderer(renderer, options))
         else:
