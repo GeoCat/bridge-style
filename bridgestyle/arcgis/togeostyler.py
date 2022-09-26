@@ -282,7 +282,7 @@ def processSymbolReference(symbolref, options):
 def processEffect(effect):
     if effect["type"] == "CIMGeometricEffectDashes":
         return {
-            "dasharray": " ".join(str(math.ceil(v)) for v in effect["dashTemplate"])
+            "dasharray": " ".join(str(math.ceil(v)) for v in effect.get("dashTemplate",[]))
         }
     else:
         return {}
