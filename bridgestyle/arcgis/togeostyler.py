@@ -75,8 +75,9 @@ def processClassBreaksRenderer(renderer, options):
     rules = []
     field = renderer["field"]
     lastbound = None
+    tolowercase = options.get("tolowercase", False)
+    rotation = _getGraduatedSymbolRotation(renderer, tolowercase) if renderer.get("classBreakType") == "GraduatedSymbol" else None
     for classbreak in renderer.get("breaks", []):
-        tolowercase = options.get("tolowercase", False)
         symbolizers = processSymbolReference(classbreak["symbol"], options)
         upperbound = classbreak.get("upperBound", 0)
         if lastbound is not None:
@@ -100,6 +101,8 @@ def processClassBreaksRenderer(renderer, options):
                 upperbound,
             ]
         lastbound = upperbound
+        if rotation:
+            [symbolizer.update({"rotate": rotation}) for symbolizer in symbolizers]
         ruledef = {
             "name": classbreak.get("label", "classbreak"),
             "symbolizers": symbolizers,
@@ -378,6 +381,7 @@ def processSymbolLayer(layer, symboltype, options):
         return {
             "opacity": 1.0,
             "fillOpacity": fillOpacity,
+            "strokeColor": strokeColor,
             "strokeOpacity": strokeOpacity,
             "strokeWidth": strokeWidth,
             "rotate": rotate,
@@ -467,6 +471,25 @@ def processSymbolLayer(layer, symboltype, options):
         }
     else:
         return None
+
+
+def _getGraduatedSymbolRotation(renderer, tolowercase):
+    visualVariables = renderer.get("visualVariables", [])
+    for visualVariable in visualVariables:
+        if visualVariable.get("visualVariableInfoZ",{}).get("visualVariableInfoType") == "Expression":
+            return _processArcadeRotationExpression(
+                visualVariable.get("visualVariableInfoZ",{}).get("valueExpressionInfo",{}).get("expression"),
+                tolowercase
+            )
+
+
+def _processArcadeRotationExpression(expression, tolowercase):
+    field = expression.replace("$feature.","")
+    return [
+            "Mul",
+            ["PropertyName", field.lower() if tolowercase else field],
+            -1,
+        ]
 
 
 def _extractStroke(symbolLayers):
