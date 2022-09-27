@@ -134,16 +134,20 @@ def processLabelClass(labelClass, tolowercase=False):
         "size": fontSize,
     }
 
-    stdPlacementType = labelClass.get("standardLabelPlacementProperties", {}).get(
-        "featureType"
-    )
-    maplexPlacementType = labelClass.get("maplexLabelPlacementProperties", {}).get(
-        "featureType"
-    )
+    stdProperties = labelClass.get("standardLabelPlacementProperties", {})
+    stdPlacementType = stdProperties.get("featureType")
+    stdPointPlacementType = stdProperties.get("pointPlacementMethod")
+    maplexProperties = labelClass.get("maplexLabelPlacementProperties", {})
+    maplexPlacementType = maplexProperties.get("featureType")
+    maplexPrimaryOffset = maplexProperties.get("primaryOffset", 0)
     if stdPlacementType == "Line" and maplexPlacementType == "Line":
         # We use this as a flag to later indicate the it is a line label when converting to SLD
         primaryOffset = float(textSymbol.get("primaryOffset", 0))
         symbolizer["perpendicularOffset"] = primaryOffset + fontSize
+    elif stdPlacementType == "Point" and stdPointPlacementType == "AroundPoint":
+        offset = maplexPrimaryOffset + fontSize / 2
+        symbolizer["offset"] = [offset, offset]
+        symbolizer["anchorPointX"] = symbolizer["anchorPointY"] = 0.0
     else:
         symbolizer["offset"] = [0.0, 0.0]
     if rotationField is not None:

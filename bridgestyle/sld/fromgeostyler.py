@@ -207,8 +207,8 @@ def _textSymbolizer(sl):
             # TODO: Use anchor
         # centers
         anchorLoc = _addSubElement(pointPlacement, "AnchorPoint")
-        _addSubElement(anchorLoc, "AnchorPointX", "0.5")
-        _addSubElement(anchorLoc, "AnchorPointY", "0.5")
+        _addSubElement(anchorLoc, "AnchorPointX", _symbolProperty(sl, "anchorPointX",  0.5))
+        _addSubElement(anchorLoc, "AnchorPointY", _symbolProperty(sl, "anchorPointY",  0.5))
 
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
