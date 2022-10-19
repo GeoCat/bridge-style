@@ -1,5 +1,7 @@
-# For now, this is limited to compound labels using the python or VB syntax
-def convertExpression(expression, tolowercase):
+# For now, this is limited to compound labels using the python, VB or Arcade syntax
+def convertExpression(expression, engine, tolowercase):
+    if engine == "Arcade":
+        expression = expression.replace("$feature.","")
     if tolowercase:
         expression = expression.lower()
     if "+" in expression or "&" in expression:
