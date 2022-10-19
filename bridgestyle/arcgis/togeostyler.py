@@ -115,7 +115,7 @@ def processClassBreaksRenderer(renderer, options):
 
 def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
-    expression = convertExpression(labelClass["expression"], tolowercase)
+    expression = convertExpression(labelClass["expression"], labelClass["expressionEngine"], tolowercase)
     fontFamily = textSymbol.get("fontFamilyName", "Arial")
     fontSize = float(textSymbol.get("height", 12))
     color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
