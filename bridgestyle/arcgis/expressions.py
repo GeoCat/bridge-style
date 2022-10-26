@@ -43,6 +43,11 @@ def stringToParameter(s, tolowercase):
 # There is no formal parsing, just a naive conversion
 def convertWhereClause(clause, tolowercase):
     clause = clause.replace("(", "").replace(")", "")
+    if " AND " in clause:
+        expression = ["And"]
+        subexpressions = [s.strip() for s in clause.split(" AND ")]
+        expression.extend([convertWhereClause(s, tolowercase) for s in subexpressions])
+        return expression
     if "=" in clause:
         tokens = [t.strip() for t in clause.split("=")]
         expression = [
@@ -55,6 +60,14 @@ def convertWhereClause(clause, tolowercase):
         tokens = [t.strip() for t in clause.split("<>")]
         expression = [
             "PropertyIsNotEqualTo",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
+        return expression
+    if ">" in clause:
+        tokens = [t.strip() for t in clause.split(">")]
+        expression = [
+            "PropertyIsGreaterThan",
             stringToParameter(tokens[0], tolowercase),
             stringToParameter(tokens[1], tolowercase),
         ]
