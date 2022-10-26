@@ -196,7 +196,7 @@ def processLabelClass(labelClass, tolowercase=False):
 
 def processSimpleRenderer(renderer, options):
     rule = {
-        "name": "",
+        "name": renderer.get("label", ""),
         "symbolizers": processSymbolReference(renderer["symbol"], options),
     }
     return rule
