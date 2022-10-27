@@ -222,7 +222,7 @@ def processUniqueValueGroup(fields, group, options):
         ]
 
     rules = []
-    for clazz in group["classes"]:
+    for clazz in group.get("classes", []):
         rule = {"name": clazz.get("label", "label")}
         values = clazz["values"]
         conditions = []
