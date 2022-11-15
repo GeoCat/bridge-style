@@ -140,10 +140,15 @@ def processLabelClass(labelClass, tolowercase=False):
     maplexProperties = labelClass.get("maplexLabelPlacementProperties", {})
     maplexPlacementType = maplexProperties.get("featureType")
     maplexPrimaryOffset = maplexProperties.get("primaryOffset", 0)
+    maplexPointPlacementMethod = maplexProperties.get("pointPlacementMethod")
     if stdPlacementType == "Line" and maplexPlacementType == "Line":
         # We use this as a flag to later indicate the it is a line label when converting to SLD
         primaryOffset = float(textSymbol.get("primaryOffset", 0))
         symbolizer["perpendicularOffset"] = primaryOffset + fontSize
+    elif maplexPlacementType == "Point" and maplexPointPlacementMethod == "AroundPoint":
+        offset = maplexPrimaryOffset + fontSize / 2
+        symbolizer["offset"] = [offset, offset]
+        symbolizer["anchorPointX"] = symbolizer["anchorPointY"] = 0.0
     elif stdPlacementType == "Point" and stdPointPlacementType == "AroundPoint":
         offset = maplexPrimaryOffset + fontSize / 2
         symbolizer["offset"] = [offset, offset]
