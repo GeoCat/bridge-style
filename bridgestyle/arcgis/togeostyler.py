@@ -490,9 +490,9 @@ def _getGraduatedSymbolRotation(renderer, tolowercase):
 def _processArcadeRotationExpression(expression, tolowercase):
     field = expression.replace("$feature.","")
     return [
-            "Mul",
+            "Sub",
             ["PropertyName", field.lower() if tolowercase else field],
-            -1,
+            90,
         ]
 
 
