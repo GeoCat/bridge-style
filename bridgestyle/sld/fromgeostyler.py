@@ -3,6 +3,12 @@ from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 
+from ..qgis.expressions import (
+    OGC_PROPERTYNAME,
+    OGC_IS_EQUAL_TO,
+    OGC_IS_NULL,
+    OGC_IS_LIKE
+)
 from .transformations import processTransformation
 from ..version import __version__
 
@@ -502,27 +508,27 @@ def _fillSymbolizer(sl, graphicFillLayer=0):
 
 #######################
 
-operators = [
-    "PropertyName",
+expression_keys = {
+    OGC_PROPERTYNAME,
     "Or",
     "And",
-    "PropertyIsEqualTo",
+    OGC_IS_EQUAL_TO,
     "PropertyIsNotEqualTo",
     "PropertyIsLessThanOrEqualTo",
     "PropertyIsGreaterThanOrEqualTo",
     "PropertyIsLessThan",
     "PropertyIsGreaterThan",
-    "PropertyIsLike",
-    "PropertyIsNull",
+    OGC_IS_LIKE,
+    OGC_IS_NULL,
     "Add",
     "Sub",
     "Mul",
     "Div",
     "Not",
-]
+}
 
 operatorToFunction = {
-    "PropertyIsEqualTo": "equalTo",
+    OGC_IS_EQUAL_TO: "equalTo",
     "PropertyIsNotEqualTo": "notEqual",
     "PropertyIsLessThanOrEqualTo": "lessEqualThan",
     "PropertyIsGreaterThanOrEqualTo": "greaterEqualThan",
@@ -535,7 +541,7 @@ def convertExpression(exp, inFunction=False):
     if exp is None:
         return None
     elif isinstance(exp, list):
-        if exp[0] in operators and not (inFunction and exp[0] in operatorToFunction):
+        if exp[0] in expression_keys and not (inFunction and exp[0] in operatorToFunction):
             return handleOperator(exp)
         else:
             return handleFunction(exp)
@@ -546,12 +552,14 @@ def convertExpression(exp, inFunction=False):
 def handleOperator(exp):
     name = exp[0]
     elem = Element("ogc:" + name)
-    if name == "PropertyIsLike":
+    if name == OGC_IS_LIKE:
         elem.attrib["wildCard"] = "%"
-    if name == "PropertyName":
+    if name == OGC_PROPERTYNAME:
         elem.text = exp[1]
     else:
         for operand in exp[1:]:
+            if operand is None:
+                continue
             elem.append(convertExpression(operand))
     return elem
 
@@ -561,6 +569,8 @@ def handleFunction(exp):
     elem = Element("ogc:Function", name=name)
     if len(exp) > 1:
         for arg in exp[1:]:
+            if arg is None:
+                continue
             elem.append(convertExpression(arg, True))
     return elem
 

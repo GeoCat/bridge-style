@@ -1,37 +1,45 @@
-from qgis.core import QgsExpressionNode, QgsExpression
+from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
 
 
 class UnsupportedExpressionException(Exception):
     pass
 
 
-binaryOps = [
-    "Or",
-    "And",
-    "PropertyIsEqualTo",
-    "PropertyIsNotEqualTo",
-    "PropertyIsLessThanOrEqualTo",
-    "PropertyIsGreaterThanOrEqualTo",
-    "PropertyIsLessThan",
-    "PropertyIsGreaterThan",
-    None,
-    "PropertyIsLike",
-    None,
-    None,
-    None,
-    None,
-    None,
-    "Add",
-    "Sub",
-    "Mul",
-    "Div",
-    None,
-    None,
-    None,
-    None,
-]
+OGC_PROPERTYNAME = "PropertyName"
+OGC_IS_EQUAL_TO = "PropertyIsEqualTo"
+OGC_IS_NULL = "PropertyIsNull"
+OGC_IS_LIKE = "PropertyIsLike"
+OGC_SUB = "Sub"
 
-unaryOps = ["Not", "Sub"]
+
+_qbo = QgsExpressionNodeBinaryOperator.BinaryOperator
+binaryOps = {
+    _qbo.boOr: "Or",
+    _qbo.boAnd: "And",
+    _qbo.boEQ: OGC_IS_EQUAL_TO,
+    _qbo.boNE: "PropertyIsNotEqualTo",
+    _qbo.boLE: "PropertyIsLessThanOrEqualTo",
+    _qbo.boGE: "PropertyIsGreaterThanOrEqualTo",
+    _qbo.boLT: "PropertyIsLessThan",
+    _qbo.boGT: "PropertyIsGreaterThan",
+    _qbo.boRegexp: None,
+    _qbo.boLike: OGC_IS_LIKE,
+    _qbo.boNotLike: None,
+    _qbo.boILike: None,
+    _qbo.boNotILike: None,
+    _qbo.boIs: None,
+    _qbo.boIsNot: None,
+    _qbo.boPlus: "Add",
+    _qbo.boMinus: OGC_SUB,
+    _qbo.boMul: "Mul",
+    _qbo.boDiv: "Div",
+    _qbo.boIntDiv: None,
+    _qbo.boMod: None,
+    _qbo.boPow: None,
+    _qbo.boConcat: None,
+}
+
+unaryOps = ["Not", OGC_SUB]
 
 functions = {
     "radians": "toRadians",
@@ -80,7 +88,8 @@ functions = {
 }  # TODO
 
 
-def walkExpression(node, layer):
+def walkExpression(node, layer, null_allowed=False):
+    exp = None
     if node.nodeType() == QgsExpressionNode.ntBinaryOperator:
         exp = handleBinary(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntUnaryOperator:
@@ -91,10 +100,10 @@ def walkExpression(node, layer):
         exp = handleFunction(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntLiteral:
         exp = handleLiteral(node)
+        if exp is None and null_allowed:
+            return exp
     elif node.nodeType() == QgsExpressionNode.ntColumnRef:
         exp = handleColumnRef(node, layer)
-    else:
-        exp = None
     # elif node.nodeType() == QgsExpression.ntCondition:
     #    filt = handle_condition(nod)
     if exp is None:
@@ -121,7 +130,7 @@ def handle_in(node, layer):
     propEqualsExprs = []  # one for each of the literals in the expression
     for item in node.list().list():
         if item.nodeType() != QgsExpressionNode.ntLiteral:
-            raise UnsupportedExpressionException("expression  IN isn't literal")
+            raise UnsupportedExpressionException("expression IN isn't literal")
         # equals_expr = QgsExpressionNodeBinaryOperator(2,colRef,item) #2 is "="
         equals_expr = [binaryOps[2], colRef, handleLiteral(item)]  # 2 is "="
         propEqualsExprs.append(equals_expr)
@@ -141,7 +150,10 @@ def handleBinary(node, layer):
     left = node.opLeft()
     right = node.opRight()
     retLeft = walkExpression(left, layer)
-    retRight = walkExpression(right, layer)
+    retRight = walkExpression(right, layer, True)
+    if (retOp is retRight is None) and op == _qbo.boIs:
+        # Special case for IS NULL
+        retOp = OGC_IS_NULL
     return [retOp, retLeft, retRight]
 
 
@@ -150,7 +162,7 @@ def handleUnary(node, layer):
     operand = node.operand()
     retOp = unaryOps[op]
     retOperand = walkExpression(operand, layer)
-    if retOp == "Sub":  # handle the particular case of a minus in a negative number
+    if retOp == OGC_SUB:  # handle the particular case of a minus in a negative number
         return [retOp, 0, retOperand]
     else:
         return [retOp, retOperand]
@@ -158,10 +170,8 @@ def handleUnary(node, layer):
 
 def handleLiteral(node):
     val = node.value()
-    if isinstance(val, basestring):
+    if isinstance(val, str):
         val = val.replace("\n", "\\n")
-    elif val is None:
-        val = "null"
     return val
 
 
@@ -170,15 +180,15 @@ def handleColumnRef(node, layer):
         attrName = node.name().casefold()
         for field in layer.fields():
             if field.name().casefold() == attrName:
-                return ["PropertyName", field.name()]
-    return ["PropertyName", node.name()]
+                return [OGC_PROPERTYNAME, field.name()]
+    return [OGC_PROPERTYNAME, node.name()]
 
 
 def handleFunction(node, layer):
     fnIndex = node.fnIndex()
     func = QgsExpression.Functions()[fnIndex].name()
     if func == "$geometry":
-        return ["PropertyName", "geom"]
+        return [OGC_PROPERTYNAME, "geom"]
     elif func in functions:
         elems = [functions[func]]
         args = node.args()

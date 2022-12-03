@@ -1,5 +1,11 @@
 import os
 
+from ..qgis.expressions import (
+    OGC_PROPERTYNAME,
+    OGC_IS_EQUAL_TO,
+    OGC_SUB
+)
+
 _warnings = []
 
 
@@ -84,18 +90,18 @@ def processRule(rule):
 func = {
     "Or": "OR",
     "And": "AND",
-    "PropertyIsEqualTo": "=",
+    OGC_IS_EQUAL_TO: "=",
     "PropertyIsNotEqualTo": "!=",
     "PropertyIsLessThanOrEqualTo": "<=",
     "PropertyIsGreaterThanOrEqualTo": ">=",
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
     "Add": "+",
-    "Sub": "-",
+    OGC_SUB: "-",
     "Mul": "*",
     "Div": "/",
     "Not": "!",
-    "PropertyName": "PropertyName",
+    OGC_PROPERTYNAME: OGC_PROPERTYNAME,
 }  # TODO
 
 
@@ -110,7 +116,7 @@ def convertExpression(exp):
                 % exp[0]
             )
             return None
-        elif funcName == "PropertyName":
+        elif funcName == OGC_PROPERTYNAME:
             return '"[%s]"' % exp[1]
         else:
             arg1 = convertExpression(exp[1])

@@ -4,6 +4,12 @@ import os
 import tempfile
 
 from ..qgis import togeostyler as qgis2geostyler
+from ..qgis.expressions import (
+    OGC_PROPERTYNAME,
+    OGC_IS_EQUAL_TO,
+    OGC_IS_NULL,
+    OGC_SUB
+)
 
 # Globals
 _warnings = []
@@ -179,41 +185,44 @@ def processRule(rule, source, ruleNumber):
     return layers
 
 
-func = {"PropertyName": "get",
-        "Or": "any",
-        "And": "all",
-        "PropertyIsEqualTo": "==",
-        "PropertyIsNotEqualTo": "!=",
-        "PropertyIsLessThanOrEqualTo": "<=",
-        "PropertyIsGreaterThanOrEqualTo": ">=",
-        "PropertyIsLessThan": "<",
-        "PropertyIsGreaterThan": ">",
-        "Add": "+",
-        "Sub": "-",
-        "Mul": "*",
-        "Div": "/",
-        "Not": "!",
-        "toRadians": None,
-        "toDegrees": None,
-        "floor": "floor",
-        "ceil": "ceil",
-        "if_then_else": "case",
-        "Concatenate": "concat",
-        "strSubstr": None,
-        "strToLower": "downcase",
-        "strToUpper": "upcase",
-        "strReplace": None,
-        "acos": "acos",
-        "asin": "asin",
-        "atan": "atan",
-        "atan2": "atan2",
-        "sin": "sin",
-        "cos": "cos",
-        "tan": "tan",
-        "log": "ln",
-        "strCapitalize": None,
-        "min": "min",
-        "max": "max"}  # TODO
+func = {
+    OGC_PROPERTYNAME: "get",
+    "Or": "any",
+    "And": "all",
+    OGC_IS_EQUAL_TO: "==",
+    "PropertyIsNotEqualTo": "!=",
+    "PropertyIsLessThanOrEqualTo": "<=",
+    "PropertyIsGreaterThanOrEqualTo": ">=",
+    "PropertyIsLessThan": "<",
+    "PropertyIsGreaterThan": ">",
+    OGC_IS_NULL: "has",
+    "Add": "+",
+    OGC_SUB: "-",
+    "Mul": "*",
+    "Div": "/",
+    "Not": "!",
+    "toRadians": None,
+    "toDegrees": None,
+    "floor": "floor",
+    "ceil": "ceil",
+    "if_then_else": "case",
+    "Concatenate": "concat",
+    "strSubstr": None,
+    "strToLower": "downcase",
+    "strToUpper": "upcase",
+    "strReplace": None,
+    "acos": "acos",
+    "asin": "asin",
+    "atan": "atan",
+    "atan2": "atan2",
+    "sin": "sin",
+    "cos": "cos",
+    "tan": "tan",
+    "log": "ln",
+    "strCapitalize": None,
+    "min": "min",
+    "max": "max"
+}  # TODO
 
 
 def convertExpression(exp):
@@ -226,8 +235,12 @@ def convertExpression(exp):
             return None
         else:
             convertedExp = [funcName]
-            for arg in exp[1:]:
-                convertedExp.append(convertExpression(arg))
+            if funcName == "has" and isinstance(exp[1], list):
+                # Special case to add "is null" support
+                convertedExp.append(convertExpression(exp[1][-1]))
+            else:
+                for arg in exp[1:]:
+                    convertedExp.append(convertExpression(arg))
             return convertedExp
     else:
         return exp
