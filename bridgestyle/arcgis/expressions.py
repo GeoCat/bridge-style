@@ -1,4 +1,7 @@
 # For now, this is limited to compound labels using the python, VB or Arcade syntax
+from bridgestyle.customgeostylerproperties import WellKnownText
+
+
 def convertExpression(expression, engine, tolowercase):
     if engine == "Arcade":
         expression = expression.replace("$feature.","")
@@ -16,7 +19,8 @@ def convertExpression(expression, engine, tolowercase):
                     ["PropertyName", token.replace("[", "").replace("]", "").strip()]
                 )
             else:
-                addends.append(token.replace('"', ""))
+                literal = token.replace('"', "")
+                addends.append(replaceSpecialLiteral(literal))
             allOps = addends[0]
             for attr in addends[1:]:
                 allOps = ["Concatenate", attr, allOps]
@@ -24,6 +28,12 @@ def convertExpression(expression, engine, tolowercase):
     else:
         expression = ["PropertyName", expression.replace("[", "").replace("]", "")]
     return expression
+
+
+def replaceSpecialLiteral(literal):
+    if literal == "vbnewline":
+        return WellKnownText.NEW_LINE
+    return literal
 
 
 def stringToParameter(s, tolowercase):

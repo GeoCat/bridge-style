@@ -3,7 +3,9 @@ from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 
+from.parsecdata import _serialize_xml
 from .transformations import processTransformation
+from bridgestyle.customgeostylerproperties import WellKnownText
 from bridgestyle.version import __version__
 
 _warnings = []
@@ -571,6 +573,23 @@ def handleFunction(exp):
 
 
 def handleLiteral(v):
+    specialLiteralElem = handleSpecialLiteral(v)
+    if (specialLiteralElem is not None):
+        return specialLiteralElem
     elem = Element("ogc:Literal")
     elem.text = str(v)
     return elem
+
+
+def handleSpecialLiteral(v):
+    if v == WellKnownText.NEW_LINE:
+        elem = Element("ogc:Literal")
+        elem.append(createCDATA("\n"))
+        return elem
+    return None
+
+
+def createCDATA(text=None):
+    element = Element("![CDATA[")
+    element.text = text
+    return element
