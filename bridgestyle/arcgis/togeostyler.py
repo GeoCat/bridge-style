@@ -5,6 +5,7 @@ import tempfile
 import uuid
 
 from .expressions import convertExpression, convertWhereClause
+from .wkt_geometries import to_wkt
 
 ESRI_SYMBOLS_FONT = "ESRI Default Marker"
 
@@ -275,13 +276,19 @@ def processSymbolReference(symbolref, options):
                             "Z": 0,
                         }
                     elif symbol["type"] == "CIMPolygonSymbol":
+                        maxX = symbolizer.get("maxX", 0)
+                        maxY = symbolizer.get("maxY", 0)
+                        stepX = layer.get("markerPlacement",{}).get("stepX", 0)
+                        stepY = layer.get("markerPlacement",{}).get("stepY", 0)
+                        marginX = stepX - maxX or symbolizer["size"] * 2
+                        marginY = stepY - maxY or symbolizer["size"] * 2
                         symbolizer = {
                             "kind": "Fill",
                             "opacity": 1.0,
                             "perpendicularOffset": 0.0,
                             "graphicFill": [symbolizer],
-                            "graphicFillMarginX": symbolizer["size"] * 2,  # TODO
-                            "graphicFillMarginY": symbolizer["size"] * 2,
+                            "graphicFillMarginX": marginX,
+                            "graphicFillMarginY": marginY,
                             "Z": 0,
                         }
                 symbolizers.append(symbolizer)
@@ -407,17 +414,18 @@ def processSymbolLayer(layer, symboltype, options):
         markerGraphics = layer.get("markerGraphics", [])
         if markerGraphics:
             sublayers = markerGraphics[0]["symbol"]["symbolLayers"]
+            wellKnownName = to_wkt(markerGraphics[0].get("geometry"))
             fillColor = _extractFillColor(sublayers)
             strokeColor, strokeWidth = _extractStroke(sublayers)
         else:
             fillColor = "#ff0000"
             strokeColor = "#000000"
-        return {
+        layer = {
             "opacity": 1.0,
             "rotate": 0.0,
             "kind": "Mark",
             "color": fillColor,
-            "wellKnownName": "circle",
+            "wellKnownName": wellKnownName["wellKnownName"],
             "size": 10,
             "strokeColor": strokeColor,
             "strokeWidth": strokeWidth,
@@ -425,6 +433,10 @@ def processSymbolLayer(layer, symboltype, options):
             "fillOpacity": 1.0,
             "Z": 0,
         }
+        if wellKnownName.get("maxX") and wellKnownName.get("maxY"):
+            layer["maxX"] = wellKnownName["maxX"]
+            layer["maxY"] = wellKnownName["maxY"]
+        return layer
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
         separation = layer.get("separation", 2)
