@@ -11,6 +11,8 @@ from ..qgis.expressions import (
 )
 from .transformations import processTransformation
 from ..version import __version__
+from ..customgeostylerproperties import WellKnownText
+from.parsecdata import _serialize_xml
 
 _warnings = []
 
@@ -581,6 +583,23 @@ def handleFunction(exp):
 
 
 def handleLiteral(v):
+    specialLiteralElem = handleSpecialLiteral(v)
+    if (specialLiteralElem is not None):
+        return specialLiteralElem
     elem = Element("ogc:Literal")
     elem.text = str(v)
     return elem
+
+
+def handleSpecialLiteral(v):
+    if v == WellKnownText.NEW_LINE:
+        elem = Element("ogc:Literal")
+        elem.append(createCDATA("\n"))
+        return elem
+    return None
+
+
+def createCDATA(text=None):
+    element = Element("![CDATA[")
+    element.text = text
+    return element
