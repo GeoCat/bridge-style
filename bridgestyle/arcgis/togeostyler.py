@@ -278,8 +278,8 @@ def processSymbolReference(symbolref, options):
                     elif symbol["type"] == "CIMPolygonSymbol":
                         maxX = symbolizer.get("maxX", 0)
                         maxY = symbolizer.get("maxY", 0)
-                        stepX = layer.get("markerPlacement",{}).get("stepX", 0)
-                        stepY = layer.get("markerPlacement",{}).get("stepY", 0)
+                        stepX = layer.get("markerPlacement", {}).get("stepX", 0)
+                        stepY = layer.get("markerPlacement", {}).get("stepY", 0)
                         marginX = stepX - maxX or symbolizer["size"] * 2
                         marginY = stepY - maxY or symbolizer["size"] * 2
                         symbolizer = {
@@ -393,9 +393,11 @@ def processSymbolLayer(layer, symboltype, options):
             fillColor = "#000000"
             fillOpacity = 1.0
             strokeOpacity = 0
+            strokeColor = "#000000"
             strokeWidth = 0.0
         return {
             "opacity": 1.0,
+            "offset": _extractOffset(layer),
             "fillOpacity": fillOpacity,
             "strokeColor": strokeColor,
             "strokeOpacity": strokeOpacity,
@@ -550,6 +552,15 @@ def _extractFillOpacity(symbolLayers):
                 opacity = 1.0
             return opacity
     return 1.0
+
+
+def _extractOffset(symbolLayer):
+    # Arcgis looks to round part-pixel values.
+    offset_x = round(symbolLayer.get("offsetX", 0))
+    offset_y = round(symbolLayer.get("offsetY", 0) * -1)
+    if offset_x == 0 and offset_y != 0:
+        return None
+    return [offset_x, offset_y]
 
 
 def processOpacity(color):
