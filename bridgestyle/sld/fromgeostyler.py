@@ -303,8 +303,8 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
             _addCssParameter(
                 stroke, "stroke-dasharray", "%s %s" % (str(fsize), str(finterval))
             )
-        except:
-            _addCssParameter(stroke, "stroke-dasharray", "10 10")
+        except TypeError:
+            pass
         _addCssParameter(stroke, "stroke-dashoffset", dashOffset)
         if graphicStrokeLayer == 0 and len(graphicStroke) > 1:
             for i in range(1, len(graphicStroke)):
@@ -315,22 +315,22 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         _addCssParameter(stroke, "stroke-opacity", opacity)
         _addCssParameter(stroke, "stroke-linejoin", join)
         _addCssParameter(stroke, "stroke-linecap", cap)
-        if dasharray is not None:
-            if cap != "butt":
-                try:
-                    EXTRA_GAP = 2 * width
-                    tokens = [
-                        int(v) + EXTRA_GAP if i % 2 else int(v)
-                        for i, v in enumerate(dasharray.split(" "))
-                    ]
-                except:  # in case width is not a number, but an expression
-                    GAP_FACTOR = 2
-                    tokens = [
-                        int(v) * GAP_FACTOR if i % 2 else int(v)
-                        for i, v in enumerate(dasharray.split(" "))
-                    ]
-                dasharray = " ".join([str(v) for v in tokens])
-            _addCssParameter(stroke, "stroke-dasharray", dasharray)
+    if dasharray is not None:
+        if cap != "butt":
+            try:
+                EXTRA_GAP = 2 * width
+                tokens = [
+                    int(v) + EXTRA_GAP if i % 2 else int(v)
+                    for i, v in enumerate(dasharray.split(" "))
+                ]
+            except:  # in case width is not a number, but an expression
+                GAP_FACTOR = 2
+                tokens = [
+                    int(v) * GAP_FACTOR if i % 2 else int(v)
+                    for i, v in enumerate(dasharray.split(" "))
+                ]
+            dasharray = " ".join([str(v) for v in tokens])
+        _addCssParameter(stroke, "stroke-dasharray", dasharray)
     if offset is not None:
         _addSubElement(root, "PerpendicularOffset", offset)
     return symbolizers

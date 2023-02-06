@@ -7,4 +7,7 @@ def to_wkt(geometry):
                     "maxX": max([coord[0] for coord in rings]),
                     "maxY": max([coord[1] for coord in rings]),
         }
+    # The following corresponds to the geometry of the line symbolizer in ArcGIS
+    elif geometry.get("paths") and geometry["paths"][0] == [[2, 0], [-2, 0]]:
+        return {"wellKnownName": "wkt://MULTILINESTRING((0 2, 0 0))"}
     return {"wellKnownName": "circle"}

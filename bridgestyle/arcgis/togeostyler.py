@@ -254,44 +254,57 @@ def processUniqueValueGroup(fields, group, options):
 def processSymbolReference(symbolref, options):
     symbol = symbolref["symbol"]
     symbolizers = []
-    if "symbolLayers" in symbol:
-        for layer in symbol["symbolLayers"][
-            ::-1
-        ]:  # drawing order for geostyler is inverse of rule order
-            symbolizer = processSymbolLayer(layer, symbol["type"], options)
-            if symbolizer is not None:
-                if layer["type"] in [
-                    "CIMVectorMarker",
-                    "CIMPictureFill",
-                    "CIMCharacterMarker",
-                ]:
-                    if symbol["type"] == "CIMLineSymbol":
-                        symbolizer = {
-                            "kind": "Line",
-                            "opacity": 1.0,
-                            "perpendicularOffset": 0.0,
-                            "graphicStroke": [symbolizer],
-                            "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
-                            "graphicStrokeOffset": 0.0,
-                            "Z": 0,
-                        }
-                    elif symbol["type"] == "CIMPolygonSymbol":
-                        maxX = symbolizer.get("maxX", 0)
-                        maxY = symbolizer.get("maxY", 0)
-                        stepX = layer.get("markerPlacement", {}).get("stepX", 0)
-                        stepY = layer.get("markerPlacement", {}).get("stepY", 0)
-                        marginX = stepX - maxX or symbolizer["size"] * 2
-                        marginY = stepY - maxY or symbolizer["size"] * 2
-                        symbolizer = {
-                            "kind": "Fill",
-                            "opacity": 1.0,
-                            "perpendicularOffset": 0.0,
-                            "graphicFill": [symbolizer],
-                            "graphicFillMarginX": marginX,
-                            "graphicFillMarginY": marginY,
-                            "Z": 0,
-                        }
-                symbolizers.append(symbolizer)
+    if "symbolLayers" not in symbol:
+        return symbolizers
+    for layer in symbol["symbolLayers"][::-1]:  # drawing order for geostyler is inverse of rule order
+        if not layer["enable"]:
+            continue
+        symbolizer = processSymbolLayer(layer, symbol["type"], options)
+        if symbolizer is None:
+            continue
+        if layer["type"] in [
+            "CIMVectorMarker",
+            "CIMPictureFill",
+            "CIMCharacterMarker",
+        ]:
+            if symbol["type"] == "CIMLineSymbol":
+                symbolizer = {
+                    "kind": "Line",
+                    "opacity": 1.0,
+                    "perpendicularOffset": 0.0,
+                    "graphicStroke": [symbolizer],
+                    "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
+                    "graphicStrokeOffset": 0.0,
+                    "Z": 0,
+                }
+            elif symbol["type"] == "CIMPolygonSymbol":
+                markerPlacement = layer.get("markerPlacement",{}).get("type")
+                if markerPlacement == "CIMMarkerPlacementInsidePolygon":
+                    maxX = symbolizer.get("maxX", 0)
+                    maxY = symbolizer.get("maxY", 0)
+                    stepX = layer.get("markerPlacement", {}).get("stepX", 0)
+                    stepY = layer.get("markerPlacement", {}).get("stepY", 0)
+                    marginX = stepX - maxX or symbolizer["size"] * 2
+                    marginY = stepY - maxY or symbolizer["size"] * 2
+                    symbolizer = {
+                        "kind": "Fill",
+                        "opacity": 1.0,
+                        "perpendicularOffset": 0.0,
+                        "graphicFill": [symbolizer],
+                        "graphicFillMarginX": marginX,
+                        "graphicFillMarginY": marginY,
+                        "Z": 0,
+                    }
+                elif markerPlacement == "CIMMarkerPlacementAlongLineSameSize":
+                    symbolizer = {
+                        "kind": "Line",
+                        "opacity": 1.0,
+                        "size": symbolizer.get("size", 10),
+                        "perpendicularOffset": symbolizer.get("perpendicularOffset", 0.0),
+                        "graphicStroke": [symbolizer],
+                        "Z": 0,
+                    }
+        symbolizers.append(symbolizer)
     return symbolizers
 
 
@@ -411,34 +424,59 @@ def processSymbolLayer(layer, symboltype, options):
         }
 
     elif layer["type"] == "CIMVectorMarker":
-        # TODO
-        # we do not take the shape, but just the colors and stroke width
+        # Default values
+        fillColor = "#ff0000"
+        strokeColor = "#000000"
+        strokeWidth = 1.0
+        size = 10
+        wellKnownName = "circle"
+        maxX = maxY = None
+
         markerGraphics = layer.get("markerGraphics", [])
         if markerGraphics:
-            sublayers = markerGraphics[0]["symbol"]["symbolLayers"]
-            wellKnownName = to_wkt(markerGraphics[0].get("geometry"))
+            # TODO: support multiple marker graphics
+            markerGraphic = markerGraphics[0]
+            marker = processSymbolReference(markerGraphic, {})[0]
+            sublayers = [sublayer for sublayer in markerGraphic["symbol"]["symbolLayers"] if sublayer["enable"]]
             fillColor = _extractFillColor(sublayers)
             strokeColor, strokeWidth = _extractStroke(sublayers)
-        else:
-            fillColor = "#ff0000"
-            strokeColor = "#000000"
-        layer = {
+            size = marker.get("size", 10)
+            if markerGraphic["symbol"]["type"] == "CIMPointSymbol":
+                wellKnownName = marker["wellKnownName"]
+            elif markerGraphic["symbol"]["type"] in ["CIMLineSymbol", "CIMPolygonSymbol"]:
+                shape = to_wkt(markerGraphic.get("geometry"))
+                wellKnownName = shape["wellKnownName"]
+                maxX = shape.get("maxX")
+                maxY = shape.get("maxY")
+
+        marker = {
             "opacity": 1.0,
             "rotate": 0.0,
             "kind": "Mark",
             "color": fillColor,
-            "wellKnownName": wellKnownName["wellKnownName"],
-            "size": 10,
+            "wellKnownName": wellKnownName,
+            "size": size,
             "strokeColor": strokeColor,
             "strokeWidth": strokeWidth,
             "strokeOpacity": 1.0,
             "fillOpacity": 1.0,
             "Z": 0,
         }
-        if wellKnownName.get("maxX") and wellKnownName.get("maxY"):
-            layer["maxX"] = wellKnownName["maxX"]
-            layer["maxY"] = wellKnownName["maxY"]
-        return layer
+        if maxX:
+            marker["maxX"] = maxX
+        if maxY:
+            marker["maxY"] = maxY
+        markerPlacement = layer.get("markerPlacement", {}).get("placementTemplate")
+        # Conversion of dash arrays is made on a case-by-case basis
+        if markerPlacement == [12, 3]:
+            marker["strokeDasharray"] = "4 0 4 7"
+            marker["size"] = 6
+            marker["perpendicularOffset"] = -3.5
+        elif markerPlacement == [15]:
+            marker["strokeDasharray"] = "0 5 9 1"
+            marker["size"] = 10
+        return marker
+
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
         separation = layer.get("separation", 2)
@@ -461,6 +499,7 @@ def processSymbolLayer(layer, symboltype, options):
             ],
             "Z": 0,
         }
+
     elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
         url = layer["url"]
         if not os.path.exists(url):
@@ -536,11 +575,13 @@ def _extractStrokeOpacity(symbolLayers):
 
 
 def _extractFillColor(symbolLayers):
+    color = "#ffffff"
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidFill":
             color = processColor(sl.get("color"))
-            return color
-    return "#ffffff"
+        elif sl["type"] == "CIMCharacterMarker":
+            color = _extractFillColor(sl["symbol"]["symbolLayers"])
+    return color
 
 
 def _extractFillOpacity(symbolLayers):
