@@ -1,4 +1,5 @@
 import os
+import re
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -26,7 +27,7 @@ def convert(geostyler, options=None):
     root = Element("StyledLayerDescriptor", attrib=attribs)
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
-    layerName.text = geostyler["name"]
+    layerName.text = re.sub('[^\w]', '_', geostyler["name"])
     userStyle = SubElement(namedLayer, "UserStyle")
     userStyleTitle = SubElement(userStyle, "Title")
     userStyleTitle.text = geostyler["name"]
