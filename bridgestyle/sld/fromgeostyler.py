@@ -399,7 +399,7 @@ def _markGraphic(sl):
     fillOpacity = _symbolProperty(sl, "fillOpacity", 1.0)
     strokeOpacity = _symbolProperty(sl, "strokeOpacity", 1.0)
     outlineWidth = _symbolProperty(sl, "strokeWidth")
-    outlineDasharray = _symbolProperty(sl, "strokeDasharray")
+    outlineDasharray = _symbolProperty(sl, "dasharray")
     shape = _symbolProperty(sl, "wellKnownName")
     mark = Element("Mark")
     _addSubElement(mark, "WellKnownName", shape)
