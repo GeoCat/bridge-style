@@ -510,11 +510,11 @@ def processSymbolLayer(layer, symboltype, options):
         markerPlacement = layer.get("markerPlacement", {}).get("placementTemplate")
         # Conversion of dash arrays is made on a case-by-case basis
         if markerPlacement == [12, 3]:
-            marker["strokeDasharray"] = "4 0 4 7"
+            marker["outlineDasharray"] = "4 0 4 7"
             marker["size"] = 6
             marker["perpendicularOffset"] = -3.5
         elif markerPlacement == [15]:
-            marker["strokeDasharray"] = "0 5 9 1"
+            marker["outlineDasharray"] = "0 5 9 1"
             marker["size"] = 10
         return marker
 
@@ -543,7 +543,7 @@ def processSymbolLayer(layer, symboltype, options):
         }
         effects = _extractEffect(symbolLayers[0])
         if "dasharray" in effects:
-            fill["graphicFill"][0]["dasharray"] = effects["dasharray"]
+            fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
             # In case of dash array, the size must be at least as long as the dash pattern sum.
             neededSize = sum(effects["dasharrayValues"])
             if wellKnowName in _getStraightHatchMarker():

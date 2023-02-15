@@ -395,11 +395,11 @@ def _basePointSimbolizer(sl):
 
 def _markGraphic(sl):
     color = _symbolProperty(sl, "color")
-    outlineColor = _symbolProperty(sl, "strokeColor")
+    strokeColor = _symbolProperty(sl, "strokeColor")
     fillOpacity = _symbolProperty(sl, "fillOpacity", 1.0)
     strokeOpacity = _symbolProperty(sl, "strokeOpacity", 1.0)
-    outlineWidth = _symbolProperty(sl, "strokeWidth")
-    outlineDasharray = _symbolProperty(sl, "dasharray")
+    strokeWidth = _symbolProperty(sl, "strokeWidth")
+    outlineDasharray = _symbolProperty(sl, "outlineDasharray")
     shape = _symbolProperty(sl, "wellKnownName")
     mark = Element("Mark")
     _addSubElement(mark, "WellKnownName", shape)
@@ -409,8 +409,8 @@ def _markGraphic(sl):
         _addCssParameter(fill, "fill-opacity", fillOpacity)
     stroke = _addSubElement(mark, "Stroke")
     if strokeOpacity:
-        _addCssParameter(stroke, "stroke", outlineColor)
-        _addCssParameter(stroke, "stroke-width", outlineWidth)
+        _addCssParameter(stroke, "stroke", strokeColor)
+        _addCssParameter(stroke, "stroke-width", strokeWidth)
         _addCssParameter(stroke, "stroke-opacity", strokeOpacity)
         if outlineDasharray is not None:
             _addCssParameter(stroke, "stroke-dasharray", outlineDasharray)

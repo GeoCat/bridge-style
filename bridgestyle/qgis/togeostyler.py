@@ -770,7 +770,7 @@ def _markGraphic(sl):
         mark["spriteName"] = spriteName
 
     if outlineStyle not in ["solid", "no"]:
-        mark["strokeDasharray"] = "5 2"
+        mark["outlineDasharray"] = "5 2"
 
     return mark
 
