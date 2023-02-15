@@ -8,6 +8,7 @@ from .expressions import convertExpression, convertWhereClause
 from .wkt_geometries import to_wkt
 
 ESRI_SYMBOLS_FONT = "ESRI Default Marker"
+PT_TO_PX_FACTOR = 4/3
 
 _usedIcons = []
 _warnings = []
@@ -278,24 +279,21 @@ def processSymbolReference(symbolref, options):
                     "Z": 0,
                 }
             elif symbol["type"] == "CIMPolygonSymbol":
-                markerPlacement = layer.get("markerPlacement",{}).get("type")
-                if markerPlacement == "CIMMarkerPlacementInsidePolygon":
-                    maxX = symbolizer.get("maxX", 0)
-                    maxY = symbolizer.get("maxY", 0)
-                    stepX = layer.get("markerPlacement", {}).get("stepX", 0)
-                    stepY = layer.get("markerPlacement", {}).get("stepY", 0)
-                    marginX = stepX - maxX or symbolizer["size"] * 2
-                    marginY = stepY - maxY or symbolizer["size"] * 2
+                markerPlacementType = layer.get("markerPlacement",{}).get("type")
+                if markerPlacementType == "CIMMarkerPlacementInsidePolygon":
+                    markerPlacement = layer.get("markerPlacement", {})
+                    maxX = symbolizer.get("maxX") or symbolizer["size"] / 2
+                    maxY = symbolizer.get("maxY") or symbolizer["size"] / 2
+                    margin = proccessMarkerPlacementInsidePolygon(markerPlacement, maxX, maxY)
                     symbolizer = {
                         "kind": "Fill",
                         "opacity": 1.0,
                         "perpendicularOffset": 0.0,
                         "graphicFill": [symbolizer],
-                        "graphicFillMarginX": marginX,
-                        "graphicFillMarginY": marginY,
+                        "graphicFillMargin": margin,
                         "Z": 0,
                     }
-                elif markerPlacement == "CIMMarkerPlacementAlongLineSameSize":
+                elif markerPlacementType == "CIMMarkerPlacementAlongLineSameSize":
                     symbolizer = {
                         "kind": "Line",
                         "opacity": 1.0,
@@ -306,6 +304,26 @@ def processSymbolReference(symbolref, options):
                     }
         symbolizers.append(symbolizer)
     return symbolizers
+
+
+def proccessMarkerPlacementInsidePolygon(markerPlacement, maxX, maxY):
+    # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
+    # ArcGIS stepX, stepY, offsetX, offsetY
+    stepX = markerPlacement.get("stepX", 0)
+    stepY = markerPlacement.get("stepY", 0)
+    offsetX = markerPlacement.get("offsetX", 0)
+    offsetY = markerPlacement.get("offsetY", 0)
+    if offsetX:
+        right = offsetX % stepX
+        left = stepX - right
+    else:
+        right = left = stepX - maxX
+    if offsetY:
+        top = offsetY % stepY
+        bottom = stepY - top
+    else:
+        top = bottom = stepY - maxY
+    return [top, right, bottom, left]
 
 
 def processEffect(effect):
@@ -391,11 +409,17 @@ def processSymbolLayer(layer, symboltype, options):
         fontFamily = layer["fontFamilyName"]
         charindex = layer["characterIndex"]
         hexcode = hex(charindex)
+        # Sizes are in pt in ArcGIS, in px in SLD
+        size = layer["size"] * PT_TO_PX_FACTOR
         if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
             name = _esriFontToStandardSymbols(charindex)
         else:
             name = "ttf://%s#%s" % (fontFamily, hexcode)
         rotate = layer.get("rotation", 0)
+        # Rotation direction is by default counterclockwise in lyrx (clockwise in SLD)
+        rotateClockwise = layer.get("rotateClockwise", False)
+        if not rotateClockwise:
+            rotate *= -1
         try:
             symbolLayers = layer["symbol"]["symbolLayers"]
             fillColor = _extractFillColor(symbolLayers)
@@ -419,7 +443,7 @@ def processSymbolLayer(layer, symboltype, options):
             "kind": "Mark",
             "color": fillColor,
             "wellKnownName": name,
-            "size": layer["size"],
+            "size": size,
             "Z": 0,
         }
 

@@ -464,9 +464,12 @@ def _fillSymbolizer(sl, graphicFillLayer=0):
     color = sl.get("color", None)
     graphicFill = sl.get("graphicFill", None)
     offset = sl.get("offset", None)
+    margin = sl.get("graphicFillMargin")
 
     if graphicFill is not None:
-        if _symbolProperty(sl, "graphicFillMarginY") and _symbolProperty(sl, "graphicFillMarginX"):
+        if margin:
+            _addVendorOption(root, "graphic-margin", " ".join([str(m) for m in margin]))
+        elif _symbolProperty(sl, "graphicFillMarginY") and _symbolProperty(sl, "graphicFillMarginX"):
             margin = [_symbolProperty(sl, "graphicFillMarginY"), _symbolProperty(sl, "graphicFillMarginX")]
             _addVendorOption(root, "graphic-margin", " ".join(margin))
         else:
