@@ -288,7 +288,7 @@ def _iconSymbolizer(sl):
 
 
 def _markSymbolizer(sl):
-    # outlineDasharray = _symbolProperty(sl, "strokeDasharray")
+    # outlineDasharray = _symbolProperty(sl, "outlineDasharray")
     # opacity = _symbolProperty(sl, "opacity")
     size = _symbolProperty(sl, "size")
     rotation = _symbolProperty(sl, "rotate") or 0
