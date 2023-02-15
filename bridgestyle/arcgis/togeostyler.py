@@ -326,22 +326,42 @@ def proccessMarkerPlacementInsidePolygon(markerPlacement, maxX, maxY):
     return [top, right, bottom, left]
 
 
-def processEffect(effect):
+def _extractEffect(layer):
+    effects = {}
+    if "effects" in layer:
+        for effect in layer["effects"]:
+            effects.update(_processEffect(effect))
+    return effects
+
+
+def _processEffect(effect):
     if effect["type"] == "CIMGeometricEffectDashes":
+        dasharrayValues = list(map(math.ceil, effect.get("dashTemplate",[])))
         return {
-            "dasharray": " ".join(str(math.ceil(v)) for v in effect.get("dashTemplate",[]))
+            "dasharrayValues": dasharrayValues,
+            "dasharray": " ".join(str(v) for v in dasharrayValues)
         }
     else:
         return {}
 
 
+def _getStraightHatchMarker():
+    return ["shape://horline", "shape://vertline"]
+
+
+def _getTiltedHatchMarker():
+    return ["shape://slash", "shape://backslash"]
+
+
 def _hatchMarkerForAngle(angle):
+    straightHatchMarkers = _getStraightHatchMarker()
+    tiltedHatchMarkers = _getTiltedHatchMarker()
     quadrant = math.floor(((angle + 22.5) % 180) / 45.0)
     return [
-        "shape://horline",
-        "shape://slash",
-        "shape://vertline",
-        "shape://backslash",
+        straightHatchMarkers[0],
+        tiltedHatchMarkers[0],
+        straightHatchMarkers[1],
+        tiltedHatchMarkers[1],
     ][quadrant]
 
 
@@ -370,10 +390,7 @@ def _esriFontToStandardSymbols(charindex):
 def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
-        effects = {}
-        if "effects" in layer:
-            for effect in layer["effects"]:
-                effects.update(processEffect(effect))
+        effects = _extractEffect(layer)
         if symboltype == "CIMPolygonSymbol":
             stroke = {
                 "kind": "Fill",
@@ -493,11 +510,11 @@ def processSymbolLayer(layer, symboltype, options):
         markerPlacement = layer.get("markerPlacement", {}).get("placementTemplate")
         # Conversion of dash arrays is made on a case-by-case basis
         if markerPlacement == [12, 3]:
-            marker["strokeDasharray"] = "4 0 4 7"
+            marker["outlineDasharray"] = "4 0 4 7"
             marker["size"] = 6
             marker["perpendicularOffset"] = -3.5
         elif markerPlacement == [15]:
-            marker["strokeDasharray"] = "0 5 9 1"
+            marker["outlineDasharray"] = "0 5 9 1"
             marker["size"] = 10
         return marker
 
@@ -506,16 +523,17 @@ def processSymbolLayer(layer, symboltype, options):
         separation = layer.get("separation", 2)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
-
-        return {
+        size = separation + width
+        wellKnowName = _hatchMarkerForAngle(rotation)
+        fill = {
             "kind": "Fill",
             "opacity": 1.0,
             "graphicFill": [
                 {
                     "kind": "Mark",
                     "color": color,
-                    "wellKnownName": _hatchMarkerForAngle(rotation),
-                    "size": separation + width,
+                    "wellKnownName": wellKnowName,
+                    "size": size,
                     "strokeColor": color,
                     "strokeWidth": width,
                     "rotate": 0,
@@ -523,6 +541,25 @@ def processSymbolLayer(layer, symboltype, options):
             ],
             "Z": 0,
         }
+        effects = _extractEffect(symbolLayers[0])
+        if "dasharray" in effects:
+            fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
+            # In case of dash array, the size must be at least as long as the dash pattern sum.
+            neededSize = sum(effects["dasharrayValues"])
+            if wellKnowName in _getStraightHatchMarker():
+                # To keep the "original size", we play with a negative margin
+                negativeMargin = (neededSize - size) / 2 * -1
+                if wellKnowName == _getStraightHatchMarker()[0]:
+                    fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
+                else:
+                    fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
+            else:
+                # In case of slash pattern, the pattern is the hypotenuse, we want the X (or Y) value for the size.
+                neededSize = math.cos(math.radians(45)) * neededSize;
+                # The trick with the margin to keep the original size is not possible.
+                _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash).')
+            fill["graphicFill"][0]["size"] = neededSize
+        return fill
 
     elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
         url = layer["url"]
