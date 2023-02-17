@@ -27,10 +27,10 @@ def convert(geostyler, options=None):
     root = Element("StyledLayerDescriptor", attrib=attribs)
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
-    layerName.text = re.sub('[^\w]', '_', geostyler["name"])
+    layerName.text = _replaceSpecialCharacters('_', geostyler.get("name"))
     userStyle = SubElement(namedLayer, "UserStyle")
     userStyleTitle = SubElement(userStyle, "Title")
-    userStyleTitle.text = geostyler["name"]
+    userStyleTitle.text = geostyler.get("name")
 
     featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
     if "transformation" in geostyler:
@@ -50,7 +50,9 @@ def convert(geostyler, options=None):
 def processRule(rule):
     ruleElement = Element("Rule")
     ruleName = SubElement(ruleElement, "Name")
-    ruleName.text = rule.get("name", "")
+    ruleName.text = _replaceSpecialCharacters('_', rule.get("name"))
+    ruleTitle = SubElement(ruleElement, "Title")
+    ruleTitle.text = rule.get("name", "")
 
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
@@ -74,6 +76,13 @@ def processRule(rule):
     ruleElement.extend(symbolizers)
 
     return ruleElement
+
+
+def _replaceSpecialCharacters(replacement, text=""):
+    """
+    Replace all characters that are not matching one of [a-zA-Z0-9_].
+    """
+    return re.sub('[^\w]', replacement, text)
 
 
 def _createSymbolizers(symbolizers):
