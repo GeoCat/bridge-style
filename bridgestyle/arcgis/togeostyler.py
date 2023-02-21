@@ -522,10 +522,9 @@ def processSymbolLayer(layer, symboltype, options):
 
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        separation = layer.get("separation", 2)
+        size = layer.get("separation", 2)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
-        size = separation + width
         wellKnowName = _hatchMarkerForAngle(rotation)
         fill = {
             "kind": "Fill",
