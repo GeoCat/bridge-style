@@ -213,8 +213,10 @@ def processUniqueValueGroup(fields, group, options):
     def _and(a, b):
         return ["And", a, b]
 
-    def _or(a, b):
-        return ["Or", a, b]
+    def _or(conditions):
+        orConditions = conditions
+        orConditions.insert(0, 'Or')
+        return orConditions
 
     def _equal(name, val):
         if val == "<Null>":
@@ -241,9 +243,7 @@ def processUniqueValueGroup(fields, group, options):
                     condition = _and(condition, _equal(fieldName, fieldValue))
                 conditions.append(condition)
         if conditions:
-            ruleFilter = conditions[0]
-            for condition in conditions[1:]:
-                ruleFilter = _or(ruleFilter, condition)
+            ruleFilter = _or(conditions)
 
             rule["filter"] = ruleFilter
             rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
