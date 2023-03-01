@@ -4,11 +4,10 @@ import os
 import tempfile
 import uuid
 
+from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, PT_TO_PX_FACTOR
 from .expressions import convertExpression, convertWhereClause
 from .wkt_geometries import to_wkt
 
-ESRI_SYMBOLS_FONT = "ESRI Default Marker"
-PT_TO_PX_FACTOR = 4/3
 
 _usedIcons = []
 _warnings = []
@@ -281,10 +280,8 @@ def processSymbolReference(symbolref, options):
             elif symbol["type"] == "CIMPolygonSymbol":
                 markerPlacementType = layer.get("markerPlacement",{}).get("type")
                 if markerPlacementType == "CIMMarkerPlacementInsidePolygon":
-                    markerPlacement = layer.get("markerPlacement", {})
-                    maxX = symbolizer.get("maxX") or symbolizer["size"] / 2
-                    maxY = symbolizer.get("maxY") or symbolizer["size"] / 2
-                    margin = proccessMarkerPlacementInsidePolygon(markerPlacement, maxX, maxY)
+                    markerPlacement = layer["markerPlacement"]
+                    margin = proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement)
                     symbolizer = {
                         "kind": "Fill",
                         "opacity": 1.0,
@@ -306,23 +303,26 @@ def processSymbolReference(symbolref, options):
     return symbolizers
 
 
-def proccessMarkerPlacementInsidePolygon(markerPlacement, maxX, maxY):
+def proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
+    # In case of markers in a polygon fill, it seems ArcGIS does some undocumented resizing of the marker.
+    # We use an empirical factor to account for this, which works in most cases (but not all)
+    symbolizer["size"] = round(symbolizer["size"] * POLYGON_FILL_RESIZE_FACTOR)
+    if symbolizer.get("maxX") and symbolizer.get("maxY"):
+        maxX = math.floor(symbolizer["maxX"] * POLYGON_FILL_RESIZE_FACTOR)
+        maxY = math.floor(symbolizer["maxY"] * POLYGON_FILL_RESIZE_FACTOR)
+    else:
+        maxX = symbolizer["size"] / 2
+        maxY = symbolizer["size"] / 2
     # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
     # ArcGIS stepX, stepY, offsetX, offsetY
-    stepX = markerPlacement.get("stepX", 0)
-    stepY = markerPlacement.get("stepY", 0)
-    offsetX = markerPlacement.get("offsetX", 0)
-    offsetY = markerPlacement.get("offsetY", 0)
-    if offsetX:
-        right = offsetX % stepX
-        left = stepX - right
-    else:
-        right = left = stepX - maxX
-    if offsetY:
-        top = offsetY % stepY
-        bottom = stepY - top
-    else:
-        top = bottom = stepY - maxY
+    stepX = markerPlacement.get("stepX", 0) * PT_TO_PX_FACTOR
+    stepY = markerPlacement.get("stepY", 0) * PT_TO_PX_FACTOR
+    offsetX = markerPlacement.get("offsetX", 0) * PT_TO_PX_FACTOR
+    offsetY = markerPlacement.get("offsetY", 0) * PT_TO_PX_FACTOR
+    right = round(stepX / 2 - maxX - offsetX)
+    left = round(stepX / 2 - maxX + offsetX)
+    top = round(stepY / 2 - maxY - offsetY)
+    bottom = round(stepY / 2 - maxY + offsetY)
     return [top, right, bottom, left]
 
 
