@@ -23,6 +23,8 @@ These are the formats currently supported:
 
 - Mapserver Mapfiles.
 
+- ArcGIS Pro (lyrx).
+
 Support for YSLD will be implemented soon.
 
 The library also has support for being run from GIS applications, so it can convert from the data objects corresponding to map layer and features in those applications into Geostyler. At the moment, there is support for QGIS, and support from ArcGIS is planned an will soon be added.
