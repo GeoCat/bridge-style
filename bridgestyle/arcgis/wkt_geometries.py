@@ -1,7 +1,4 @@
-from .constants import PT_TO_PX_FACTOR
-
-def pt_to_px(pt):
-    return round(pt * PT_TO_PX_FACTOR)
+from .constants import pt_to_px
 
 def to_wkt(geometry):
     if geometry.get("rings"):
