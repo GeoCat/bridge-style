@@ -3,8 +3,11 @@ import math
 import os
 import tempfile
 import uuid
+from typing import Union
 
-from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, PT_TO_PX_FACTOR
+import typing
+
+from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, pt_to_px
 from .expressions import convertExpression, convertWhereClause
 from .wkt_geometries import to_wkt
 
@@ -25,7 +28,6 @@ def convert(arcgis, options=None):
 def processLayer(layer, options=None):
     # layer is a dictionary with the ArcGIS Pro Json style
     options = options or {}
-    geostyler = {}
     geostyler = {"name": layer["name"]}
     if layer["type"] == "CIMFeatureLayer":
         renderer = layer["renderer"]
@@ -66,8 +68,9 @@ def processLayer(layer, options=None):
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
-        rules = [{"name": layer["name"], "symbolizers": [rasterSymbolizer(layer)]}]
-        geostyler["rules"] = rules
+        _warnings.append('CIMRasterLayer are not supported yet.')
+        # rules = [{"name": layer["name"], "symbolizers": [rasterSymbolizer(layer)]}]
+        # geostyler["rules"] = rules
 
     return geostyler
 
@@ -118,7 +121,7 @@ def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = convertExpression(labelClass["expression"], labelClass["expressionEngine"], tolowercase)
     fontFamily = textSymbol.get("fontFamilyName", "Arial")
-    fontSize = float(textSymbol.get("height", 12))
+    fontSize = _ptToPxProp(textSymbol, 'height', 12, True)
     color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
     fontWeight = textSymbol.get("fontStyleName", "Regular")
     rotationProps = labelClass.get("maplexLabelPlacementProperties", {}).get(
@@ -140,11 +143,11 @@ def processLabelClass(labelClass, tolowercase=False):
     stdPointPlacementType = stdProperties.get("pointPlacementMethod")
     maplexProperties = labelClass.get("maplexLabelPlacementProperties", {})
     maplexPlacementType = maplexProperties.get("featureType")
-    maplexPrimaryOffset = maplexProperties.get("primaryOffset", 0)
+    maplexPrimaryOffset = _ptToPxProp(maplexProperties, "primaryOffset", 0)
     maplexPointPlacementMethod = maplexProperties.get("pointPlacementMethod")
     if stdPlacementType == "Line" and maplexPlacementType == "Line":
         # We use this as a flag to later indicate the it is a line label when converting to SLD
-        primaryOffset = float(textSymbol.get("primaryOffset", 0))
+        primaryOffset = _ptToPxProp(textSymbol, "primaryOffset", 0)
         symbolizer["perpendicularOffset"] = primaryOffset + fontSize
     elif maplexPlacementType == "Point" and maplexPointPlacementMethod == "AroundPoint":
         offset = maplexPrimaryOffset + fontSize / 2
@@ -164,7 +167,7 @@ def processLabelClass(labelClass, tolowercase=False):
         ]
     else:
         symbolizer["rotate"] = 0.0
-    haloSize = textSymbol.get("haloSize")
+    haloSize = _ptToPxProp(textSymbol, "haloSize", 0)
     if haloSize and "haloSymbol" in textSymbol:
         haloColor = _extractFillColor(textSymbol["haloSymbol"]["symbolLayers"])
         symbolizer.update(
@@ -269,7 +272,7 @@ def processSymbolReference(symbolref, options):
         ]:
             if symbol["type"] == "CIMLineSymbol":
                 if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
-                    symbolizer = _processOrientedMarkerAtEndOfLine(layer)
+                    symbolizer = _processOrientedMarkerAtEndOfLine(layer, options)
                     # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
                     # so we include this symbol only on the map and not in the legend
                     symbolizer["inclusion"] = "mapOnly"
@@ -283,19 +286,19 @@ def processSymbolReference(symbolref, options):
 
 def _formatLineSymbolizer(symbolizer):
     return {
-                "kind": "Line",
-                "opacity": 1.0,
-                "perpendicularOffset": 0.0,
-                "graphicStroke": [symbolizer],
-                "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
-                "graphicStrokeOffset": 0.0,
-                "Z": 0,
-            }
+        "kind": "Line",
+        "opacity": 1.0,
+        "perpendicularOffset": 0.0,
+        "graphicStroke": [symbolizer],
+        "graphicStrokeInterval": _ptToPxProp(symbolizer, "size", 0) * 2,  # TODO
+        "graphicStrokeOffset": 0.0,
+        "Z": 0,
+    }
 
 def _formatPolygonSymbolizer(symbolizer, markerPlacement):
     markerPlacementType = markerPlacement.get("type")
     if markerPlacementType == "CIMMarkerPlacementInsidePolygon":
-        margin = proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement)
+        margin = processMarkerPlacementInsidePolygon(symbolizer, markerPlacement)
         symbolizer = {
             "kind": "Fill",
             "opacity": 1.0,
@@ -308,14 +311,15 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         symbolizer = {
             "kind": "Line",
             "opacity": 1.0,
-            "size": symbolizer.get("size", 10),
-            "perpendicularOffset": symbolizer.get("perpendicularOffset", 0.0),
+            "size": _ptToPxProp(symbolizer, "size", 10),
+            "perpendicularOffset": _ptToPxProp(symbolizer, "perpendicularOffset", 0.0),
             "graphicStroke": [symbolizer],
             "Z": 0,
         }
     return symbolizer
 
-def _processOrientedMarkerAtEndOfLine(layer):
+def _processOrientedMarkerAtEndOfLine(layer, options):
+    replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
     hexcode = hex(charindex)
@@ -334,39 +338,43 @@ def _processOrientedMarkerAtEndOfLine(layer):
         fillColor = "#000000"
         fillOpacity = 1.0
         strokeOpacity = 0
+        strokeColor = "#000000"
         strokeWidth = 0.0
     return {
-                "opacity": 1.0,
-                "fillOpacity": fillOpacity,
-                "strokeColor": strokeColor,
-                "strokeOpacity": strokeOpacity,
-                "strokeWidth": strokeWidth,
-                "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
-                "kind": "Mark",
-                "color": fillColor,
-                "wellKnownName": name,
-                "size": layer["size"],
-                "Z": 0,
-                "Geometry": ["endPoint", ["PropertyName", "shape"]],
-            }
+        "opacity": 1.0,
+        "fillOpacity": fillOpacity,
+        "strokeColor": strokeColor,
+        "strokeOpacity": strokeOpacity,
+        "strokeWidth": strokeWidth,
+        "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+        "kind": "Mark",
+        "color": fillColor,
+        "wellKnownName": name,
+        "size": _ptToPxProp(layer, "size", 10),
+        "Z": 0,
+        "Geometry": ["endPoint", ["PropertyName", "shape"]],
+    }
 
 
-def proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
+def processMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
     # In case of markers in a polygon fill, it seems ArcGIS does some undocumented resizing of the marker.
     # We use an empirical factor to account for this, which works in most cases (but not all)
-    symbolizer["size"] = round(symbolizer["size"] * POLYGON_FILL_RESIZE_FACTOR)
+    # Size is already in pixel.
+    size = round(symbolizer.get("size", 0) * POLYGON_FILL_RESIZE_FACTOR)
+    symbolizer["size"] = size
+    # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
+    # ArcGIS stepX, stepY, offsetX, offsetY
     if symbolizer.get("maxX") and symbolizer.get("maxY"):
+        # MaxX and MaxY are a custom property for shapes and already in px.
         maxX = math.floor(symbolizer["maxX"] * POLYGON_FILL_RESIZE_FACTOR)
         maxY = math.floor(symbolizer["maxY"] * POLYGON_FILL_RESIZE_FACTOR)
     else:
-        maxX = symbolizer["size"] / 2
-        maxY = symbolizer["size"] / 2
-    # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
-    # ArcGIS stepX, stepY, offsetX, offsetY
-    stepX = markerPlacement.get("stepX", 0) * PT_TO_PX_FACTOR
-    stepY = markerPlacement.get("stepY", 0) * PT_TO_PX_FACTOR
-    offsetX = markerPlacement.get("offsetX", 0) * PT_TO_PX_FACTOR
-    offsetY = markerPlacement.get("offsetY", 0) * PT_TO_PX_FACTOR
+        maxX = size / 2
+        maxY = size / 2
+    stepX = _ptToPxProp(markerPlacement, "stepX", 0)
+    stepY = _ptToPxProp(markerPlacement, "stepY", 0)
+    offsetX = _ptToPxProp(markerPlacement, "offsetX", 0)
+    offsetY = _ptToPxProp(markerPlacement, "offsetY", 0)
     right = round(stepX / 2 - maxX - offsetX)
     left = round(stepX / 2 - maxX + offsetX)
     top = round(stepY / 2 - maxY - offsetY)
@@ -383,8 +391,9 @@ def _extractEffect(layer):
 
 
 def _processEffect(effect):
+    ptToPxAndCeil = lambda v : math.ceil(pt_to_px(v))
     if effect["type"] == "CIMGeometricEffectDashes":
-        dasharrayValues = list(map(math.ceil, effect.get("dashTemplate",[])))
+        dasharrayValues = list(map(ptToPxAndCeil, effect.get("dashTemplate",[])))
         return {
             "dasharrayValues": dasharrayValues,
             "dasharray": " ".join(str(v) for v in dasharrayValues)
@@ -442,18 +451,18 @@ def processSymbolLayer(layer, symboltype, options):
         if symboltype == "CIMPolygonSymbol":
             stroke = {
                 "kind": "Fill",
-                "outlineColor": processColor(layer.get("color")),
-                "outlineOpacity": processOpacity(layer.get("color")),
-                "outlineWidth": layer["width"],
+                "outlineColor": _processColor(layer.get("color")),
+                "outlineOpacity": _processOpacity(layer.get("color")),
+                "outlineWidth": _ptToPxProp(layer, "width", 0),
             }
             if "dasharray" in effects:
                 stroke["outlineDasharray"] = effects["dasharray"]
         else:
             stroke = {
                 "kind": "Line",
-                "color": processColor(layer.get("color")),
-                "opacity": processOpacity(layer.get("color")),
-                "width": layer["width"],
+                "color": _processColor(layer.get("color")),
+                "opacity": _processOpacity(layer.get("color")),
+                "width": _ptToPxProp(layer, "width", 0),
                 "perpendicularOffset": 0.0,
                 "cap": layer["capStyle"].lower(),
                 "join": layer["joinStyle"].lower(),
@@ -466,16 +475,15 @@ def processSymbolLayer(layer, symboltype, options):
         if color is not None:
             return {
                 "kind": "Fill",
-                "opacity": processOpacity(color),
-                "color": processColor(color),
+                "opacity": _processOpacity(color),
+                "color": _processColor(color),
                 "fillOpacity": 1.0,
             }
     elif layer["type"] == "CIMCharacterMarker":
         fontFamily = layer["fontFamilyName"]
         charindex = layer["characterIndex"]
         hexcode = hex(charindex)
-        # Sizes are in pt in ArcGIS, in px in SLD
-        size = layer["size"] * PT_TO_PX_FACTOR
+        size = _ptToPxProp(layer, "size", 12)
         if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
             name = _esriFontToStandardSymbols(charindex)
         else:
@@ -535,8 +543,8 @@ def processSymbolLayer(layer, symboltype, options):
             elif markerGraphic["symbol"]["type"] in ["CIMLineSymbol", "CIMPolygonSymbol"]:
                 shape = to_wkt(markerGraphic.get("geometry"))
                 wellKnownName = shape["wellKnownName"]
-                maxX = shape.get("maxX")
-                maxY = shape.get("maxY")
+                maxX = _ptToPxProp(shape, "maxX", 0)
+                maxY = _ptToPxProp(shape, "maxY", 0)
 
         marker = {
             "opacity": 1.0,
@@ -568,7 +576,7 @@ def processSymbolLayer(layer, symboltype, options):
 
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        size = layer.get("separation", 2)
+        size = _ptToPxProp(layer, "separation", 3)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
         wellKnowName = _hatchMarkerForAngle(rotation)
@@ -602,7 +610,7 @@ def processSymbolLayer(layer, symboltype, options):
                     fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
             else:
                 # In case of slash pattern, the pattern is the hypotenuse, we want the X (or Y) value for the size.
-                neededSize = math.cos(math.radians(45)) * neededSize;
+                neededSize = math.cos(math.radians(45)) * neededSize
                 # The trick with the margin to keep the original size is not possible.
                 _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash).')
             fill["graphicFill"][0]["size"] = neededSize
@@ -629,7 +637,7 @@ def processSymbolLayer(layer, symboltype, options):
                 url = iconFile
 
         rotate = layer.get("rotation", 0)
-        size = layer.get("height", layer.get("size"))
+        size = _ptToPxProp(layer, "height", _ptToPxProp(layer, "size", 0))
         return {
             "opacity": 1.0,
             "rotate": 0.0,
@@ -662,11 +670,26 @@ def _processArcadeRotationExpression(expression, tolowercase):
         ]
 
 
+def _orientedMarkerAtEndOfLine(markerPlacement):
+    if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
+        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+    return False
+
+
+def _extractOffset(symbolLayer):
+    # Arcgis looks to apply a strange factor.
+    offset_x = _ptToPxProp(symbolLayer, "offsetX", 0) * OFFSET_FACTOR
+    offset_y = _ptToPxProp(symbolLayer, "offsetY", 0) * OFFSET_FACTOR * -1
+    if offset_x == 0 and offset_y != 0:
+        return None
+    return [offset_x, offset_y]
+
+
 def _extractStroke(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidStroke":
-            color = processColor(sl.get("color"))
-            width = sl["width"]
+            color = _processColor(sl.get("color"))
+            width = _ptToPxProp(sl, "width", 0)
             return color, width
     return "#000000", 0
 
@@ -674,11 +697,7 @@ def _extractStroke(symbolLayers):
 def _extractStrokeOpacity(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidStroke":
-            try:
-                opacity = sl["color"]["values"][3] / 100
-            except (KeyError, IndexError):
-                opacity = 1.0
-            return opacity
+            return _processOpacity(sl["color"])
     return 1.0
 
 
@@ -686,7 +705,7 @@ def _extractFillColor(symbolLayers):
     color = "#ffffff"
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidFill":
-            color = processColor(sl.get("color"))
+            color = _processColor(sl.get("color"))
         elif sl["type"] == "CIMCharacterMarker":
             color = _extractFillColor(sl["symbol"]["symbolLayers"])
     return color
@@ -695,40 +714,27 @@ def _extractFillColor(symbolLayers):
 def _extractFillOpacity(symbolLayers):
     for sl in symbolLayers:
         if sl["type"] == "CIMSolidFill":
-            try:
-                opacity = sl["color"]["values"][-1] / 100
-            except (KeyError, IndexError):
-                opacity = 1.0
-            return opacity
+            return _processOpacity(sl["color"])
     return 1.0
 
 
-def _extractOffset(symbolLayer):
-    # Arcgis looks to round part-pixel values.
-    offset_x = round(symbolLayer.get("offsetX", 0))
-    offset_y = round(symbolLayer.get("offsetY", 0) * -1)
-    if offset_x == 0 and offset_y != 0:
-        return None
-    return [offset_x, offset_y]
-
-
-def processOpacity(color):
+def _processOpacity(color):
     if color is None:
         return 1.0
     return color["values"][-1] / 100
 
 
-def processColor(color):
+def _processColor(color):
     if color is None:
         return "#000000"
     values = color["values"]
     if color["type"] == "CIMRGBColor":
         return "#%02x%02x%02x" % (int(values[0]), int(values[1]), int(values[2]))
     elif color["type"] == "CIMCMYKColor":
-        r, g, b = cmyk2Rgb(values)
+        r, g, b = _cmyk2Rgb(values)
         return "#%02x%02x%02x" % (r, g, b)
     elif color["type"] == "CIMHSVColor":
-        r, g, b = hsv2rgb(values)
+        r, g, b = _hsv2rgb(values)
         return "#%02x%02x%02x" % (int(r), int(g), int(b))
     elif color["type"] == "CIMGrayColor":
         return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
@@ -736,7 +742,7 @@ def processColor(color):
         return "#000000"
 
 
-def cmyk2Rgb(cmyk_array):
+def _cmyk2Rgb(cmyk_array):
     c = cmyk_array[0]
     m = cmyk_array[1]
     y = cmyk_array[2]
@@ -749,7 +755,7 @@ def cmyk2Rgb(cmyk_array):
     return r, g, b
 
 
-def hsv2rgb(hsv_array):
+def _hsv2rgb(hsv_array):
     h = hsv_array[0] / 360
     s = hsv_array[1] / 100
     v = hsv_array[2] / 100
@@ -776,7 +782,12 @@ def hsv2rgb(hsv_array):
     if i == 5:
         return (v, p, q)
 
-def _orientedMarkerAtEndOfLine(markerPlacement):
-    if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
-    return False
+
+def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=True) -> Union[float, int]:
+    """
+    :return: The property's value in pt transformed into a px value, or the provided defaultValue.
+    """
+    if obj.get(prop) is None:
+        return defaultValue
+    value = pt_to_px(float(obj.get(prop)))
+    return value if asFloat else round(value)
