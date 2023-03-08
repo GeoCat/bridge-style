@@ -268,39 +268,87 @@ def processSymbolReference(symbolref, options):
             "CIMCharacterMarker",
         ]:
             if symbol["type"] == "CIMLineSymbol":
-                symbolizer = {
-                    "kind": "Line",
-                    "opacity": 1.0,
-                    "perpendicularOffset": 0.0,
-                    "graphicStroke": [symbolizer],
-                    "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
-                    "graphicStrokeOffset": 0.0,
-                    "Z": 0,
-                }
+                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
+                    symbolizer = _processOrientedMarkerAtEndOfLine(layer)
+                    # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
+                    # so we include this symbol only on the map and not in the legend
+                    symbolizer["inclusion"] = "mapOnly"
+                else:
+                    symbolizer = _formatLineSymbolizer(symbolizer)
             elif symbol["type"] == "CIMPolygonSymbol":
-                markerPlacementType = layer.get("markerPlacement",{}).get("type")
-                if markerPlacementType == "CIMMarkerPlacementInsidePolygon":
-                    markerPlacement = layer["markerPlacement"]
-                    margin = proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement)
-                    symbolizer = {
-                        "kind": "Fill",
-                        "opacity": 1.0,
-                        "perpendicularOffset": 0.0,
-                        "graphicFill": [symbolizer],
-                        "graphicFillMargin": margin,
-                        "Z": 0,
-                    }
-                elif markerPlacementType == "CIMMarkerPlacementAlongLineSameSize":
-                    symbolizer = {
-                        "kind": "Line",
-                        "opacity": 1.0,
-                        "size": symbolizer.get("size", 10),
-                        "perpendicularOffset": symbolizer.get("perpendicularOffset", 0.0),
-                        "graphicStroke": [symbolizer],
-                        "Z": 0,
-                    }
+                markerPlacement = layer.get("markerPlacement",{})
+                symbolizer = _formatPolygonSymbolizer(symbolizer, markerPlacement)
         symbolizers.append(symbolizer)
     return symbolizers
+
+def _formatLineSymbolizer(symbolizer):
+    return {
+                "kind": "Line",
+                "opacity": 1.0,
+                "perpendicularOffset": 0.0,
+                "graphicStroke": [symbolizer],
+                "graphicStrokeInterval": symbolizer["size"] * 2,  # TODO
+                "graphicStrokeOffset": 0.0,
+                "Z": 0,
+            }
+
+def _formatPolygonSymbolizer(symbolizer, markerPlacement):
+    markerPlacementType = markerPlacement.get("type")
+    if markerPlacementType == "CIMMarkerPlacementInsidePolygon":
+        margin = proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement)
+        symbolizer = {
+            "kind": "Fill",
+            "opacity": 1.0,
+            "perpendicularOffset": 0.0,
+            "graphicFill": [symbolizer],
+            "graphicFillMargin": margin,
+            "Z": 0,
+        }
+    elif markerPlacementType == "CIMMarkerPlacementAlongLineSameSize":
+        symbolizer = {
+            "kind": "Line",
+            "opacity": 1.0,
+            "size": symbolizer.get("size", 10),
+            "perpendicularOffset": symbolizer.get("perpendicularOffset", 0.0),
+            "graphicStroke": [symbolizer],
+            "Z": 0,
+        }
+    return symbolizer
+
+def _processOrientedMarkerAtEndOfLine(layer):
+    fontFamily = layer["fontFamilyName"]
+    charindex = layer["characterIndex"]
+    hexcode = hex(charindex)
+    if fontFamily == ESRI_SYMBOLS_FONT and replaceesri:
+        name = _esriFontToStandardSymbols(charindex)
+    else:
+        name = "ttf://%s#%s" % (fontFamily, hexcode)
+    rotation = layer.get("rotation", 0)
+    try:
+        symbolLayers = layer["symbol"]["symbolLayers"]
+        fillColor = _extractFillColor(symbolLayers)
+        fillOpacity = _extractFillOpacity(symbolLayers)
+        strokeOpacity = _extractStrokeOpacity(symbolLayers)
+        strokeColor, strokeWidth = _extractStroke(symbolLayers)
+    except KeyError:
+        fillColor = "#000000"
+        fillOpacity = 1.0
+        strokeOpacity = 0
+        strokeWidth = 0.0
+    return {
+                "opacity": 1.0,
+                "fillOpacity": fillOpacity,
+                "strokeColor": strokeColor,
+                "strokeOpacity": strokeOpacity,
+                "strokeWidth": strokeWidth,
+                "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+                "kind": "Mark",
+                "color": fillColor,
+                "wellKnownName": name,
+                "size": layer["size"],
+                "Z": 0,
+                "Geometry": ["endPoint", ["PropertyName", "shape"]],
+            }
 
 
 def proccessMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
@@ -727,3 +775,8 @@ def hsv2rgb(hsv_array):
         return (t, p, v)
     if i == 5:
         return (v, p, q)
+
+def _orientedMarkerAtEndOfLine(markerPlacement):
+    if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
+        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+    return False

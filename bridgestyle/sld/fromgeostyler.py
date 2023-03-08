@@ -394,6 +394,7 @@ def _basePointSimbolizer(sl):
     rotation = _symbolProperty(sl, "rotate")
     opacity = _symbolProperty(sl, "opacity")
     offset = sl.get("offset", None)
+    inclusion = sl.get("inclusion")
 
     root = Element("PointSymbolizer")
     graphic = _addSubElement(root, "Graphic")
@@ -404,6 +405,8 @@ def _basePointSimbolizer(sl):
         displacement = _addSubElement(graphic, "Displacement")
         _addSubElement(displacement, "DisplacementX", offset[0])
         _addSubElement(displacement, "DisplacementY", offset[1])
+    if inclusion:
+        _addVendorOption(root, "inclusion", inclusion)
 
     return root, graphic
 
