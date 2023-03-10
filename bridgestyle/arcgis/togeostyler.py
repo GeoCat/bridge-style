@@ -521,11 +521,13 @@ def processSymbolLayer(layer, symboltype, options):
         }
 
     elif layer["type"] == "CIMVectorMarker":
+        if layer['size']:
+            layer['size'] = _ptToPxProp(layer, "size", 3)
         # Default values
         fillColor = "#ff0000"
         strokeColor = "#000000"
         strokeWidth = 1.0
-        size = 10
+        markerSize = 10
         wellKnownName = "circle"
         maxX = maxY = None
 
@@ -552,7 +554,7 @@ def processSymbolLayer(layer, symboltype, options):
             "kind": "Mark",
             "color": fillColor,
             "wellKnownName": wellKnownName,
-            "size": size,
+            "size": markerSize,
             "strokeColor": strokeColor,
             "strokeWidth": strokeWidth,
             "strokeOpacity": 1.0,
