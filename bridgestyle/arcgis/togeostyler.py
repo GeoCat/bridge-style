@@ -5,10 +5,9 @@ import tempfile
 import uuid
 from typing import Union
 
-import typing
 
 from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, pt_to_px
-from .expressions import convertExpression, convertWhereClause
+from .expressions import convertExpression, convertWhereClause, processRotationExpression
 from .wkt_geometries import to_wkt
 
 
@@ -28,6 +27,7 @@ def convert(arcgis, options=None):
 def processLayer(layer, options=None):
     # layer is a dictionary with the ArcGIS Pro Json style
     options = options or {}
+    tolowercase = options.get("tolowercase", False)
     geostyler = {"name": layer["name"]}
     if layer["type"] == "CIMFeatureLayer":
         renderer = layer["renderer"]
@@ -63,8 +63,13 @@ def processLayer(layer, options=None):
         if layer.get("labelVisibility", False):
             for labelClass in layer.get("labelClasses", []):
                 rules.append(
-                    processLabelClass(labelClass, options.get("tolowercase", False))
+                    processLabelClass(labelClass, tolowercase)
                 )
+
+        rotation = _getSymbolRotationFromVisualVariables(renderer, tolowercase)
+        if rotation:
+            for rule in rules:
+                [symbolizer.update({"rotate": rotation}) for symbolizer in rule["symbolizers"]]
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
@@ -80,7 +85,7 @@ def processClassBreaksRenderer(renderer, options):
     field = renderer["field"]
     lastbound = None
     tolowercase = options.get("tolowercase", False)
-    rotation = _getGraduatedSymbolRotation(renderer, tolowercase) if renderer.get("classBreakType") == "GraduatedSymbol" else None
+    rotation = _getSymbolRotationFromVisualVariables(renderer, tolowercase)
     for classbreak in renderer.get("breaks", []):
         symbolizers = processSymbolReference(classbreak["symbol"], options)
         upperbound = classbreak.get("upperBound", 0)
@@ -653,23 +658,19 @@ def processSymbolLayer(layer, symboltype, options):
         return None
 
 
-def _getGraduatedSymbolRotation(renderer, tolowercase):
-    visualVariables = renderer.get("visualVariables", [])
-    for visualVariable in visualVariables:
-        if visualVariable.get("visualVariableInfoZ",{}).get("visualVariableInfoType") == "Expression":
-            return _processArcadeRotationExpression(
-                visualVariable.get("visualVariableInfoZ",{}).get("valueExpressionInfo",{}).get("expression"),
-                tolowercase
-            )
-
-
-def _processArcadeRotationExpression(expression, tolowercase):
-    field = expression.replace("$feature.","")
-    return [
-            "Sub",
-            ["PropertyName", field.lower() if tolowercase else field],
-            90,
-        ]
+def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
+    for visualVariable in renderer.get("visualVariables", []):
+        if visualVariable["type"] == "CIMRotationVisualVariable":
+            expression = \
+                visualVariable["visualVariableInfoZ"].get("valueExpressionInfo", {}).get("expression") or \
+                    visualVariable["visualVariableInfoZ"].get("expression")
+            rotationType = visualVariable["rotationTypeZ"]
+            return processRotationExpression(
+                    expression,
+                    rotationType,
+                    tolowercase
+                )
+    return None
 
 
 def _orientedMarkerAtEndOfLine(markerPlacement):
