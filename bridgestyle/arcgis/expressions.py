@@ -4,7 +4,7 @@ from bridgestyle.customgeostylerproperties import WellKnownText
 
 def convertExpression(expression, engine, tolowercase):
     if engine == "Arcade":
-        expression = expression.replace("$feature.","")
+        expression = convertArcadeExpression(expression)
     if tolowercase:
         expression = expression.lower()
     if "+" in expression or "&" in expression:
@@ -16,7 +16,7 @@ def convertExpression(expression, engine, tolowercase):
         for token in tokens:
             if "[" in token:
                 addends.append(
-                    ["PropertyName", token.replace("[", "").replace("]", "").strip()]
+                    ["PropertyName", processPropertyName(token)]
                 )
             else:
                 literal = token.replace('"', "")
@@ -26,7 +26,7 @@ def convertExpression(expression, engine, tolowercase):
                 allOps = ["Concatenate", attr, allOps]
         expression = allOps
     else:
-        expression = ["PropertyName", expression.replace("[", "").replace("]", "")]
+        expression = ["PropertyName", processPropertyName(expression)]
     return expression
 
 
@@ -34,6 +34,14 @@ def replaceSpecialLiteral(literal):
     if literal == "vbnewline":
         return WellKnownText.NEW_LINE
     return literal
+
+
+def processPropertyName(token):
+    return token.replace("[", "").replace("]", "").strip()
+
+
+def convertArcadeExpression(expression):
+    return expression.replace("$feature.", "")
 
 
 def stringToParameter(s, tolowercase):
@@ -56,7 +64,8 @@ def convertWhereClause(clause, tolowercase):
     if " AND " in clause:
         expression = ["And"]
         subexpressions = [s.strip() for s in clause.split(" AND ")]
-        expression.extend([convertWhereClause(s, tolowercase) for s in subexpressions])
+        expression.extend([convertWhereClause(s, tolowercase)
+                          for s in subexpressions])
         return expression
     if "=" in clause:
         tokens = [t.strip() for t in clause.split("=")]
@@ -106,3 +115,24 @@ def convertWhereClause(clause, tolowercase):
             return accum
 
     return clause
+
+
+def processRotationExpression(expression, rotationType, tolowercase):
+    if "$feature" in expression:
+        field = convertArcadeExpression(expression)
+    else:
+        field = processPropertyName(expression)
+    propertyNameExpression = ["PropertyName",
+                              field.lower() if tolowercase else field]
+    if rotationType == "Arithmetic":
+        return [
+            "Mul",
+            propertyNameExpression,
+            -1,
+        ]
+    elif rotationType == "Geographic":
+        return [
+            "Sub",
+            propertyNameExpression,
+            90,
+        ]
