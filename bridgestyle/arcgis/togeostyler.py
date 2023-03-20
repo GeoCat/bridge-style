@@ -82,6 +82,7 @@ def processLayer(layer, options=None):
 
 def processClassBreaksRenderer(renderer, options):
     rules = []
+    symbolsAscending = []
     field = renderer["field"]
     lastbound = None
     tolowercase = options.get("tolowercase", False)
@@ -117,8 +118,12 @@ def processClassBreaksRenderer(renderer, options):
             "symbolizers": symbolizers,
             "filter": filt,
         }
+        symbolsAscending.append(symbolizers)
         rules.append(ruledef)
-
+    if not renderer.get('showInAscendingOrder', True):
+        rules.reverse()
+        for index, rule in enumerate(rules):
+            rule["symbolizers"] = symbolsAscending[index]
     return rules
 
 
