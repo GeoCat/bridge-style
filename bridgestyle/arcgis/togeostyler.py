@@ -623,8 +623,10 @@ def processSymbolLayer(layer, symboltype, options):
             else:
                 # In case of slash pattern, the pattern is the hypotenuse, we want the X (or Y) value for the size.
                 neededSize = math.cos(math.radians(45)) * neededSize
-                # The trick with the margin to keep the original size is not possible.
-                _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash).')
+                # The trick with the margin to keep the original size is not possible, add a workaround:
+                # Multiply the needed size regarding the separation (size) and the pattern size (neededSize)
+                neededSize = neededSize * (math.ceil((size * 2) / neededSize)) or neededSize
+                _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash, rotation, etc).')
             fill["graphicFill"][0]["size"] = neededSize
         return fill
 
