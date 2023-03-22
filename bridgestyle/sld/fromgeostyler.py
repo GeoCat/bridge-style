@@ -1,4 +1,5 @@
 import os
+import re
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -11,6 +12,8 @@ from ..qgis.expressions import (
 )
 from .transformations import processTransformation
 from ..version import __version__
+from ..customgeostylerproperties import WellKnownText
+from .parsecdata import _serialize_xml
 
 _warnings = []
 
@@ -30,10 +33,10 @@ def convert(geostyler, options=None):
     root = Element("StyledLayerDescriptor", attrib=attribs)
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
-    layerName.text = geostyler["name"]
+    layerName.text = _replaceSpecialCharacters('_', geostyler.get("name"))
     userStyle = SubElement(namedLayer, "UserStyle")
     userStyleTitle = SubElement(userStyle, "Title")
-    userStyleTitle.text = geostyler["name"]
+    userStyleTitle.text = geostyler.get("name")
 
     featureTypeStyle = SubElement(userStyle, "FeatureTypeStyle")
     if "transformation" in geostyler:
@@ -53,7 +56,9 @@ def convert(geostyler, options=None):
 def processRule(rule):
     ruleElement = Element("Rule")
     ruleName = SubElement(ruleElement, "Name")
-    ruleName.text = rule.get("name", "")
+    ruleName.text = _replaceSpecialCharacters('_', rule.get("name"))
+    ruleTitle = SubElement(ruleElement, "Title")
+    ruleTitle.text = rule.get("name", "")
 
     ruleFilter = rule.get("filter", None)
     if ruleFilter == "ELSE":
@@ -77,6 +82,13 @@ def processRule(rule):
     ruleElement.extend(symbolizers)
 
     return ruleElement
+
+
+def _replaceSpecialCharacters(replacement, text=""):
+    """
+    Replace all characters that are not matching one of [a-zA-Z0-9_].
+    """
+    return re.sub('[^\w]', replacement, text)
 
 
 def _createSymbolizers(symbolizers):
@@ -213,8 +225,8 @@ def _textSymbolizer(sl):
             # TODO: Use anchor
         # centers
         anchorLoc = _addSubElement(pointPlacement, "AnchorPoint")
-        _addSubElement(anchorLoc, "AnchorPointX", "0.5")
-        _addSubElement(anchorLoc, "AnchorPointY", "0.5")
+        _addSubElement(anchorLoc, "AnchorPointX", _symbolProperty(sl, "anchorPointX",  0.5))
+        _addSubElement(anchorLoc, "AnchorPointY", _symbolProperty(sl, "anchorPointY",  0.5))
 
         displacement = _addSubElement(pointPlacement, "Displacement")
         offset = sl["offset"]
@@ -247,7 +259,8 @@ def _textSymbolizer(sl):
         _addVendorOption(root, "followLine", True)
     elif "background" not in sl:
         _addVendorOption(root, "autoWrap", 50)
-    _addVendorOption(root, "group", "yes")
+    group = "yes" if sl.get("group", True) else "no"
+    _addVendorOption(root, "group", group)
 
     if "background" in sl:
         background = sl["background"]
@@ -306,8 +319,8 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
             _addCssParameter(
                 stroke, "stroke-dasharray", "%s %s" % (str(fsize), str(finterval))
             )
-        except:
-            _addCssParameter(stroke, "stroke-dasharray", "10 10")
+        except TypeError:
+            pass
         _addCssParameter(stroke, "stroke-dashoffset", dashOffset)
         if graphicStrokeLayer == 0 and len(graphicStroke) > 1:
             for i in range(1, len(graphicStroke)):
@@ -318,22 +331,22 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         _addCssParameter(stroke, "stroke-opacity", opacity)
         _addCssParameter(stroke, "stroke-linejoin", join)
         _addCssParameter(stroke, "stroke-linecap", cap)
-        if dasharray is not None:
-            if cap != "butt":
-                try:
-                    EXTRA_GAP = 2 * width
-                    tokens = [
-                        int(v) + EXTRA_GAP if i % 2 else int(v)
-                        for i, v in enumerate(dasharray.split(" "))
-                    ]
-                except:  # in case width is not a number, but an expression
-                    GAP_FACTOR = 2
-                    tokens = [
-                        int(v) * GAP_FACTOR if i % 2 else int(v)
-                        for i, v in enumerate(dasharray.split(" "))
-                    ]
-                dasharray = " ".join([str(v) for v in tokens])
-            _addCssParameter(stroke, "stroke-dasharray", dasharray)
+    if dasharray is not None:
+        if cap != "butt":
+            try:
+                EXTRA_GAP = 2 * width
+                tokens = [
+                    int(v) + EXTRA_GAP if i % 2 else int(v)
+                    for i, v in enumerate(dasharray.split(" "))
+                ]
+            except:  # in case width is not a number, but an expression
+                GAP_FACTOR = 2
+                tokens = [
+                    int(v) * GAP_FACTOR if i % 2 else int(v)
+                    for i, v in enumerate(dasharray.split(" "))
+                ]
+            dasharray = " ".join([str(v) for v in tokens])
+        _addCssParameter(stroke, "stroke-dasharray", dasharray)
     if offset is not None:
         _addSubElement(root, "PerpendicularOffset", offset)
     return symbolizers
@@ -381,6 +394,7 @@ def _basePointSimbolizer(sl):
     rotation = _symbolProperty(sl, "rotate")
     opacity = _symbolProperty(sl, "opacity")
     offset = sl.get("offset", None)
+    inclusion = sl.get("inclusion")
 
     root = Element("PointSymbolizer")
     graphic = _addSubElement(root, "Graphic")
@@ -391,17 +405,19 @@ def _basePointSimbolizer(sl):
         displacement = _addSubElement(graphic, "Displacement")
         _addSubElement(displacement, "DisplacementX", offset[0])
         _addSubElement(displacement, "DisplacementY", offset[1])
+    if inclusion:
+        _addVendorOption(root, "inclusion", inclusion)
 
     return root, graphic
 
 
 def _markGraphic(sl):
     color = _symbolProperty(sl, "color")
-    outlineColor = _symbolProperty(sl, "strokeColor")
+    strokeColor = _symbolProperty(sl, "strokeColor")
     fillOpacity = _symbolProperty(sl, "fillOpacity", 1.0)
     strokeOpacity = _symbolProperty(sl, "strokeOpacity", 1.0)
-    outlineWidth = _symbolProperty(sl, "strokeWidth")
-    outlineDasharray = _symbolProperty(sl, "strokeDasharray")
+    strokeWidth = _symbolProperty(sl, "strokeWidth")
+    outlineDasharray = _symbolProperty(sl, "outlineDasharray")
     shape = _symbolProperty(sl, "wellKnownName")
     mark = Element("Mark")
     _addSubElement(mark, "WellKnownName", shape)
@@ -411,8 +427,8 @@ def _markGraphic(sl):
         _addCssParameter(fill, "fill-opacity", fillOpacity)
     stroke = _addSubElement(mark, "Stroke")
     if strokeOpacity:
-        _addCssParameter(stroke, "stroke", outlineColor)
-        _addCssParameter(stroke, "stroke-width", outlineWidth)
+        _addCssParameter(stroke, "stroke", strokeColor)
+        _addCssParameter(stroke, "stroke-width", strokeWidth)
         _addCssParameter(stroke, "stroke-opacity", strokeOpacity)
         if outlineDasharray is not None:
             _addCssParameter(stroke, "stroke-dasharray", outlineDasharray)
@@ -466,14 +482,21 @@ def _fillSymbolizer(sl, graphicFillLayer=0):
     color = sl.get("color", None)
     graphicFill = sl.get("graphicFill", None)
     offset = sl.get("offset", None)
+    margin = sl.get("graphicFillMargin")
 
     if graphicFill is not None:
-        margin = _symbolProperty(sl, "graphicFillMarginX")
+        if margin:
+            _addVendorOption(root, "graphic-margin", " ".join([str(m) for m in margin]))
+        elif _symbolProperty(sl, "graphicFillMarginY") and _symbolProperty(sl, "graphicFillMarginX"):
+            margin = [_symbolProperty(sl, "graphicFillMarginY"), _symbolProperty(sl, "graphicFillMarginX")]
+            _addVendorOption(root, "graphic-margin", " ".join(margin))
+        else:
+            margin = _symbolProperty(sl, "graphicFillMarginX")
+            _addVendorOption(root, "graphic-margin", margin)
         fill = _addSubElement(root, "Fill")
         graphicFillElement = _addSubElement(fill, "GraphicFill")
         graphic = _graphicFromSymbolizer(graphicFill[graphicFillLayer])
         graphicFillElement.append(graphic[0])
-        _addVendorOption(root, "graphic-margin", margin)
         if graphicFillLayer == 0 and len(graphicFill) > 1:
             for i in range(1, len(graphicFill)):
                 symbolizers.extend(_fillSymbolizer(sl, i))
@@ -576,6 +599,23 @@ def handleFunction(exp):
 
 
 def handleLiteral(v):
+    specialLiteralElem = handleSpecialLiteral(v)
+    if (specialLiteralElem is not None):
+        return specialLiteralElem
     elem = Element("ogc:Literal")
     elem.text = str(v)
     return elem
+
+
+def handleSpecialLiteral(v):
+    if v == WellKnownText.NEW_LINE:
+        elem = Element("ogc:Literal")
+        elem.append(createCDATA("\n"))
+        return elem
+    return None
+
+
+def createCDATA(text=None):
+    element = Element("![CDATA[")
+    element.text = text
+    return element

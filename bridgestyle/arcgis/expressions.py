@@ -1,5 +1,10 @@
-# For now, this is limited to compound labels using the python or VB syntax
-def convertExpression(expression, tolowercase):
+# For now, this is limited to compound labels using the python, VB or Arcade syntax
+from ..customgeostylerproperties import WellKnownText
+
+
+def convertExpression(expression, engine, tolowercase):
+    if engine == "Arcade":
+        expression = convertArcadeExpression(expression)
     if tolowercase:
         expression = expression.lower()
     if "+" in expression or "&" in expression:
@@ -10,16 +15,33 @@ def convertExpression(expression, tolowercase):
         addends = []
         for token in tokens:
             if "[" in token:
-                addends.append(["PropertyName", token.replace("[", "").replace("]", "").strip()])
+                addends.append(
+                    ["PropertyName", processPropertyName(token)]
+                )
             else:
-                addends.append(token.replace('"', ''))
+                literal = token.replace('"', "")
+                addends.append(replaceSpecialLiteral(literal))
             allOps = addends[0]
             for attr in addends[1:]:
                 allOps = ["Concatenate", attr, allOps]
         expression = allOps
     else:
-        expression = ["PropertyName", expression.replace("[", "").replace("]", "")]
+        expression = ["PropertyName", processPropertyName(expression)]
     return expression
+
+
+def replaceSpecialLiteral(literal):
+    if literal == "vbnewline":
+        return WellKnownText.NEW_LINE
+    return literal
+
+
+def processPropertyName(token):
+    return token.replace("[", "").replace("]", "").strip()
+
+
+def convertArcadeExpression(expression):
+    return expression.replace("$feature.", "")
 
 
 def stringToParameter(s, tolowercase):
@@ -27,18 +49,47 @@ def stringToParameter(s, tolowercase):
     if "'" in s or '"' in s:
         return s.strip("'\"")
     else:
-        s = s.lower() if tolowercase else s
-        return ["PropertyName", s]
+        if s.isalpha():
+            if tolowercase:
+                s = s.lower()
+            return ["PropertyName", s]
+        else:
+            return s
 
 
 # For now, limited to = or IN statements
 # There is no formal parsing, just a naive conversion
 def convertWhereClause(clause, tolowercase):
+    clause = clause.replace("(", "").replace(")", "")
+    if " AND " in clause:
+        expression = ["And"]
+        subexpressions = [s.strip() for s in clause.split(" AND ")]
+        expression.extend([convertWhereClause(s, tolowercase)
+                          for s in subexpressions])
+        return expression
     if "=" in clause:
-        tokens = clause.split("=")
-        expression = ["PropertyIsEqualTo",
-                      stringToParameter(tokens[0], tolowercase),
-                      stringToParameter(tokens[1], tolowercase)]
+        tokens = [t.strip() for t in clause.split("=")]
+        expression = [
+            "PropertyIsEqualTo",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
+        return expression
+    if "<>" in clause:
+        tokens = [t.strip() for t in clause.split("<>")]
+        expression = [
+            "PropertyIsNotEqualTo",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
+        return expression
+    if ">" in clause:
+        tokens = [t.strip() for t in clause.split(">")]
+        expression = [
+            "PropertyIsGreaterThan",
+            stringToParameter(tokens[0], tolowercase),
+            stringToParameter(tokens[1], tolowercase),
+        ]
         return expression
     elif " in " in clause.lower():
         clause = clause.replace(" IN ", " in ")
@@ -47,9 +98,13 @@ def convertWhereClause(clause, tolowercase):
         values = tokens[1].strip("() ").split(",")
         subexpressions = []
         for v in values:
-            subexpressions.append(["PropertyIsEqualTo",
-                                  stringToParameter(attribute, tolowercase),
-                                  stringToParameter(v, tolowercase)])
+            subexpressions.append(
+                [
+                    "PropertyIsEqualTo",
+                    stringToParameter(attribute, tolowercase),
+                    stringToParameter(v, tolowercase),
+                ]
+            )
         expression = []
         if len(values) == 1:
             return subexpressions[0]
@@ -60,3 +115,24 @@ def convertWhereClause(clause, tolowercase):
             return accum
 
     return clause
+
+
+def processRotationExpression(expression, rotationType, tolowercase):
+    if "$feature" in expression:
+        field = convertArcadeExpression(expression)
+    else:
+        field = processPropertyName(expression)
+    propertyNameExpression = ["PropertyName",
+                              field.lower() if tolowercase else field]
+    if rotationType == "Arithmetic":
+        return [
+            "Mul",
+            propertyNameExpression,
+            -1,
+        ]
+    elif rotationType == "Geographic":
+        return [
+            "Sub",
+            propertyNameExpression,
+            90,
+        ]

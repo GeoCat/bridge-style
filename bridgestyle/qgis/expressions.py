@@ -1,4 +1,7 @@
-from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
+try:
+    from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
+except:
+    QgsExpressionNodeBinaryOperator = None
 
 
 class UnsupportedExpressionException(Exception):
@@ -11,33 +14,33 @@ OGC_IS_NULL = "PropertyIsNull"
 OGC_IS_LIKE = "PropertyIsLike"
 OGC_SUB = "Sub"
 
-
-_qbo = QgsExpressionNodeBinaryOperator.BinaryOperator
-binaryOps = {
-    _qbo.boOr: "Or",
-    _qbo.boAnd: "And",
-    _qbo.boEQ: OGC_IS_EQUAL_TO,
-    _qbo.boNE: "PropertyIsNotEqualTo",
-    _qbo.boLE: "PropertyIsLessThanOrEqualTo",
-    _qbo.boGE: "PropertyIsGreaterThanOrEqualTo",
-    _qbo.boLT: "PropertyIsLessThan",
-    _qbo.boGT: "PropertyIsGreaterThan",
-    _qbo.boRegexp: None,
-    _qbo.boLike: OGC_IS_LIKE,
-    _qbo.boNotLike: None,
-    _qbo.boILike: None,
-    _qbo.boNotILike: None,
-    _qbo.boIs: None,
-    _qbo.boIsNot: None,
-    _qbo.boPlus: "Add",
-    _qbo.boMinus: OGC_SUB,
-    _qbo.boMul: "Mul",
-    _qbo.boDiv: "Div",
-    _qbo.boIntDiv: None,
-    _qbo.boMod: None,
-    _qbo.boPow: None,
-    _qbo.boConcat: None,
-}
+if QgsExpressionNodeBinaryOperator is not None:
+  _qbo = QgsExpressionNodeBinaryOperator.BinaryOperator
+  binaryOps = {
+      _qbo.boOr: "Or",
+      _qbo.boAnd: "And",
+      _qbo.boEQ: OGC_IS_EQUAL_TO,
+      _qbo.boNE: "PropertyIsNotEqualTo",
+      _qbo.boLE: "PropertyIsLessThanOrEqualTo",
+      _qbo.boGE: "PropertyIsGreaterThanOrEqualTo",
+      _qbo.boLT: "PropertyIsLessThan",
+      _qbo.boGT: "PropertyIsGreaterThan",
+      _qbo.boRegexp: None,
+      _qbo.boLike: OGC_IS_LIKE,
+      _qbo.boNotLike: None,
+      _qbo.boILike: None,
+      _qbo.boNotILike: None,
+      _qbo.boIs: None,
+      _qbo.boIsNot: None,
+      _qbo.boPlus: "Add",
+      _qbo.boMinus: OGC_SUB,
+      _qbo.boMul: "Mul",
+      _qbo.boDiv: "Div",
+      _qbo.boIntDiv: None,
+      _qbo.boMod: None,
+      _qbo.boPow: None,
+      _qbo.boConcat: None,
+  }
 
 unaryOps = ["Not", OGC_SUB]
 
