@@ -2,16 +2,14 @@ import json
 import math
 import os
 
-from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QColor, QImage, QPainter
-
 from .expressions import walkExpression, UnsupportedExpressionException
 
 try:
     from qgis.core import *
-    from qgis.PyQt.QtGui import QPainter
+    from qgis.PyQt.QtCore import QSize, Qt
+    from qgis.PyQt.QtGui import QColor, QImage, QPainter
 except:
-    pass
+    QPainter = None
 
 # Globals
 _usedIcons = {}
@@ -23,19 +21,22 @@ NO_ICON = "no_icon"
 MM2PIXEL = 3.571428571428571  # 1/0.28 -- OGC defines a pixel as 0.28*0.28mm
 POINT2PIXEL = MM2PIXEL * 0.353  # 1/72 * 25.4 = 0.353  -- 1 pt = 1/72inch  25.4 mm in an inch
 SPRITE_SIZE = 64  # should be power of 2
-BLEND_MODES = {
-    QPainter.CompositionMode_Plus: "addition",
-    QPainter.CompositionMode_Multiply: "multiply",
-    QPainter.CompositionMode_Screen: "screen",
-    QPainter.CompositionMode_Overlay: "overlay",
-    QPainter.CompositionMode_Darken: "darken",
-    QPainter.CompositionMode_Lighten: "lighten",
-    QPainter.CompositionMode_ColorDodge: "dodge",
-    QPainter.CompositionMode_ColorBurn: "color-burn",
-    QPainter.CompositionMode_HardLight: "hard-light",
-    QPainter.CompositionMode_SoftLight: "soft-light",
-    QPainter.CompositionMode_Difference: "difference"
-}
+if QPainter is None:
+    BLEND_MODES = {}
+else:
+    BLEND_MODES = {
+        QPainter.CompositionMode_Plus: "addition",
+        QPainter.CompositionMode_Multiply: "multiply",
+        QPainter.CompositionMode_Screen: "screen",
+        QPainter.CompositionMode_Overlay: "overlay",
+        QPainter.CompositionMode_Darken: "darken",
+        QPainter.CompositionMode_Lighten: "lighten",
+        QPainter.CompositionMode_ColorDodge: "dodge",
+        QPainter.CompositionMode_ColorBurn: "color-burn",
+        QPainter.CompositionMode_HardLight: "hard-light",
+        QPainter.CompositionMode_SoftLight: "soft-light",
+        QPainter.CompositionMode_Difference: "difference"
+    }
 PATTERN_NAMES = {
     "horizontal": "shape://horline",
     "vertical": "shape://vertline",
