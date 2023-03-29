@@ -1,5 +1,5 @@
 # For now, this is limited to compound labels using the python, VB or Arcade syntax
-from bridgestyle.customgeostylerproperties import WellKnownText
+from ..geostyler.custom_properties import WellKnownText
 
 
 def convertExpression(expression, engine, tolowercase):

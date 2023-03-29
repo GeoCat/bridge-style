@@ -12,7 +12,7 @@ from ..qgis.expressions import (
 )
 from .transformations import processTransformation
 from ..version import __version__
-from ..customgeostylerproperties import WellKnownText
+from ..geostyler.custom_properties import WellKnownText
 from.parsecdata import _serialize_xml
 
 _warnings = []
@@ -33,7 +33,7 @@ def convert(geostyler, options=None):
     root = Element("StyledLayerDescriptor", attrib=attribs)
     namedLayer = SubElement(root, "NamedLayer")
     layerName = SubElement(namedLayer, "Name")
-    layerName.text = _replaceSpecialCharacters('_', geostyler.get("name"))
+    layerName.text = _replaceSpecialCharacters('_', geostyler.get("name", "default"))
     userStyle = SubElement(namedLayer, "UserStyle")
     userStyleTitle = SubElement(userStyle, "Title")
     userStyleTitle.text = geostyler.get("name")
@@ -56,7 +56,7 @@ def convert(geostyler, options=None):
 def processRule(rule):
     ruleElement = Element("Rule")
     ruleName = SubElement(ruleElement, "Name")
-    ruleName.text = _replaceSpecialCharacters('_', rule.get("name"))
+    ruleName.text = _replaceSpecialCharacters('_', rule.get("name", "default"))
     ruleTitle = SubElement(ruleElement, "Title")
     ruleTitle.text = rule.get("name", "")
 
