@@ -404,12 +404,12 @@ def _processEffect(effect):
     ptToPxAndCeil = lambda v : math.ceil(pt_to_px(v))
     if effect["type"] == "CIMGeometricEffectDashes":
         dasharrayValues = list(map(ptToPxAndCeil, effect.get("dashTemplate",[])))
-        return {
-            "dasharrayValues": dasharrayValues,
-            "dasharray": " ".join(str(v) for v in dasharrayValues)
-        }
-    else:
-        return {}
+        if len(dasharrayValues) > 1:
+            return {
+                "dasharrayValues": dasharrayValues,
+                "dasharray": " ".join(str(v) for v in dasharrayValues)
+            }
+    return {}
 
 
 def _getStraightHatchMarker():
@@ -588,10 +588,19 @@ def processSymbolLayer(layer, symboltype, options):
 
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        size = _ptToPxProp(layer, "separation", 3)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
+
+        # Use symbol and not rotation because rotation crops the line.
         wellKnowName = _hatchMarkerForAngle(rotation)
+        if rotation % 45:
+           _warnings.append('Rotation value different than a multiple of 45° is not possible. The nearest value is taken instead.')
+
+        # Geoserver acts weird with tilted lines. Empirically, that's the best result so far:
+        # Takes the double of the raw separation value. Line and dash lines are treated equally and are looking good.
+        rawSeparation = layer.get('separation', 0)
+        separation = pt_to_px(rawSeparation) if wellKnowName in _getStraightHatchMarker() else rawSeparation * 2
+
         fill = {
             "kind": "Fill",
             "opacity": 1.0,
@@ -600,34 +609,33 @@ def processSymbolLayer(layer, symboltype, options):
                     "kind": "Mark",
                     "color": color,
                     "wellKnownName": wellKnowName,
-                    "size": size,
+                    "size": separation,
                     "strokeColor": color,
                     "strokeWidth": width,
-                    "rotate": 0,
+                    "rotate": 0, # no rotation, use the symbol.
                 }
             ],
             "Z": 0,
         }
+
         effects = _extractEffect(symbolLayers[0])
         if "dasharray" in effects:
             fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
             # In case of dash array, the size must be at least as long as the dash pattern sum.
-            neededSize = sum(effects["dasharrayValues"])
-            if wellKnowName in _getStraightHatchMarker():
-                # To keep the "original size", we play with a negative margin
-                negativeMargin = (neededSize - size) / 2 * -1
-                if wellKnowName == _getStraightHatchMarker()[0]:
-                    fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
+            if separation > 0:
+                neededSize = sum(effects["dasharrayValues"])
+                if wellKnowName in _getStraightHatchMarker():
+                    # To keep the "original size" given by the separation value, we play with a negative margin.
+                    negativeMargin = (neededSize - separation) / 2 * -1
+                    if wellKnowName == _getStraightHatchMarker()[0]:
+                        fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
+                    else:
+                        fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
                 else:
-                    fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
-            else:
-                # In case of slash pattern, the pattern is the hypotenuse, we want the X (or Y) value for the size.
-                neededSize = math.cos(math.radians(45)) * neededSize
-                # The trick with the margin to keep the original size is not possible, add a workaround:
-                # Multiply the needed size regarding the separation (size) and the pattern size (neededSize)
-                neededSize = neededSize * (math.ceil((size * 2) / neededSize)) or neededSize
-                _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash, rotation, etc).')
-            fill["graphicFill"][0]["size"] = neededSize
+                    # In case of tilted lines, the trick with the margin is not possible without cropping the pattern.
+                    neededSize = separation
+                    _warnings.append('Unable to keep the original size of CIMHatchFill for line with rotation')
+                fill["graphicFill"][0]["size"] = neededSize
         return fill
 
     elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
