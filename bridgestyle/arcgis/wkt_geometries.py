@@ -1,4 +1,11 @@
-def to_wkt(geometry):
+import math
+
+def distanceBetweenPoints(a: list, b: list) -> float:
+    return math.sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2)
+
+def to_wkt(geometry: dict) -> dict:
+    defaultMarker = {"wellKnownName": "circle"}
+
     if geometry.get("rings"):
         rings = geometry["rings"][0]
         coordinates = ", ".join([" ".join([str(i) for i in j]) for j in rings])
@@ -7,7 +14,27 @@ def to_wkt(geometry):
                     "maxX": max([coord[0] for coord in rings]),
                     "maxY": max([coord[1] for coord in rings]),
         }
+
     # The following corresponds to the geometry of the line symbolizer in ArcGIS
     elif geometry.get("paths") and geometry["paths"][0] == [[2, 0], [-2, 0]]:
         return {"wellKnownName": "wkt://MULTILINESTRING((0 2, 0 0))"}
-    return {"wellKnownName": "circle"}
+
+    # For documentation on curveRings, see
+    # https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm
+    elif geometry.get("curveRings"):
+        curveRing = geometry["curveRings"][0]
+        startPoint = curveRing[0]
+        curve = curveRing[1].get("a") or curveRing[1].get("c")
+        if not curve:
+            return defaultMarker
+        endPoint = curve[0]
+        centerPoint = curve[1]
+        if not endPoint == startPoint:
+            return defaultMarker
+        radius = distanceBetweenPoints(startPoint, centerPoint)
+        return {
+                    "wellKnownName": "circle",
+                    "maxX": radius,
+                    "maxY": radius,
+        }
+    return defaultMarker

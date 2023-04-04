@@ -73,7 +73,7 @@ def processLayer(layer, options=None):
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
-        _warnings.append('CIMRasterLayer are not supported yet.')
+        _warnings.append("CIMRasterLayer are not supported yet.")
         # rules = [{"name": layer["name"], "symbolizers": [rasterSymbolizer(layer)]}]
         # geostyler["rules"] = rules
 
@@ -120,7 +120,7 @@ def processClassBreaksRenderer(renderer, options):
         }
         symbolsAscending.append(symbolizers)
         rules.append(ruledef)
-    if not renderer.get('showInAscendingOrder', True):
+    if not renderer.get("showInAscendingOrder", True):
         rules.reverse()
         for index, rule in enumerate(rules):
             rule["symbolizers"] = symbolsAscending[index]
@@ -131,7 +131,7 @@ def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = convertExpression(labelClass["expression"], labelClass["expressionEngine"], tolowercase)
     fontFamily = textSymbol.get("fontFamilyName", "Arial")
-    fontSize = _ptToPxProp(textSymbol, 'height', 12, True)
+    fontSize = _ptToPxProp(textSymbol, "height", 12, True)
     color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
     fontWeight = textSymbol.get("fontStyleName", "Regular")
     rotationProps = labelClass.get("maplexLabelPlacementProperties", {}).get(
@@ -227,7 +227,7 @@ def processUniqueValueGroup(fields, group, options):
 
     def _or(listConditions):
         orConditions = listConditions
-        orConditions.insert(0, 'Or')
+        orConditions.insert(0, "Or")
         return orConditions
 
     def _equal(name, val):
@@ -370,7 +370,8 @@ def processMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
     # In case of markers in a polygon fill, it seems ArcGIS does some undocumented resizing of the marker.
     # We use an empirical factor to account for this, which works in most cases (but not all)
     # Size is already in pixel.
-    size = round(symbolizer.get("size", 0) * POLYGON_FILL_RESIZE_FACTOR)
+    # Avoid null values and force them to 1 px
+    size = round(symbolizer.get("size", 0) * POLYGON_FILL_RESIZE_FACTOR) or 1
     symbolizer["size"] = size
     # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
     # ArcGIS stepX, stepY, offsetX, offsetY
@@ -383,6 +384,10 @@ def processMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
         maxY = size / 2
     stepX = _ptToPxProp(markerPlacement, "stepX", 0)
     stepY = _ptToPxProp(markerPlacement, "stepY", 0)
+    if stepX < maxX:
+        stepX += maxX * 2
+    if stepY < maxY:
+        stepY += maxY * 2
     offsetX = _ptToPxProp(markerPlacement, "offsetX", 0)
     offsetY = _ptToPxProp(markerPlacement, "offsetY", 0)
     right = round(stepX / 2 - maxX - offsetX)
@@ -531,8 +536,8 @@ def processSymbolLayer(layer, symboltype, options):
         }
 
     elif layer["type"] == "CIMVectorMarker":
-        if layer['size']:
-            layer['size'] = _ptToPxProp(layer, "size", 3)
+        if layer.get("size"):
+            layer["size"] = _ptToPxProp(layer, "size", 3)
         # Default values
         fillColor = "#ff0000"
         strokeColor = "#000000"
@@ -549,7 +554,7 @@ def processSymbolLayer(layer, symboltype, options):
             sublayers = [sublayer for sublayer in markerGraphic["symbol"]["symbolLayers"] if sublayer["enable"]]
             fillColor = _extractFillColor(sublayers)
             strokeColor, strokeWidth = _extractStroke(sublayers)
-            size = marker.get("size", 10)
+            markerSize = marker.get("size", layer.get("size", 10))
             if markerGraphic["symbol"]["type"] == "CIMPointSymbol":
                 wellKnownName = marker["wellKnownName"]
             elif markerGraphic["symbol"]["type"] in ["CIMLineSymbol", "CIMPolygonSymbol"]:
@@ -594,11 +599,11 @@ def processSymbolLayer(layer, symboltype, options):
         # Use symbol and not rotation because rotation crops the line.
         wellKnowName = _hatchMarkerForAngle(rotation)
         if rotation % 45:
-           _warnings.append('Rotation value different than a multiple of 45° is not possible. The nearest value is taken instead.')
+           _warnings.append("Rotation value different than a multiple of 45° is not possible. The nearest value is taken instead.")
 
         # Geoserver acts weird with tilted lines. Empirically, that's the best result so far:
         # Takes the double of the raw separation value. Line and dash lines are treated equally and are looking good.
-        rawSeparation = layer.get('separation', 0)
+        rawSeparation = layer.get("separation", 0)
         separation = pt_to_px(rawSeparation) if wellKnowName in _getStraightHatchMarker() else rawSeparation * 2
 
         fill = {
@@ -628,13 +633,13 @@ def processSymbolLayer(layer, symboltype, options):
                     # To keep the "original size" given by the separation value, we play with a negative margin.
                     negativeMargin = (neededSize - separation) / 2 * -1
                     if wellKnowName == _getStraightHatchMarker()[0]:
-                        fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
+                        fill["graphicFillMargin"] = [negativeMargin, 0, negativeMargin, 0]
                     else:
-                        fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
+                        fill["graphicFillMargin"] = [0, negativeMargin, 0, negativeMargin]
                 else:
                     # In case of tilted lines, the trick with the margin is not possible without cropping the pattern.
                     neededSize = separation
-                    _warnings.append('Unable to keep the original size of CIMHatchFill for line with rotation')
+                    _warnings.append("Unable to keep the original size of CIMHatchFill for line with rotation")
                 fill["graphicFill"][0]["size"] = neededSize
         return fill
 
