@@ -195,13 +195,7 @@ def processLabelClass(labelClass, tolowercase=False):
 
     rule = {"name": "", "symbolizers": [symbolizer]}
 
-    scaleDenominator = {}
-    minimumScale = labelClass.get("minimumScale")
-    if minimumScale is not None:
-        scaleDenominator = {"max": minimumScale}
-    maximumScale = labelClass.get("maximumScale")
-    if maximumScale is not None:
-        scaleDenominator = {"min": maximumScale}
+    scaleDenominator = processScaleDenominator(labelClass.get("minimumScale"), labelClass.get("maximumScale"))
     if scaleDenominator:
         rule["scaleDenominator"] = scaleDenominator
 
@@ -259,7 +253,23 @@ def processUniqueValueGroup(fields, group, options):
 
             rule["filter"] = ruleFilter
             rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
+            scaleDenominator = processScaleDenominator(
+                clazz["symbol"].get("minScale"),
+                clazz["symbol"].get("maxScale"),
+                )
+            if scaleDenominator:
+                rule["scaleDenominator"] = scaleDenominator
             rules.append(rule)
+        for symbolRef in clazz.get("alternateSymbols", []):
+            altRule = {"name": rule["name"]}
+            altRule["symbolizers"] = processSymbolReference(symbolRef, options)
+            scaleDenominator = processScaleDenominator(
+                symbolRef.get("minScale"),
+                symbolRef.get("maxScale"),
+                )
+            if scaleDenominator:
+                altRule["scaleDenominator"] = scaleDenominator
+            rules.append(altRule)
 
     return rules
 
@@ -814,3 +824,11 @@ def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=T
         return defaultValue
     value = pt_to_px(float(obj.get(prop)))
     return value if asFloat else round(value)
+
+def processScaleDenominator(minimumScale, maximumScale):
+    scaleDenominator = {}
+    if minimumScale is not None:
+        scaleDenominator = {"max": minimumScale}
+    if maximumScale is not None:
+        scaleDenominator = {"min": maximumScale}
+    return scaleDenominator
