@@ -6,7 +6,10 @@ import uuid
 from typing import Union
 
 
-from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, pt_to_px
+from .constants import (
+    ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, MARKER_PLACEMENT_ANGLE,
+    MARKER_PLACEMENT_POSITION, pt_to_px
+    )
 from .expressions import convertExpression, convertWhereClause, processRotationExpression
 from .wkt_geometries import to_wkt
 
@@ -339,6 +342,8 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
     return symbolizer
 
 def _processOrientedMarkerAtEndOfLine(layer, options):
+    markerPosition = layer["markerPlacement"]["positionArray"][0]
+    flipFirst = layer["markerPlacement"].get("flipFirst", False)
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -347,7 +352,7 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         name = _esriFontToStandardSymbols(charindex)
     else:
         name = "ttf://%s#%s" % (fontFamily, hexcode)
-    rotation = layer.get("rotation", 0)
+    rotation = layer.get("rotation", 0) + 180 * flipFirst
     try:
         symbolLayers = layer["symbol"]["symbolLayers"]
         fillColor = _extractFillColor(symbolLayers)
@@ -366,13 +371,13 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         "strokeColor": strokeColor,
         "strokeOpacity": strokeOpacity,
         "strokeWidth": strokeWidth,
-        "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+        "rotate": ["Add", [MARKER_PLACEMENT_ANGLE[markerPosition], ["PropertyName", "shape"]], rotation],
         "kind": "Mark",
         "color": fillColor,
         "wellKnownName": name,
         "size": _ptToPxProp(layer, "size", 10),
         "Z": 0,
-        "Geometry": ["endPoint", ["PropertyName", "shape"]],
+        "Geometry": [MARKER_PLACEMENT_POSITION[markerPosition], ["PropertyName", "shape"]],
     }
 
 
@@ -705,7 +710,7 @@ def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
 
 def _orientedMarkerAtEndOfLine(markerPlacement):
     if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+        return markerPlacement["positionArray"] in [[1], [0]] and markerPlacement["angleToLine"]
     return False
 
 
