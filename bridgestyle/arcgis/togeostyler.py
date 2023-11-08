@@ -244,6 +244,7 @@ def processUniqueValueGroup(fields, group, options):
         rule = {"name": clazz.get("label", "label")}
         values = clazz["values"]
         conditions = []
+        ruleFilter = None
         for v in values:
             if "fieldValues" in v:
                 fieldValues = v["fieldValues"]
@@ -265,6 +266,8 @@ def processUniqueValueGroup(fields, group, options):
             rules.append(rule)
         for symbolRef in clazz.get("alternateSymbols", []):
             altRule = {"name": rule["name"]}
+            if ruleFilter:
+                altRule["filter"] = ruleFilter
             altRule["symbolizers"] = processSymbolReference(symbolRef, options)
             scaleDenominator = processScaleDenominator(
                 symbolRef.get("minScale"),
