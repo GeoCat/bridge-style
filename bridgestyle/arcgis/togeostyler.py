@@ -7,8 +7,8 @@ from typing import Union
 
 
 from .constants import (
-    ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, MARKER_PLACEMENT_ANGLE,
-    MARKER_PLACEMENT_POSITION, pt_to_px
+    ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, MarkerPlacementAngle,
+    MarkerPlacementPosition, pt_to_px
     )
 from .expressions import convertExpression, convertWhereClause, processRotationExpression
 from .wkt_geometries import to_wkt
@@ -297,11 +297,14 @@ def processSymbolReference(symbolref, options):
             "CIMCharacterMarker",
         ]:
             if symbol["type"] == "CIMLineSymbol":
-                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
-                    symbolizer = _processOrientedMarkerAtEndOfLine(layer, options)
-                    # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
-                    # so we include this symbol only on the map and not in the legend
-                    symbolizer["inclusion"] = "mapOnly"
+                if layer["type"] == "CIMCharacterMarker":
+                    if _orientedMarkerAtStartOfLine(layer["markerPlacement"]):
+                        symbolizer = _processOrientedMarkerAtEndOfLine(layer, 'start', options)
+                        symbolizers.append(symbolizer)
+                    if _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
+                        symbolizer = _processOrientedMarkerAtEndOfLine(layer, 'end', options)
+                        symbolizers.append(symbolizer)
+                    continue
                 else:
                     symbolizer = _formatLineSymbolizer(symbolizer)
             elif symbol["type"] == "CIMPolygonSymbol":
@@ -344,9 +347,17 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         }
     return symbolizer
 
-def _processOrientedMarkerAtEndOfLine(layer, options):
-    markerPosition = layer["markerPlacement"]["positionArray"][0]
-    flipFirst = layer["markerPlacement"].get("flipFirst", False)
+def _processOrientedMarkerAtEndOfLine(layer, orientedMarker, options):
+    if orientedMarker == 'start':
+        markerPositionFnc = MarkerPlacementPosition.START.value
+        markerRotationFnc = MarkerPlacementAngle.START.value
+        rotation = layer.get("rotation", 0) + 180
+    elif orientedMarker == 'end':
+        markerPositionFnc = MarkerPlacementPosition.END.value
+        markerRotationFnc = MarkerPlacementAngle.END.value
+        rotation = layer.get("rotation", 0)
+    else:
+        return
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -355,7 +366,6 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         name = _esriFontToStandardSymbols(charindex)
     else:
         name = "ttf://%s#%s" % (fontFamily, hexcode)
-    rotation = layer.get("rotation", 0) + 180 * flipFirst
     try:
         symbolLayers = layer["symbol"]["symbolLayers"]
         fillColor = _extractFillColor(symbolLayers)
@@ -374,13 +384,16 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         "strokeColor": strokeColor,
         "strokeOpacity": strokeOpacity,
         "strokeWidth": strokeWidth,
-        "rotate": ["Add", [MARKER_PLACEMENT_ANGLE[markerPosition], ["PropertyName", "shape"]], rotation],
+        "rotate": ["Add", [markerRotationFnc, ["PropertyName", "shape"]], rotation],
         "kind": "Mark",
         "color": fillColor,
         "wellKnownName": name,
         "size": _ptToPxProp(layer, "size", 10),
         "Z": 0,
-        "Geometry": [MARKER_PLACEMENT_POSITION[markerPosition], ["PropertyName", "shape"]],
+        "Geometry": [markerPositionFnc, ["PropertyName", "shape"]],
+        # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
+        # so we include this symbol only on the map and not in the legend
+        "inclusion": "mapOnly",
     }
 
 
@@ -711,9 +724,28 @@ def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
     return None
 
 
+def _orientedMarkerAtStartOfLine(markerPlacement):
+    if markerPlacement.get("angleToLine", False):
+        if (
+            markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions"
+            and markerPlacement["positionArray"] == [0]
+            and markerPlacement["flipFirst"]
+            ):
+            return True
+        elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
+            return True
+    return False
+
+
 def _orientedMarkerAtEndOfLine(markerPlacement):
-    if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] in [[1], [0]] and markerPlacement["angleToLine"]
+    if markerPlacement.get("angleToLine", False):
+        if (
+            markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions"
+            and markerPlacement["positionArray"] == [1]
+            ):
+            return True
+        elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
+            return True
     return False
 
 
