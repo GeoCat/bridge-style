@@ -733,7 +733,10 @@ def _orientedMarkerAtStartOfLine(markerPlacement):
             ):
             return True
         elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
-            return True
+            return (
+                markerPlacement["extremityPlacement"] == "Both"
+                or markerPlacement["extremityPlacement"] == "JustBegin"
+            )
     return False
 
 
@@ -745,7 +748,10 @@ def _orientedMarkerAtEndOfLine(markerPlacement):
             ):
             return True
         elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
-            return True
+            return (
+                markerPlacement["extremityPlacement"] == "Both"
+                or markerPlacement["extremityPlacement"] == "JustEnd"
+            )
     return False
 
 
