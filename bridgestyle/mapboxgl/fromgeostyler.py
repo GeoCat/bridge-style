@@ -13,7 +13,6 @@ from ..qgis.expressions import (
 
 # Globals
 _warnings = []
-_processTextSymbolizer = False
 
 # Constants
 SOURCE_NAME = "vector-source"
@@ -284,8 +283,6 @@ def _symbolProperty(sl, name, default=None):
 
 
 def _textSymbolizer(sl):
-    if not _processTextSymbolizer:
-        return None
     layout = {}
     paint = {}
     color = _symbolProperty(sl, "color")
