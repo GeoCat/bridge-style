@@ -739,9 +739,9 @@ def _createSprite(sl):
     newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
 
     sl.setSize(SPRITE_SIZE)
-    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
     sl.setSize(SPRITE_SIZE * 2)
-    img2x = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    img2x = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
 
     return {"image": img, "image2x": img2x}
 
@@ -919,7 +919,7 @@ def saveSymbolLayerSprite(symbolLayer):
     sl2x = sl.clone()
     try:
         sl.setSize(64)
-        sl2x.setSize(sl.size() * 2)
+        sl2x.setSize(int(sl.size()) * 2)
     except AttributeError:
         return None, None
     newSymbol = QgsMarkerSymbol()
@@ -932,8 +932,8 @@ def saveSymbolLayerSprite(symbolLayer):
     newSymbol2x.deleteSymbolLayer(0)
     newSymbol2x.setSizeUnit(QgsUnitTypes.RenderPixels)
 
-    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
-    img2x = newSymbol2x.asImage(QSize(sl2x.size(), sl2x.size()))
+    img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
+    img2x = newSymbol2x.asImage(QSize(int(sl2x.size()), int(sl2x.size())))
     return img, img2x
 
 
