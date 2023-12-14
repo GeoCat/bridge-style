@@ -136,7 +136,7 @@ def processLabelClass(labelClass, tolowercase=False):
     fontFamily = textSymbol.get("fontFamilyName", "Arial")
     fontSize = _ptToPxProp(textSymbol, "height", 12, True)
     color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
-    fontWeight = textSymbol.get("fontStyleName", "Regular")
+    fontWeight = _extractFontWeight(textSymbol)
     rotationProps = labelClass.get("maplexLabelPlacementProperties", {}).get(
         "rotationProperties", {}
     )
@@ -149,6 +149,7 @@ def processLabelClass(labelClass, tolowercase=False):
         "font": fontFamily,
         "label": expression,
         "size": fontSize,
+        "weight": fontWeight,
     }
 
     stdProperties = labelClass.get("standardLabelPlacementProperties", {})
@@ -795,6 +796,10 @@ def _extractFillOpacity(symbolLayers):
         if sl["type"] == "CIMSolidFill":
             return _processOpacity(sl["color"])
     return 1.0
+
+
+def _extractFontWeight(textSymbol):
+    return "bold" if textSymbol.get("fontStyleName") == "Bold" else "normal"
 
 
 def _processOpacity(color):

@@ -210,12 +210,14 @@ def _textSymbolizer(sl):
     fontFamily = _symbolProperty(sl, "font")
     label = _symbolProperty(sl, "label")
     size = _symbolProperty(sl, "size")
+    weight = _symbolProperty(sl, "weight")
 
     root = Element("TextSymbolizer")
     _addSubElement(root, "Label", label)
     fontElem = _addSubElement(root, "Font")
     _addCssParameter(fontElem, "font-family", fontFamily)
     _addCssParameter(fontElem, "font-size", size)
+    _addCssParameter(fontElem, "font-weight", weight)
 
     if "offset" in sl:
         placement = _addSubElement(root, "LabelPlacement")
