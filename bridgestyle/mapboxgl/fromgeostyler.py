@@ -412,7 +412,7 @@ def _markSymbolizer(sl):
         paint["circle-stroke-width"] = outlineWidth
         paint["circle-stroke-color"] = outlineColor
     
-        return {"type": "circle", "layout": paint}
+        return {"type": "circle", "paint": paint}
 
 
 def _fillSymbolizer(sl):
