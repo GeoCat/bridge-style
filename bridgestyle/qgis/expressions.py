@@ -90,10 +90,13 @@ functions = {
     "translate": "offset",
     "min": "min",
     "max": "max",
+    "to_int": "to-number",
+    "to_float": "to-number",
+    "to_string": "to-string",
 }  # TODO
 
 
-def walkExpression(node, layer, null_allowed=False):
+def walkExpression(node, layer, null_allowed=False, castTo=None):
     exp = None
     if node.nodeType() == QgsExpressionNode.ntBinaryOperator:
         exp = handleBinary(node, layer)
@@ -107,6 +110,12 @@ def walkExpression(node, layer, null_allowed=False):
         exp = handleLiteral(node)
         if exp is None and null_allowed:
             return exp
+        if castTo == 'String':
+            exp = str(exp)
+        elif castTo == 'Integer' || castTo == 'Integer64':
+            exp = int(exp)
+        elif castTo == 'Real':
+            exp = float(exp)
     elif node.nodeType() == QgsExpressionNode.ntColumnRef:
         exp = handleColumnRef(node, layer)
     # elif node.nodeType() == QgsExpression.ntCondition:
@@ -154,8 +163,12 @@ def handleBinary(node, layer):
     retOp = binaryOps[op]
     left = node.opLeft()
     right = node.opRight()
+    castTo = None
+    if left.nodeType() == QgsExpressionNode.ntColumnRef:
+        f = list(filter(lambda x: x.name() == retLeft[-1], [l for l in layer.fields()]))
+        castTo = f[0].typeName()
     retLeft = walkExpression(left, layer)
-    retRight = walkExpression(right, layer, True)
+    retRight = walkExpression(right, layer, True, castTo)
     if (retOp is retRight is None) and op == _qbo.boIs:
         # Special case for IS NULL
         retOp = OGC_IS_NULL

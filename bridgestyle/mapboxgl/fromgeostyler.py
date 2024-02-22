@@ -220,7 +220,9 @@ func = {
     "log": "ln",
     "strCapitalize": None,
     "min": "min",
-    "max": "max"
+    "max": "max",
+    "to-number": "to-number",
+    "to-string": "to-string",
 }  # TODO
 
 
