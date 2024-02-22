@@ -333,6 +333,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
     offset = _symbolProperty(sl, "offset")
 
     paint = {}
+    layout = {}
     if graphicStroke is not None:
         _warnings.append("Marker lines not supported for Mapbox GL conversion")
         # TODO
@@ -343,12 +344,14 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         paint["line-width"] = width
         paint["line-opacity"] = opacity
         paint["line-color"] = color
+        layout["line-cap"] = cap
+        layout["line-join"] = join
     if isinstance(dasharray, str):
         paint["line-dasharray"] = _parseSpaceArray(dasharray)
     if offset is not None:
         paint["line-offset"] = offset
 
-    return {"type": "line", "paint": paint}
+    return {"type": "line", "paint": paint, "layout": layout}
 
 
 def number(string):
@@ -404,6 +407,7 @@ def _markSymbolizer(sl):
         color = _symbolProperty(sl, "color")
         outlineColor = _symbolProperty(sl, "strokeColor")
         outlineWidth = _symbolProperty(sl, "strokeWidth")
+        dasharray    = _symbolProperty(sl, "dasharray")
     
         paint = {}
         paint["circle-radius"] = ["/", size, 2]
@@ -419,6 +423,9 @@ def _fillSymbolizer(sl):
     paint = {}
     opacity = _symbolProperty(sl, "opacity")
     color = sl.get("color", None)
+    dasharray = _symbolProperty(sl, "outlineDasharray")
+    join = _symbolProperty(sl, "join")
+    offset = _symbolProperty(sl, "offset")
     graphicFill = sl.get("graphicFill", None)
     if graphicFill is not None:
         _warnings.append("Marker fills not supported for Mapbox GL conversion")
@@ -441,7 +448,14 @@ def _fillSymbolizer(sl):
                     "line-width": _symbolProperty(sl, "outlineWidth") or 1,
                     "line-opacity": (_symbolProperty(sl, "outlineOpacity") or 1) * opacity,
                     "line-color": outlineColor
+                },
+                "layout":{
+                    "line-join": join
                 }}
+        if isinstance(dasharray, str):
+            line['paint']["line-dasharray"] = _parseSpaceArray(dasharray)
+        if offset is not None:
+            line['paint']["line-offset"] = offset
     if line:
         return [fill, line]
     return fill

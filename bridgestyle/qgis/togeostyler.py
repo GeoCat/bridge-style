@@ -888,12 +888,14 @@ def _simpleFillSymbolizer(sl, opacity):
     outlineOpacity = _opacity(props["outline_color"])
     outlineStyle = _symbolProperty(
         sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
+    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.PropertyJoinStyle)
     if outlineStyle != "no":
         outlineWidth = _symbolProperty(
             sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
         symbolizer.update({"outlineColor": outlineColor,
                            "outlineWidth": outlineWidth,
-                           "outlineOpacity": outlineOpacity})
+                           "outlineOpacity": outlineOpacity,
+                           "join": join})
     if outlineStyle not in ["solid", "no"]:
         symbolizer["outlineDasharray"] = "5 2"
 
