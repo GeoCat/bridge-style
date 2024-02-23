@@ -879,7 +879,7 @@ def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=T
 def processScaleDenominator(minimumScale, maximumScale):
     scaleDenominator = {}
     if minimumScale is not None:
-        scaleDenominator = {"max": minimumScale}
+        scaleDenominator["min"] = minimumScale
     if maximumScale is not None:
-        scaleDenominator = {"min": maximumScale}
+        scaleDenominator["max"] = maximumScale
     return scaleDenominator
