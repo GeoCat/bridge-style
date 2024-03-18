@@ -8,6 +8,7 @@ from ..qgis.expressions import (
     OGC_PROPERTYNAME,
     OGC_IS_EQUAL_TO,
     OGC_IS_NULL,
+    OGC_IS_NOT_NULL,
     OGC_SUB
 )
 
@@ -194,7 +195,8 @@ func = {
     "PropertyIsGreaterThanOrEqualTo": ">=",
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
-    OGC_IS_NULL: "has",
+    OGC_IS_NULL: "!",
+    OGC_IS_NOT_NULL: "has",
     "Add": "+",
     OGC_SUB: "-",
     "Mul": "*",
@@ -235,11 +237,16 @@ def convertExpression(exp):
             _warnings.append("Unsupported expression function for mapbox conversion: '%s'" % exp[0])
             return None
         else:
-            convertedExp = [funcName]
-            if funcName == "has" and isinstance(exp[1], list):
+            if funcName == "!" and isinstance(exp[1], list):
                 # Special case to add "is null" support
+                convertedExp = [func.get("Not", None)]
+                convertedExp.append(["has", convertExpression(exp[1][-1])])
+            elif funcName == "has" and isinstance(exp[1], list):
+                # Special case to add "is not null" support
+                convertedExp = [funcName]
                 convertedExp.append(convertExpression(exp[1][-1]))
             else:
+                convertedExp = [funcName]
                 for arg in exp[1:]:
                     convertedExp.append(convertExpression(arg))
             return convertedExp

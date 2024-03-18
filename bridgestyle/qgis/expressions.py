@@ -10,6 +10,7 @@ class UnsupportedExpressionException(Exception):
 OGC_PROPERTYNAME = "PropertyName"
 OGC_IS_EQUAL_TO = "PropertyIsEqualTo"
 OGC_IS_NULL = "PropertyIsNull"
+OGC_IS_NOT_NULL = "PropertyIsNotNull"
 OGC_IS_LIKE = "PropertyIsLike"
 OGC_SUB = "Sub"
 
@@ -169,9 +170,13 @@ def handleBinary(node, layer):
         f = list(filter(lambda x: x.name() == retLeft[-1], [l for l in layer.fields()]))
         castTo = f[0].typeName()
     retRight = walkExpression(right, layer, True, castTo)
-    if (retOp is retRight is None) and op == _qbo.boIs:
-        # Special case for IS NULL
-        retOp = OGC_IS_NULL
+    if (retOp is retRight is None):
+        if op == _qbo.boIs:
+            # Special case for IS NULL
+            retOp = OGC_IS_NULL
+        elif op == _qbo.boIsNot:
+            # Special case for IS NOT NULL
+            retOp = OGC_IS_NOT_NULL
     return [retOp, retLeft, retRight]
 
 
