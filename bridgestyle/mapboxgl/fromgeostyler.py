@@ -223,9 +223,10 @@ func = {
     "strCapitalize": None,
     "min": "min",
     "max": "max",
-    "to-number": "to-number",
+    "parseLong": "to-number",
+    "parseDouble": "to-number",
     "to-string": "to-string",
-}  # TODO
+}
 
 
 def convertExpression(exp):

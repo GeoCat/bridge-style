@@ -1,9 +1,16 @@
 try:
     from qgis.core import QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator
-except:
+except (ImportError, ModuleNotFoundError):
     QgsExpressionNodeBinaryOperator = None
 
+
 class UnsupportedExpressionException(Exception):
+    """ Exception raised for unsupported expressions. """
+    pass
+
+
+class CompatibilityException(Exception):
+    """ Exception raised for compatibility issues. """
     pass
 
 
@@ -14,11 +21,17 @@ OGC_IS_NOT_NULL = "PropertyIsNotNull"
 OGC_IS_LIKE = "PropertyIsLike"
 OGC_SUB = "Sub"
 
+_qbo = None
+binaryOps = {}
 
-if QgsExpressionNodeBinaryOperator is None:
-    binaryOps = {}
-else:
-    _qbo = QgsExpressionNodeBinaryOperator.BinaryOperator
+if QgsExpressionNodeBinaryOperator is not None:
+    if hasattr(QgsExpressionNodeBinaryOperator, "boOr"):
+        # QGIS 3.16 may have the operators one level up
+        _qbo = QgsExpressionNodeBinaryOperator
+    elif hasattr(QgsExpressionNodeBinaryOperator.BinaryOperator, "boOr"):
+        _qbo = QgsExpressionNodeBinaryOperator.BinaryOperator
+
+if _qbo is not None:
     binaryOps = {
         _qbo.boOr: "Or",
         _qbo.boAnd: "And",
@@ -44,9 +57,15 @@ else:
         _qbo.boPow: None,
         _qbo.boConcat: None,
     }
+else:
+    # QGIS version is not compatible
+    raise CompatibilityException("QGIS version is not compatible with bridgestyle")
+
 
 unaryOps = ["Not", OGC_SUB]
 
+# QGIS function names mapped to OGC/WFS2.0 function names
+# See https://docs.geoserver.org/stable/en/user/filter/function_reference.html
 functions = {
     "radians": "toRadians",
     "degrees": "toDegrees",
@@ -91,14 +110,15 @@ functions = {
     "translate": "offset",
     "min": "min",
     "max": "max",
-    "to_int": "to-number",
-    "to_float": "to-number",
-    "to_string": "to-string",
-}  # TODO
+    "to_int": "parseLong",
+    "to_float": "parseDouble",
+    "to_string": "to-string",  # This is only relevant for MapBox GL
+}  # TODO: test/improve
 
 
-def walkExpression(node, layer, null_allowed=False, castTo=None):
+def walkExpression(node, layer, null_allowed=False, cast_to=None):
     exp = None
+    cast_to = str(cast_to).lower()
     if node.nodeType() == QgsExpressionNode.ntBinaryOperator:
         exp = handleBinary(node, layer)
     elif node.nodeType() == QgsExpressionNode.ntUnaryOperator:
@@ -111,11 +131,11 @@ def walkExpression(node, layer, null_allowed=False, castTo=None):
         exp = handleLiteral(node)
         if exp is None and null_allowed:
             return exp
-        if castTo == 'String':
+        if cast_to == 'string':
             exp = str(exp)
-        elif castTo == 'Integer64':
+        elif cast_to.startswith('integer'):
             exp = int(exp)
-        elif castTo == 'Real':
+        elif cast_to == 'real':
             exp = float(exp)
     elif node.nodeType() == QgsExpressionNode.ntColumnRef:
         exp = handleColumnRef(node, layer)
@@ -133,7 +153,7 @@ def walkExpression(node, layer, null_allowed=False, castTo=None):
 def handle_in(node, layer):
     if node.isNotIn():
         raise UnsupportedExpressionException("expression NOT IN is unsupported")
-    # convert this expression to another (equivelent Expression)
+    # convert this expression to another (equivalent Expression)
     if node.node().nodeType() != QgsExpressionNode.ntColumnRef:
         raise UnsupportedExpressionException("expression  IN doesn't ref column!")
     if node.list().count() == 0:
@@ -147,15 +167,15 @@ def handle_in(node, layer):
         if item.nodeType() != QgsExpressionNode.ntLiteral:
             raise UnsupportedExpressionException("expression IN isn't literal")
         # equals_expr = QgsExpressionNodeBinaryOperator(2,colRef,item) #2 is "="
-        equals_expr = [binaryOps[2], colRef, handleLiteral(item)]  # 2 is "="
+        equals_expr = [binaryOps[_qbo.boEQ], colRef, handleLiteral(item)]  # 2 is "="
         propEqualsExprs.append(equals_expr)
 
-    # bulid into single expression
+    # build into single expression
     if len(propEqualsExprs) == 1:
         return propEqualsExprs[0]  # handle 1 item in the list
-    accum = [binaryOps[0], propEqualsExprs[0], propEqualsExprs[1]]  # 0="OR"
+    accum = [binaryOps[_qbo.boOr], propEqualsExprs[0], propEqualsExprs[1]]  # 0="OR"
     for idx in range(2, len(propEqualsExprs)):
-        accum = [binaryOps[0], accum, propEqualsExprs[idx]]  # 0="OR"
+        accum = [binaryOps[_qbo.boOr], accum, propEqualsExprs[idx]]  # 0="OR"
     return accum
 
 
@@ -167,8 +187,10 @@ def handleBinary(node, layer):
     retLeft = walkExpression(left, layer)
     castTo = None
     if left.nodeType() == QgsExpressionNode.ntColumnRef:
-        f = list(filter(lambda x: x.name() == retLeft[-1], [l for l in layer.fields()]))
-        castTo = f[0].typeName()
+        fields = [f for f in layer.fields() if f.name() == retLeft[-1]]
+        if len(fields) == 1:
+            # Field has been found, get its type
+            castTo = fields[0].typeName()
     retRight = walkExpression(right, layer, True, castTo)
     if (retOp is retRight is None):
         if op == _qbo.boIs:
@@ -212,8 +234,9 @@ def handleFunction(node, layer):
     func = QgsExpression.Functions()[fnIndex].name()
     if func == "$geometry":
         return [OGC_PROPERTYNAME, "geom"]
-    elif func in functions:
-        elems = [functions[func]]
+    fname = functions.get(func)
+    if fname is not None:
+        elems = [fname]
         args = node.args()
         if args is not None:
             args = args.list()

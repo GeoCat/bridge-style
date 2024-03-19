@@ -471,7 +471,7 @@ def processExpression(expstr):
 
 
 def _cast(v):
-    if isinstance(v, basestring):
+    if isinstance(v, str):
         try:
             return float(v)
         except:
@@ -545,17 +545,25 @@ def _toHexColorQColor(qcolor):
         return qcolor
 
 
-def _toHexColor(color):
+def _rgba(color) -> tuple:
+    """ Returns an R,G,B,A integer tuple from a symbolizer color property. May raise exceptions! """
+    # Color should be a string like '50,95,40,255' (RGBA), but in later QGIS versions, it may be
+    # '50,95,40,255,rgb:0.19607843137254902,0.37254901960784315,0.15686274509803921,1'
+    values = str(color).split(",")
+    return tuple(map(int, values[:4]))
+
+
+def _toHexColor(color) -> str:
     try:
-        r, g, b, a = str(color).split(",")
+        r, g, b, a = _rgba(color)
         return '#%02x%02x%02x' % (int(r), int(g), int(b))
     except:
         return color
 
 
-def _opacity(color):
+def _opacity(color) -> float:
     try:
-        r, g, b, a = str(color).split(",")
+        a = _rgba(color)[-1]
         return float(a) / 255.
     except:
         return 1.0
