@@ -13,7 +13,6 @@ from ..qgis.expressions import (
 from .transformations import processTransformation
 from ..version import __version__
 from ..geostyler.custom_properties import WellKnownText
-from.parsecdata import _serialize_xml
 
 _warnings = []
 
@@ -91,7 +90,7 @@ def _replaceSpecialCharacters(replacement, text=""):
     return re.sub('[^\w]', replacement, text)
 
 
-def _createSymbolizers(symbolizers):
+def _createSymbolizers(symbolizers) -> list:
     sldSymbolizers = []
     for sl in symbolizers:
         symbolizer = _createSymbolizer(sl)
