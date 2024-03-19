@@ -345,6 +345,19 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     if filter is not None:
         result["filter"] = filter
 
+    # labels rendering scale-based visibility
+    if labeling is not None:
+        settings = layer.labeling().settings()
+        sv = settings.scaleVisibility
+        if sv:
+            scale = {"max": settings.minimumScale, "min": settings.maximumScale}
+            result["scaleDenominator"] = scale
+
+    # layer rendering scale-based visibility
+    if (layer.hasScaleBasedVisibility()):
+        scale = processRuleScale(layer)
+        result["scaleDenominator"] = scale
+
     if hasattr(labeling, 'dependsOnScale') and labeling.dependsOnScale():
         scale = processRuleScale(labeling)
         result["scaleDenominator"] = scale
