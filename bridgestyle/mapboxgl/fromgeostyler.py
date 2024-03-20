@@ -225,7 +225,7 @@ func = {
     "max": "max",
     "parseLong": "to-number",
     "parseDouble": "to-number",
-    "to-string": "to-string",
+    "to_string": "to-string",
 }
 
 
