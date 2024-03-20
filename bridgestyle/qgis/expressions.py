@@ -112,7 +112,7 @@ functions = {
     "max": "max",
     "to_int": "parseLong",
     "to_float": "parseDouble",
-    "to_string": "to-string",  # This is only relevant for MapBox GL
+    "to_string": "to_string",  # Not mapped to function, but required by MapBox GL
 }  # TODO: test/improve
 
 

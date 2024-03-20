@@ -588,6 +588,9 @@ def handleOperator(exp):
 
 def handleFunction(exp):
     name = operatorToFunction.get(exp[0], exp[0])
+    if name == "to_string" and len(exp) == 2:
+        # Special case: SLD/OGC does not know a "cast to string" function
+        return handleLiteral(exp[1])
     elem = Element("ogc:Function", name=name)
     if len(exp) > 1:
         for arg in exp[1:]:
