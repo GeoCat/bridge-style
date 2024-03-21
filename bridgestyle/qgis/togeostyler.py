@@ -669,7 +669,15 @@ def _lineSymbolizer(sl, opacity):
                   "cap": cap,
                   "join": join
                   }
-    if lineStyle != "solid":
+    if lineStyle =='dot':
+        symbolizer["dasharray"] = "3 5"
+    elif lineStyle =='dash':
+        symbolizer["dasharray"] = "8 5"
+    elif lineStyle =='dash dot':
+        symbolizer["dasharray"] = "8 5 3 5"
+    elif lineStyle =='dash dot dot':
+        symbolizer["dasharray"] = "8 5 3 5 3 5"
+    elif lineStyle != "solid":
         symbolizer["dasharray"] = "5 2"
     return symbolizer
 
@@ -806,7 +814,15 @@ def _markGraphic(sl):
     if spriteName != "":
         mark["spriteName"] = spriteName
 
-    if outlineStyle not in ["solid", "no"]:
+    if outlineStyle =='dot':
+        mark["outlineDasharray"] = "3 5"
+    elif outlineStyle =='dash':
+        mark["outlineDasharray"] = "8 5"
+    elif outlineStyle =='dash dot':
+        mark["outlineDasharray"] = "8 5 3 5"
+    elif outlineStyle =='dash dot dot':
+        mark["outlineDasharray"] = "8 5 3 5 3 5"
+    elif outlineStyle not in  ["solid", "no"]:
         mark["outlineDasharray"] = "5 2"
 
     return mark
@@ -912,7 +928,15 @@ def _simpleFillSymbolizer(sl, opacity):
                            "outlineWidth": outlineWidth,
                            "outlineOpacity": outlineOpacity,
                            "join": join})
-    if outlineStyle not in ["solid", "no"]:
+    if outlineStyle =='dot':
+        symbolizer["outlineDasharray"] = "3 5"
+    elif outlineStyle =='dash':
+        symbolizer["outlineDasharray"] = "8 5"
+    elif outlineStyle =='dash dot':
+        symbolizer["outlineDasharray"] = "8 5 3 5"
+    elif outlineStyle =='dash dot dot':
+        symbolizer["outlineDasharray"] = "8 5 3 5 3 5"
+    elif outlineStyle not in  ["solid", "no"]:
         symbolizer["outlineDasharray"] = "5 2"
 
     x, y = sl.offset().x(), sl.offset().y()
