@@ -111,7 +111,7 @@ functions = {
     "min": "min",
     "max": "max",
     "to_int": "parseLong",
-    "to_float": "parseDouble",
+    "to_real": "parseDouble",
     "to_string": "to_string",  # Not mapped to function, but required by MapBox GL
 }  # TODO: test/improve
 
