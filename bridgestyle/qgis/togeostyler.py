@@ -348,7 +348,7 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     # labels rendering scale-based visibility
     scale = None
     if settings.scaleVisibility:
-        scale = processRuleScale(settings.scaleVisibility)
+        scale = {"max": settings.minimumScale, "min": settings.maximumScale}
     elif hasattr(labeling, 'dependsOnScale') and labeling.dependsOnScale():
         scale = processRuleScale(labeling)
     elif layer.hasScaleBasedVisibility():
