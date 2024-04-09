@@ -1,5 +1,9 @@
 import math
 
+def height_normalized(coords: list[list[float]]) -> list[list[float]]:
+    height = max([coord[1] for coord in coords]) - min([coord[1] for coord in coords])
+    return [[coord[0] / height, coord[1] / height] for coord in coords]
+
 def distanceBetweenPoints(a: list, b: list) -> float:
     return math.sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2)
 
@@ -8,6 +12,9 @@ def to_wkt(geometry: dict) -> dict:
 
     if geometry.get("rings"):
         rings = geometry["rings"][0]
+        # GeoServer will rescale the symbol using the specified size, using the height as a reference
+        # So we normalize the coordinates to have a height of 1
+        rings = height_normalized(rings)
         coordinates = ", ".join([" ".join([str(i) for i in j]) for j in rings])
         return {
                     "wellKnownName": f"wkt://POLYGON(({coordinates}))",

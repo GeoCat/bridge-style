@@ -401,16 +401,20 @@ def _processOrientedMarkerAtEndOfLine(layer, orientedMarker, options):
 def processMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
     # In case of markers in a polygon fill, it seems ArcGIS does some undocumented resizing of the marker.
     # We use an empirical factor to account for this, which works in most cases (but not all)
+    if symbolizer.get("wellKnownName").startswith("wkt://POLYGON"):
+        resize_factor = 1
+    else:
+        resize_factor = POLYGON_FILL_RESIZE_FACTOR
     # Size is already in pixel.
     # Avoid null values and force them to 1 px
-    size = round(symbolizer.get("size", 0) * POLYGON_FILL_RESIZE_FACTOR) or 1
+    size = round(symbolizer.get("size", 0) * resize_factor) or 1
     symbolizer["size"] = size
     # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
     # ArcGIS stepX, stepY, offsetX, offsetY
     if symbolizer.get("maxX") and symbolizer.get("maxY"):
         # MaxX and MaxY are a custom property for shapes and already in px.
-        maxX = math.floor(symbolizer["maxX"] * POLYGON_FILL_RESIZE_FACTOR)
-        maxY = math.floor(symbolizer["maxY"] * POLYGON_FILL_RESIZE_FACTOR)
+        maxX = math.floor(symbolizer["maxX"] * resize_factor) or 1
+        maxY = math.floor(symbolizer["maxY"] * resize_factor) or 1
     else:
         maxX = size / 2
         maxY = size / 2
