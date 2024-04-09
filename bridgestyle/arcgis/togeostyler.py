@@ -371,8 +371,7 @@ def _processOrientedMarkerAtEndOfLine(layer, orientedMarker, options):
         symbolLayers = layer["symbol"]["symbolLayers"]
         fillColor = _extractFillColor(symbolLayers)
         fillOpacity = _extractFillOpacity(symbolLayers)
-        strokeOpacity = _extractStrokeOpacity(symbolLayers)
-        strokeColor, strokeWidth = _extractStroke(symbolLayers)
+        strokeColor, strokeWidth, strokeOpacity = _extractStroke(symbolLayers)
     except KeyError:
         fillColor = "#000000"
         fillOpacity = 1.0
@@ -548,8 +547,7 @@ def processSymbolLayer(layer, symboltype, options):
             symbolLayers = layer["symbol"]["symbolLayers"]
             fillColor = _extractFillColor(symbolLayers)
             fillOpacity = _extractFillOpacity(symbolLayers)
-            strokeOpacity = _extractStrokeOpacity(symbolLayers)
-            strokeColor, strokeWidth = _extractStroke(symbolLayers)
+            strokeColor, strokeWidth, strokeOpacity = _extractStroke(symbolLayers)
         except KeyError:
             fillColor = "#000000"
             fillOpacity = 1.0
@@ -589,7 +587,7 @@ def processSymbolLayer(layer, symboltype, options):
             marker = processSymbolReference(markerGraphic, {})[0]
             sublayers = [sublayer for sublayer in markerGraphic["symbol"]["symbolLayers"] if sublayer["enable"]]
             fillColor = _extractFillColor(sublayers)
-            strokeColor, strokeWidth = _extractStroke(sublayers)
+            strokeColor, strokeWidth, strokeOpacity = _extractStroke(sublayers)
             markerSize = marker.get("size", layer.get("size", 10))
             if markerGraphic["symbol"]["type"] == "CIMPointSymbol":
                 wellKnownName = marker["wellKnownName"]
@@ -608,7 +606,7 @@ def processSymbolLayer(layer, symboltype, options):
             "size": markerSize,
             "strokeColor": strokeColor,
             "strokeWidth": strokeWidth,
-            "strokeOpacity": 1.0,
+            "strokeOpacity": strokeOpacity,
             "fillOpacity": 1.0,
             "Z": 0,
         }
@@ -630,7 +628,7 @@ def processSymbolLayer(layer, symboltype, options):
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
-        color, width = _extractStroke(symbolLayers)
+        color, width, opacity = _extractStroke(symbolLayers)
 
         # Use symbol and not rotation because rotation crops the line.
         wellKnowName = _hatchMarkerForAngle(rotation)
@@ -653,6 +651,7 @@ def processSymbolLayer(layer, symboltype, options):
                     "size": separation,
                     "strokeColor": color,
                     "strokeWidth": width,
+                    "strokeOpacity": opacity,
                     "rotate": 0, # no rotation, use the symbol.
                 }
             ],
@@ -774,15 +773,9 @@ def _extractStroke(symbolLayers):
         if sl["type"] == "CIMSolidStroke":
             color = _processColor(sl.get("color"))
             width = _ptToPxProp(sl, "width", 0)
-            return color, width
-    return "#000000", 0
-
-
-def _extractStrokeOpacity(symbolLayers):
-    for sl in symbolLayers:
-        if sl["type"] == "CIMSolidStroke":
-            return _processOpacity(sl["color"])
-    return 1.0
+            opacity = _processOpacity(sl.get("color"))
+            return color, width, opacity
+    return "#000000", 0, 0
 
 
 def _extractFillColor(symbolLayers):
@@ -808,7 +801,7 @@ def _extractFontWeight(textSymbol):
 
 def _processOpacity(color):
     if color is None:
-        return 1.0
+        return 0
     return color["values"][-1] / 100
 
 
