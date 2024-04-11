@@ -449,6 +449,10 @@ def _processEffect(effect):
                 "dasharrayValues": dasharrayValues,
                 "dasharray": " ".join(str(v) for v in dasharrayValues)
             }
+    elif effect["type"] == "CIMGeometricEffectOffset":
+        return {
+            "offset": ptToPxAndCeil(effect.get("offset", 0)) * -1
+        }
     return {}
 
 
@@ -519,6 +523,8 @@ def processSymbolLayer(layer, symboltype, options):
             }
             if "dasharray" in effects:
                 stroke["dasharray"] = effects["dasharray"]
+            if "offset" in effects:
+                stroke["perpendicularOffset"] = effects["offset"]
         return stroke
     elif layer["type"] == "CIMSolidFill":
         color = layer.get("color")
