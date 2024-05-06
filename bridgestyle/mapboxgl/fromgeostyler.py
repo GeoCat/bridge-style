@@ -87,6 +87,8 @@ def convert(geostyler, options=None):
     _warnings = []
     layers = processLayer(geostyler)
     layers.sort(key=lambda l: l["Z"])
+    [l.pop('Z', None) for l in layers]
+    layers.sort(key=lambda l: l["type"]=="symbol")
     obj = {
         "version": 8,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
