@@ -22,7 +22,7 @@ def convert(geostyler, options=None):
     _warnings = []
     attribs = {
         "version": "1.0.0",
-        "xsi:schemaLocation": "http://www.opengis.net/sld StyledLayerDescriptor.xsd",
+        "xsi:schemaLocation": "http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd",
         "xmlns": "http://www.opengis.net/sld",
         "xmlns:ogc": "http://www.opengis.net/ogc",
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
