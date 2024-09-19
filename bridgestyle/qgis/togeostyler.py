@@ -1,8 +1,9 @@
 import json
 import math
 import os
+from typing import Optional
 
-from .expressions import walkExpression, UnsupportedExpressionException
+from .expressions import ExpressionConverter, UnsupportedExpressionException
 
 try:
     from qgis.core import *
@@ -10,11 +11,6 @@ try:
     from qgis.PyQt.QtGui import QColor, QImage, QPainter
 except:
     QPainter = None
-
-# Globals
-_usedIcons = {}
-_usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
-_warnings = []
 
 # Constants
 NO_ICON = "no_icon"
@@ -56,23 +52,21 @@ SHAPE_NAMES = {
     "cross_filled": "shape://plus"
 }
 
-
-class ExpressionConverter:
-    layer = None
-
-    def walkExpression(self, node):
-        return walkExpression(node, self.layer)
-
-
-_expressionConverter = ExpressionConverter()
+# Global variable
+_expressionConverter: Optional[ExpressionConverter] = None
+_usedIcons = {}
+_usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
+_warnings = []
 
 
 def convert(layer, options=None):
-    global _usedIcons, _usedSprites
+    """ Main entry point for converting a QGIS layer to a GeoStyler style. """
+    global _usedIcons, _usedSprites, _warnings
+
     _usedIcons = {}
     _usedSprites = {}
-    global _warnings
     _warnings = []
+
     geostyler = processLayer(layer)
     if geostyler is None:
         geostyler = {"name": layer.name()}
@@ -81,7 +75,9 @@ def convert(layer, options=None):
 
 
 def processLayer(layer):
-    _expressionConverter.layer = layer
+    global _expressionConverter
+
+    _expressionConverter = ExpressionConverter(layer)
 
     geostyler = {"name": layer.name()}
     if layer.type() == layer.VectorLayer:
@@ -168,7 +164,6 @@ def channelSelection(renderer):
     # handle a WMS layer -- this is wrong, but it throws exceptions...
     if isinstance(renderer, QgsSingleBandColorDataRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.usesBands()[0])}}
-
     if isinstance(renderer, QgsSingleBandGrayRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.grayBand())}}
     elif isinstance(renderer, (QgsSingleBandPseudoColorRenderer, QgsPalettedRasterRenderer)):
@@ -325,15 +320,17 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
         symbolizer.update({"offset": [offsetX, offsetY],
                            "anchor": anchor,
                            "rotate": rotation})
+
+    label = None
     exp = settings.getLabelExpression()
     try:
-        if not exp.isValid():
-            label = ''
-        else:
-            label = _expressionConverter.walkExpression(exp.rootNode())
+        label = _expressionConverter.convert(exp)
     except UnsupportedExpressionException as e:
         _warnings.append(str(e))
-        label = ""
+
+    if label is None:
+        label = ''  # default to empty string if expression is bad
+
     symbolizer.update({"color": color,
                        "font": font,
                        "label": label,
@@ -470,7 +467,7 @@ def processExpression(expstr):
     try:
         if expstr:
             exp = QgsExpression(expstr)
-            return _expressionConverter.walkExpression(exp.rootNode())
+            return _expressionConverter.convert(exp)
         else:
             return None
     except UnsupportedExpressionException as e:
