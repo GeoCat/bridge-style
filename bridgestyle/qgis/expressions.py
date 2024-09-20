@@ -260,7 +260,7 @@ class ExpressionConverter:
             result = left.eval(parent, self.context)
             if isinstance(result, str):
                 # If the evaluated result is a string, then retOp should become OGC_CONCAT.
-                # TODO: this approach may result in multiple nested Concatenate expressions!
+                # TODO: because a 3-item list is returned, this may result in multiple nested Concatenate expressions!
                 retOp = OGC_CONCAT
 
         retLeft = self._walk(left, parent)

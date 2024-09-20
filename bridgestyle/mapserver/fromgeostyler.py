@@ -3,6 +3,7 @@ import os
 from ..qgis.expressions import (
     OGC_PROPERTYNAME,
     OGC_IS_EQUAL_TO,
+    OGC_CONCAT,
     OGC_SUB
 )
 
@@ -97,6 +98,7 @@ func = {
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
     "Add": "+",
+    OGC_CONCAT: "+",
     OGC_SUB: "-",
     "Mul": "*",
     "Div": "/",
