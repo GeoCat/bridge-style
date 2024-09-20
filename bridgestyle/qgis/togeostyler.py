@@ -194,14 +194,15 @@ def colorMap(renderer):
             mapEntries.append({"color": entry[1].name(), "quantity": float(entry[0]),
                                "opacity": entry[1].alphaF(), "label": entry[0]})
     elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-        rampType = "ramp"
+        cm_type = "ramp"
         shader = renderer.shader().rasterShaderFunction()
-        colorRampType = shader.colorRampType
-        if colorRampType == QgsColorRampShader.Exact:
-            rampType = "values"
-        elif colorRampType == QgsColorRampShader.Discrete:
-            rampType = "intervals"
-        colMap["type"] = rampType
+        if isinstance(shader, QgsColorRampShader):
+            shader_type = shader.colorRampType()
+            if shader_type == QgsColorRampShader.Exact:
+                cm_type = "values"
+            elif shader_type == QgsColorRampShader.Discrete:
+                cm_type = "intervals"
+        colMap["type"] = cm_type
         items = shader.colorRampItemList()
         for item in items:
             mapEntries.append({"color": item.color.name(), "quantity": item.value,
@@ -213,12 +214,10 @@ def colorMap(renderer):
             mapEntries.append({"color": c.color.name(), "quantity": c.value,
                                "label": c.label, "opacity": c.color.alphaF()})
     elif isinstance(renderer, QgsMultiBandColorRenderer):
-        _warnings.append("Unsupported raster renderer class: '%s'" %
-                         str(renderer))  # TODO
+        _warnings.append(f"Unsupported raster renderer class: '{str(renderer)}'")  # TODO
         return None
     else:
-        _warnings.append(
-            "Unsupported raster renderer class: '%s'" % str(renderer))
+        _warnings.append(f"Unsupported raster renderer class: '{str(renderer)}'")
         return None
 
     colMap["extended"] = True
