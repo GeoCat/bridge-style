@@ -1,5 +1,5 @@
 import os
-import re
+from re import compile
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -13,6 +13,8 @@ from ..qgis.expressions import (
 from .transformations import processTransformation
 from ..version import __version__
 from ..geostyler.custom_properties import WellKnownText
+
+REGEX_NONWORDCHARS = compile(r'\W')
 
 _warnings = []
 
@@ -87,7 +89,7 @@ def _replaceSpecialCharacters(replacement, text=""):
     """
     Replace all characters that are not matching one of [a-zA-Z0-9_].
     """
-    return re.sub('[^\w]', replacement, text)
+    return REGEX_NONWORDCHARS.sub(replacement, text)
 
 
 def _createSymbolizers(symbolizers) -> list:

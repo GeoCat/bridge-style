@@ -4,7 +4,7 @@ try:
     from qgis.core import (
         QgsExpressionNode, QgsExpression, QgsExpressionNodeBinaryOperator,
         QgsMapLayer, QgsVectorLayer, QgsFeatureRequest, QgsExpressionContext,
-        QgsExpressionContextUtils, QgsFields
+        QgsExpressionContextUtils, QgsFields, QgsFeature
     )
 except (ImportError, ModuleNotFoundError):
     QgsExpressionNodeBinaryOperator = None
@@ -150,18 +150,13 @@ class ExpressionConverter:
 
         self.layer = layer
 
-        if not isinstance(layer, QgsVectorLayer):
-            # Can't sample features from non-vector layers
-            return
-
-        feature = next(layer.getFeatures(QgsFeatureRequest().setFilterFid(0)))
+        feature = self._get_feature(layer)
         if feature is None:
-            # Empty layer: can't get a feature
-            self.warnings.add(f"Layer '{layer.name()}' contains no features")
+            # Not a vector layer or no features found
             return
 
         # Get fields
-        self.fields = layer.fields()
+        self.fields = feature.fields()
 
         # Set context to the first feature
         try:
@@ -171,6 +166,27 @@ class ExpressionConverter:
             self.context = context
         except Exception as e:
             self.warnings.add(f"Can't get expression context for layer '{layer.name()}': {str(e)}")
+
+    def _get_feature(self, layer: QgsMapLayer) -> Optional[QgsFeature]:
+        """ Returns the first feature of the given vector layer, or None if there aren't any. """
+        if not isinstance(layer, QgsVectorLayer):
+            # Can't sample features from non-vector layers
+            return None
+
+        try:
+            feature = None
+            for ft in layer.getFeatures(QgsFeatureRequest().setLimit(10)):
+                # Sample 10 features and use the first valid one
+                if ft and ft.isValid():
+                    feature = ft
+                    break
+            if not feature:
+                raise ValueError("no valid feature found")
+        except Exception as e:
+            self.warnings.add(f"Can't get sample feature for layer '{layer.name()}': {str(e)}")
+            return None
+
+        return feature
 
     def __del__(self):
         """ Cleans up the expression converter instance. """
