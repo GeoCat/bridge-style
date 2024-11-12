@@ -879,10 +879,11 @@ def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=T
     value = pt_to_px(float(obj.get(prop)))
     return value if asFloat else round(value)
 
+
 def processScaleDenominator(minimumScale, maximumScale):
     scaleDenominator = {}
-    if minimumScale is not None:
+    if isinstance(minimumScale, (int, float)):
         scaleDenominator["max"] = minimumScale
-    if maximumScale is not None:
+    if isinstance(maximumScale, (int, float)):
         scaleDenominator["min"] = maximumScale
     return scaleDenominator
