@@ -400,7 +400,7 @@ def _iconSymbolizer(sl):
 
 
 def _markSymbolizer(sl):
-    shape = sl.get('shape')
+    shape = sl.get('wellKnownName')
     if shape != None and shape.startswith("file://"):
         svgFilename = shape.split("//")[-1]
         name = os.path.splitext(svgFilename)[0]
