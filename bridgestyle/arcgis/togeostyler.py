@@ -73,6 +73,13 @@ def processLayer(layer, options=None):
         if rotation:
             for rule in rules:
                 [symbolizer.update({"rotate": rotation}) for symbolizer in rule["symbolizers"]]
+        scaleDenominator = processScaleDenominator(
+            layer.get("minScale"), layer.get("maxScale")
+        )
+        if scaleDenominator is not {}:
+            for rule in rules:
+                if not rule.get("scaleDenominator"):
+                    rule["scaleDenominator"] = scaleDenominator
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
