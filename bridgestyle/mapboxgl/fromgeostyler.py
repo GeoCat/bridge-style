@@ -71,9 +71,10 @@ def toSpriteSheet(allSprites):
     img, img2x, painter, painter2x, spritesheet, spritesheet2x = qgis2geostyler.initSpriteSheet(width, height)
     x = 0
     for name, _sprites in allSprites.items():
+        name_without_ext = os.path.splitext(name)[0]
         s = _sprites["image"]
         s2x = _sprites["image2x"]
-        qgis2geostyler.drawSpriteSheet(name, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
+        qgis2geostyler.drawSpriteSheet(name_without_ext, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
         x += s.width()
     painter.end()
     painter2x.end()
