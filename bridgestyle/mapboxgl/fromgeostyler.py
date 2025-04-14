@@ -402,9 +402,8 @@ def _iconSymbolizer(sl):
 
 def _markSymbolizer(sl):
     shape = sl.get('wellKnownName')
-    if shape != None and shape.startswith("file://"):
-        svgFilename = shape.split("//")[-1]
-        name = os.path.splitext(svgFilename)[0]
+    if shape != None and shape != "circle":
+        name = os.path.splitext(shape)[0]
         rotation = _symbolProperty(sl, "rotate")
         size = _symbolProperty(sl, "size", 16) / 64.0
 

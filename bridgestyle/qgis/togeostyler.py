@@ -783,10 +783,10 @@ def _markGraphic(sl):
     spriteName = ""
     try:
         path = sl.path()
-        spriteName = os.path.basename(path)
+        name = os.path.basename(path)
+        spriteName = name.replace(":", "_").replace("/", "_")
         _usedIcons[sl.path()] = sl
         _usedSprites[spriteName] = _createSprite(sl)
-        name = "file://" + os.path.basename(path)
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
@@ -797,8 +797,6 @@ def _markGraphic(sl):
         if outlineStyle == "no":
             outlineWidth = 0
         spriteName = name.replace(":", "_").replace("/", "_")
-        spriteName = spriteName + "-{0}-{1}-{2}-{3}-{4}" \
-            .format(color, fillOpacity, outlineColor, strokeOpacity, outlineWidth)
         _usedSprites[spriteName] = _createSprite(sl)
 
     mark = {"kind": "Mark",
