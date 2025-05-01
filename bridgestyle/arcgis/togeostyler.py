@@ -56,6 +56,9 @@ def processLayer(layer, options=None):
             and renderer.get("classBreakType") in ["GraduatedColor", "GraduatedSymbol"]
         ):
             rules.extend(processClassBreaksRenderer(renderer, options))
+        
+        elif renderer["type"] == "CIMChartRenderer":
+            rules.extend(processChartRenderer(renderer, options))
         else:
             _warnings.append("Unsupported renderer type: %s" % str(renderer))
             return geostyler
@@ -124,6 +127,85 @@ def processClassBreaksRenderer(renderer, options):
         rules.reverse()
         for index, rule in enumerate(rules):
             rule["symbolizers"] = symbolsAscending[index]
+    return rules
+
+
+def processChartRenderer(renderer, options):
+    rules = []
+
+    # Basic setup for chart renderer
+    to_lower = options.get("tolowercase", False)
+    fields = renderer.get("fieldNames", [])
+    norm_fields = [f.lower() if to_lower else f for f in fields]
+
+    rotation = _getSymbolRotationFromVisualVariables(renderer, to_lower)
+
+    symbol_layers = renderer.get("chartSymbol", {}).get("symbol", {}).get("symbolLayers", [])
+    chart_layer = next(
+        (
+            ly
+            for ly in symbol_layers
+            if ly.get("type")
+            in {"CIMPieChartMarker", "CIMBarChartMarker", "CIMStackedBarChartMarker"}
+        ),
+        None
+    )
+    if not chart_layer:
+        return rules # unsupported chart layer
+
+    # colors & opacities
+    fill_colors = []
+    opacities = []
+    for part in chart_layer.get("parts", []):
+        polygon_symbol = part.get("polygonSymbol", {})
+        fill = next(
+            (
+                sl for sl in polygon_symbol.get("symbolLayers", [])
+                if sl.get("type") == "CIMSolidFill" and sl.get("enable", True)
+            ),
+            None,
+        )
+        color = fill.get("color") if fill else None
+        fill_colors.append(_processColor(color).lstrip("#") if color else "000000")
+        opacities.append(_processOpacity(color) if color else 1.0)
+
+    avg_opacity = sum(opacities) / len(opacities) if opacities else 1.0
+
+    # build Image-Chart expression
+    total_expr = "(" + " + ".join(norm_fields) + ")"
+    expr_list = [f"${{100 * {fld} / {total_expr}}}" for fld in norm_fields]
+
+    if chart_layer["type"] == "CIMPieChartMarker":
+        chart_type = "p3"
+        chart_data = ",".join(expr_list)
+    elif chart_layer["type"] == "CIMBarChartMarker":
+        chart_type = "bvg"
+        chart_data = "|".join(expr_list)
+    else:  # CIMStackedBarChartMarker
+        chart_type = "bvs"
+        chart_data = "|".join(expr_list)
+
+    chart_url = (
+        f"http://chart?"
+        f"cht={chart_type}"
+        f"&chd=t:{chart_data}"
+        f"&chco={','.join(fill_colors)}"
+        f"&chf=bg,s,FFFFFF00"
+    )
+    if chart_type in {"bvg", "bvs"}:  # bar charts need bar-width param
+        chart_url += "&chbh=a,1,2"
+
+    # Final symbolizer & rule
+    symbolizer = {
+        "kind": "Icon",
+        "image": chart_url,
+        "size": chart_layer.get("size", 24),
+        "opacity": round(avg_opacity, 2),
+        "format": "application/chart",
+        "rotate": rotation or 0,
+    }
+
+    rules.append({"name": "Chart", "symbolizers": [symbolizer]})
     return rules
 
 
