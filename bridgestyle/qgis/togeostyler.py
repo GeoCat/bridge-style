@@ -609,7 +609,7 @@ def _createSymbolizer(sl, opacity):
         symbolizer = _linePatternFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsSvgMarkerSymbolLayer):
         symbolizer = _svgMarkerSymbolizer(sl, opacity)
-    elif isinstance(sl, QgsRasterMarkerSymbolLayer):
+    elif type(sl) is QgsRasterMarkerSymbolLayer:  # only support this exact class but no derived classes (e.g. QgsAnimatedMarkerSymbolLayer)
         symbolizer = _rasterImageMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsGeometryGeneratorSymbolLayer):
         symbolizer = _geomGeneratorSymbolizer(sl, opacity)

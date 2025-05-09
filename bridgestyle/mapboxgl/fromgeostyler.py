@@ -48,6 +48,7 @@ def convertGroup(group, qgis_layers, baseUrl, workspace, name):
     for layername in group["layers"]:
         layer = qgis_layers[layername]
         geostyler, icons, sprites, warnings = qgis2geostyler.convert(layer)
+        allWarnings.extend(warnings)
         allSprites.update(sprites)  # combine/accumulate sprites
         geostylers[layername] = geostyler
         mbox, mbWarnings = convert(geostyler, None)
