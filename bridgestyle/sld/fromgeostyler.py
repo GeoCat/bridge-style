@@ -453,13 +453,25 @@ def _svgGraphic(sl):
 
 
 def _rasterImageGraphic(sl):
-    path = os.path.basename(sl["image"])
+    path = sl.get("image", "")
+    fmt = sl.get("format")
+
+    if not path.startswith(("http://", "https://")):
+        path = os.path.basename(path)
+
     externalGraphic = Element("ExternalGraphic")
-    attrib = {"xlink:type": "simple", "xlink:href": path}
-    SubElement(externalGraphic, "OnlineResource", attrib=attrib)
-    _addSubElement(
-        externalGraphic, "Format", "image/%s" % os.path.splitext(path)[1][1:]
+    SubElement(
+        externalGraphic,
+        "OnlineResource",
+        attrib={"xlink:type": "simple", "xlink:href": path},
     )
+
+    if fmt:
+        _addSubElement(externalGraphic, "Format", fmt)
+    else:
+        ext = os.path.splitext(path)[1][1:] or "png"
+        _addSubElement(externalGraphic, "Format", f"image/{ext}")
+
     return externalGraphic
 
 
