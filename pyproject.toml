@@ -1,0 +1,23 @@
+[project]
+name = "bridgestyle"
+authors = [
+    {name = "GeoCat BV", email = "volaya@geocat.net"},
+]
+description = "A Python library to convert between different map style formats"
+keywords = ["GeoCat", "Bridge", "style", "symbology", "styling", "mapping", "SLD", "cartography",
+              "Mapfile", "CIM", "GeoStyler", "Mapbox", "QGIS", "GeoServer", "Esri"]
+license = {text = "MIT"}
+dynamic = ["version", "readme"]
+
+[project.urls]
+Repository = "https://github.com/GeoCat/bridge-style"
+
+[project.scripts]
+style2style = "bridgestyle.style2style:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "bridgestyle.__version__"}
+readme = {file = ["README.rst", "CHANGES.rst"]}
+
+[tool.zest-releaser]
+python-file-with-version = "src/bridgestyle/version.py"
