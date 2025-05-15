@@ -21,3 +21,4 @@ readme = {file = ["README.md", "CHANGES.md"]}
 
 [tool.zest-releaser]
 python-file-with-version = "src/bridgestyle/version.py"
+history-file = "CHANGES.md"
