@@ -17,7 +17,7 @@ style2style = "bridgestyle.style2style:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "bridgestyle.__version__"}
-readme = {file = ["README.rst", "CHANGES.rst"]}
+readme = {file = ["README.md", "CHANGES.md"]}
 
 [tool.zest-releaser]
 python-file-with-version = "src/bridgestyle/version.py"
