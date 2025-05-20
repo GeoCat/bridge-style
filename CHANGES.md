@@ -1,7 +1,7 @@
 Changelog of bridge-style
 =========================
 
-## 0.1.2 (unreleased)
+## 0.1.3 (unreleased)
 ---------------------
 
 - Use `pyproject.toml` instead of `setup.py`
