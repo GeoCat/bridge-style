@@ -24,4 +24,3 @@ python-file-with-version = "src/bridgestyle/version.py"
 history-file = "CHANGES.md"
 release = false
 upload-pypi = false
-extra-message = "[ci skip]"
