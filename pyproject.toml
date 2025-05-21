@@ -6,7 +6,7 @@ authors = [
 description = "A Python library to convert between different map style formats"
 keywords = ["GeoCat", "Bridge", "style", "symbology", "styling", "mapping", "SLD", "cartography",
               "Mapfile", "CIM", "GeoStyler", "Mapbox", "QGIS", "GeoServer", "Esri"]
-license = {text = "MIT"}
+license = "MIT"
 dynamic = ["version", "readme"]
 
 [project.urls]
