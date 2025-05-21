@@ -56,5 +56,4 @@ jobs:
       - name: Upload Release Assets to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.TEST_PYPI_UPLOAD_TOKEN }}
-          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.PYPI_UPLOAD_TOKEN }}
