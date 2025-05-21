@@ -22,6 +22,6 @@ readme = {file = ["README.md", "CHANGES.md"]}
 [tool.zest-releaser]
 python-file-with-version = "src/bridgestyle/version.py"
 history-file = "CHANGES.md"
-release = true
+release = false
 upload-pypi = false
 extra-message = "[ci skip]"
