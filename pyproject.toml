@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bridgestyle"
 authors = [
-    {name = "GeoCat BV", email = "volaya@geocat.net"},
+    {name = "GeoCat BV", email = "bridge@geocat.net"},
 ]
 description = "A Python library to convert between different map style formats"
 keywords = ["GeoCat", "Bridge", "style", "symbology", "styling", "mapping", "SLD", "cartography",
