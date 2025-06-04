@@ -764,15 +764,33 @@ def processSymbolLayer(layer, symboltype, options):
 
         rotate = layer.get("rotation", 0)
         size = _ptToPxProp(layer, "height", _ptToPxProp(layer, "size", 0))
-        return {
-            "opacity": 1.0,
-            "rotate": 0.0,
-            "kind": "Icon",
-            "color": None,
-            "image": url,
-            "size": size,
-            "Z": 0,
-        }
+        if layer["type"] == "CIMPictureFill":
+            return {
+                "kind": "Fill",
+                "opacity": 1.0,
+                "graphicFill": [
+                    {
+                        "opacity": 1.0,
+                        "rotate": 0.0,
+                        "kind": "Icon",
+                        "color": None,
+                        "image": url,
+                        "size": size,
+                        "Z": 0,
+                    }
+                ],
+                "Z": 0,
+                }
+        else:
+            return {
+                "opacity": 1.0,
+                "rotate": 0.0,
+                "kind": "Icon",
+                "color": None,
+                "image": url,
+                "size": size,
+                "Z": 0,
+            }
     else:
         return None
 
