@@ -1,7 +1,7 @@
 Bridgestyle Changelog
 =====================
 
-0.1.3 (first official PyPI release 🥳)
+## 0.1.3 (2025-06-24)
 --------------------------------------
 - Updated README
 - Changes related to PyPI package (thanks @elisalle):
