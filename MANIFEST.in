@@ -1,6 +1,10 @@
-# Don't include tests since they do not work, just src and docs
+# Include all necessary files for packaging
 graft src
 graft docs
+include *.md
+
+# Exclude test directories (they do not work)
+prune test
 
 # Exclude byte-compiled code
 prune __pycache__
