@@ -38,10 +38,10 @@ Because symbology formats are very different and the software they are intended 
 
 To find out what the *exact* limitations are, you will have to check the code... 😥
 
-However, there is a [document for QGIS](docs/qgis.md) that lists the QGIS symbology features that are (not) supported by the GeoStyler format.
+However, there is a [document for QGIS](https://github.com/GeoCat/bridge-style/blob/master/docs/qgis.md) that lists the QGIS symbology features that are (not) supported by the GeoStyler format.
 For more elaborate information, you can consult the [GeoCat Bridge for QGIS documentation](https://geocat.github.io/qgis-bridge-plugin/latest/supported_symbology.html).
 
-If you wish to convert ArcGIS Pro `.lyrx` files into SLD, you may want to read [this document](docs/arcgis.md). There are also some notes on [MapServer](docs/mapserver.md).
+If you wish to convert ArcGIS Pro `.lyrx` files into SLD, you may want to read [this document](https://github.com/GeoCat/bridge-style/blob/master/docs/arcgis.md). There are also some notes on [MapServer](https://github.com/GeoCat/bridge-style/blob/master/docs/mapserver.md).
 
 ## Installation
 
@@ -113,7 +113,7 @@ style2style /my/path/input.geostyler /my/path/output.sld
 
 ## Contributing
 
-If you would like to contribute to `bridgestyle` in any way, please read the [contributing guidelines](/CONTRIBUTING.md).
+If you would like to contribute to `bridgestyle` in any way, please read the [contributing guidelines](https://github.com/GeoCat/bridge-style/blob/master/CONTRIBUTING.md).
 
 Some of the things you can do to help are:
 - Fix bugs and issues
