@@ -706,6 +706,11 @@ def processSymbolLayer(layer, symboltype, options):
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
         wellKnowName = _hatchMarkerForAngle(rotation)
+        # separation is distance between lines, for diagonal lines, it is along the orthogonal axis,
+        # so we need to multiply it by sqrt(2) to get the size of the separation
+        if "slash" in wellKnowName:
+            size = size * math.sqrt(2)
+        offset = _extractOffset(layer)
         fill = {
             "kind": "Fill",
             "opacity": 1.0,
@@ -718,6 +723,7 @@ def processSymbolLayer(layer, symboltype, options):
                     "strokeColor": color,
                     "strokeWidth": width,
                     "rotate": 0,
+                    "offset": offset
                 }
             ],
             "Z": 0,
@@ -817,10 +823,11 @@ def _orientedMarkerAtEndOfLine(markerPlacement):
 
 
 def _extractOffset(symbolLayer):
-    # Arcgis looks to apply a strange factor.
+    # Offsets in ArcGIS are in points, but we need them in pixels. Also, they are orientated same as in SLD
+    # (x points to the right, y points up). Finally, Arcgis looks to apply a strange factor.
     offset_x = _ptToPxProp(symbolLayer, "offsetX", 0) * OFFSET_FACTOR
-    offset_y = _ptToPxProp(symbolLayer, "offsetY", 0) * OFFSET_FACTOR * -1
-    if offset_x == 0 and offset_y != 0:
+    offset_y = _ptToPxProp(symbolLayer, "offsetY", 0) * OFFSET_FACTOR
+    if offset_x == 0 and offset_y == 0:
         return None
     return [offset_x, offset_y]
 
