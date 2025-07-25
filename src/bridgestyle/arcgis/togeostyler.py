@@ -568,6 +568,43 @@ def _esriFontToStandardSymbols(charindex):
         return "circle"
 
 
+def apply_color_substitution(image_data, substitutions):
+    try:
+        from PIL import Image
+        from io import BytesIO
+    except ImportError:
+        # Optional: emit logging warning instead of print
+        print("Warning: Pillow is not installed. Skipping color substitution.")
+        return image_data
+
+    try:
+        original_image = Image.open(BytesIO(image_data))
+        image = original_image.convert("RGBA")
+        pixels = image.load()
+
+        color_map = {}
+        for sub in substitutions:
+            old = _hexToRGB(_processColor(sub["oldColor"]))
+            new = _hexToRGB(_processColor(sub["newColor"]))
+            color_map[old] = new
+
+        width, height = image.size
+        for x in range(width):
+            for y in range(height):
+                r, g, b, a = pixels[x, y]
+                if (r, g, b) in color_map:
+                    nr, ng, nb = color_map[(r, g, b)]
+                    pixels[x, y] = (nr, ng, nb, a)
+
+        output = BytesIO()
+        # Use PNG as Python writes in BGR order, but Java cannot read it
+        image.save(output, format="PNG")
+        return output.getvalue()
+
+    except Exception as e:
+        print(f"Warning: Failed to apply color substitution: {e}")
+        return None
+
 def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
     if layer["type"] == "CIMSolidStroke":
@@ -760,11 +797,16 @@ def processSymbolLayer(layer, symboltype, options):
                     "bridgestyle",
                     str(uuid.uuid4()).replace("-", ""),
                 )
+                image = base64.decodebytes(data.encode())
+                colorSubstitutions = layer.get("colorSubstitutions")
+                if colorSubstitutions:
+                    image = apply_color_substitution(image, colorSubstitutions)
+                    ext = "png" # Color substitution requires PNG format
                 iconName = f"{str(uuid.uuid4())}.{ext}"
                 iconFile = os.path.join(path, iconName)
                 os.makedirs(path, exist_ok=True)
                 with open(iconFile, "wb") as f:
-                    f.write(base64.decodebytes(data.encode()))
+                    f.write(image)
                     _usedIcons.append(iconFile)
                 url = iconFile
 
@@ -887,7 +929,11 @@ def _processColor(color):
         return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
     else:
         return "#000000"
-
+    
+def _hexToRGB(hex_string):
+    """Convert '#rrggbb' to (r, g, b) tuple."""
+    hex_string = hex_string.lstrip("#")
+    return tuple(int(hex_string[i:i+2], 16) for i in (0, 2, 4))    
 
 def _cmyk2Rgb(cmyk_array):
     c = cmyk_array[0]
