@@ -395,10 +395,16 @@ def processSymbolReference(symbolref, options):
             "CIMCharacterMarker",
         ]:
             if symbol["type"] == "CIMLineSymbol":
-                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
-                    symbolizer = _processOrientedMarkerAtEndOfLine(layer, options)
-                    # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
-                    # so we include this symbol only on the map and not in the legend
+                # Functions "xyzPoint" and "xyzAngle" are not supported in the legend in GeoServer,
+                # so we include this symbol only on the map and not in the legend (using inclusion: "mapOnly")
+                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 1):
+                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "end", options)
+                    symbolizer["inclusion"] = "mapOnly"
+                elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0.5):
+                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "mid", options)
+                    symbolizer["inclusion"] = "mapOnly"
+                elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0):
+                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "start", options)
                     symbolizer["inclusion"] = "mapOnly"
                 else:
                     symbolizer = _formatLineSymbolizer(symbolizer)
@@ -442,7 +448,7 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         }
     return symbolizer
 
-def _processOrientedMarkerAtEndOfLine(layer, options):
+def _processOrientedMarkerAtFunctionfLine(layer, functionPrefix, options):
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -470,13 +476,13 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         "strokeColor": strokeColor,
         "strokeOpacity": strokeOpacity,
         "strokeWidth": strokeWidth,
-        "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+        "rotate": ["Add", [f"{functionPrefix}Angle", ["geometry"]], rotation],
         "kind": "Mark",
         "color": fillColor,
         "wellKnownName": name,
         "size": _ptToPxProp(layer, "size", 10),
         "Z": 0,
-        "Geometry": ["endPoint", ["PropertyName", "shape"]],
+        "Geometry": [f"{functionPrefix}Point", ["geometry"]],
     }
 
 
@@ -759,6 +765,7 @@ def processSymbolLayer(layer, symboltype, options):
                     "size": size,
                     "strokeColor": color,
                     "strokeWidth": width,
+                    "cap": "round",
                     "rotate": 0,
                     "offset": offset
                 }
@@ -858,9 +865,9 @@ def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
     return None
 
 
-def _orientedMarkerAtEndOfLine(markerPlacement):
+def _orientedMarkerAtRatioOfLine(markerPlacement, ratio):
     if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+        return markerPlacement["positionArray"] == [ratio] and markerPlacement["angleToLine"]
     return False
 
 
