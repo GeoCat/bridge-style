@@ -1,8 +1,9 @@
 import json
 import math
 import os
+from typing import Optional
 
-from .expressions import walkExpression, UnsupportedExpressionException
+from .expressions import ExpressionConverter, UnsupportedExpressionException
 
 try:
     from qgis.core import *
@@ -10,11 +11,6 @@ try:
     from qgis.PyQt.QtGui import QColor, QImage, QPainter
 except:
     QPainter = None
-
-# Globals
-_usedIcons = {}
-_usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
-_warnings = []
 
 # Constants
 NO_ICON = "no_icon"
@@ -56,23 +52,21 @@ SHAPE_NAMES = {
     "cross_filled": "shape://plus"
 }
 
-
-class ExpressionConverter:
-    layer = None
-
-    def walkExpression(self, node):
-        return walkExpression(node, self.layer)
-
-
-_expressionConverter = ExpressionConverter()
+# Global variable
+_expressionConverter: Optional[ExpressionConverter] = None
+_usedIcons = {}
+_usedSprites = {}  # sprite name -> {"image":Image, "image2x":Image}
+_warnings = []
 
 
 def convert(layer, options=None):
-    global _usedIcons, _usedSprites
+    """ Main entry point for converting a QGIS layer to a GeoStyler style. """
+    global _usedIcons, _usedSprites, _warnings
+
     _usedIcons = {}
     _usedSprites = {}
-    global _warnings
     _warnings = []
+
     geostyler = processLayer(layer)
     if geostyler is None:
         geostyler = {"name": layer.name()}
@@ -81,12 +75,17 @@ def convert(layer, options=None):
 
 
 def processLayer(layer):
-    _expressionConverter.layer = layer
+    global _expressionConverter
+
+    _expressionConverter = ExpressionConverter(layer)
 
     geostyler = {"name": layer.name()}
     if layer.type() == layer.VectorLayer:
         rules = []
         renderer = layer.renderer()
+        if renderer is None:
+            _warnings.append("No renderer found for layer: %s" % layer.name())
+            return
         if isinstance(renderer, QgsHeatmapRenderer):
             symbolizer, transformation = heatmapRenderer(renderer)
             if symbolizer and transformation:
@@ -168,7 +167,6 @@ def channelSelection(renderer):
     # handle a WMS layer -- this is wrong, but it throws exceptions...
     if isinstance(renderer, QgsSingleBandColorDataRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.usesBands()[0])}}
-
     if isinstance(renderer, QgsSingleBandGrayRenderer):
         return {"grayChannel": {"sourceChannelName": str(renderer.grayBand())}}
     elif isinstance(renderer, (QgsSingleBandPseudoColorRenderer, QgsPalettedRasterRenderer)):
@@ -199,14 +197,15 @@ def colorMap(renderer):
             mapEntries.append({"color": entry[1].name(), "quantity": float(entry[0]),
                                "opacity": entry[1].alphaF(), "label": entry[0]})
     elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-        rampType = "ramp"
+        cm_type = "ramp"
         shader = renderer.shader().rasterShaderFunction()
-        colorRampType = shader.colorRampType
-        if colorRampType == QgsColorRampShader.Exact:
-            rampType = "values"
-        elif colorRampType == QgsColorRampShader.Discrete:
-            rampType = "intervals"
-        colMap["type"] = rampType
+        if isinstance(shader, QgsColorRampShader):
+            shader_type = shader.colorRampType()
+            if shader_type == QgsColorRampShader.Exact:
+                cm_type = "values"
+            elif shader_type == QgsColorRampShader.Discrete:
+                cm_type = "intervals"
+        colMap["type"] = cm_type
         items = shader.colorRampItemList()
         for item in items:
             mapEntries.append({"color": item.color.name(), "quantity": item.value,
@@ -218,12 +217,10 @@ def colorMap(renderer):
             mapEntries.append({"color": c.color.name(), "quantity": c.value,
                                "label": c.label, "opacity": c.color.alphaF()})
     elif isinstance(renderer, QgsMultiBandColorRenderer):
-        _warnings.append("Unsupported raster renderer class: '%s'" %
-                         str(renderer))  # TODO
+        _warnings.append(f"Unsupported raster renderer class: '{str(renderer)}'")  # TODO
         return None
     else:
-        _warnings.append(
-            "Unsupported raster renderer class: '%s'" % str(renderer))
+        _warnings.append(f"Unsupported raster renderer class: '{str(renderer)}'")
         return None
 
     colMap["extended"] = True
@@ -325,15 +322,17 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
         symbolizer.update({"offset": [offsetX, offsetY],
                            "anchor": anchor,
                            "rotate": rotation})
+
+    label = None
     exp = settings.getLabelExpression()
     try:
-        if not exp.isValid():
-            label = ''
-        else:
-            label = _expressionConverter.walkExpression(exp.rootNode())
+        label = _expressionConverter.convert(exp)
     except UnsupportedExpressionException as e:
         _warnings.append(str(e))
-        label = ""
+
+    if label is None:
+        label = ''  # default to empty string if expression is bad
+
     symbolizer.update({"color": color,
                        "font": font,
                        "label": label,
@@ -345,8 +344,16 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     if filter is not None:
         result["filter"] = filter
 
-    if hasattr(labeling, 'dependsOnScale') and labeling.dependsOnScale():
+    # labels rendering scale-based visibility
+    scale = None
+    if settings.scaleVisibility:
+        scale = {"max": settings.minimumScale, "min": settings.maximumScale}
+    elif hasattr(labeling, 'dependsOnScale') and labeling.dependsOnScale():
         scale = processRuleScale(labeling)
+    elif layer.hasScaleBasedVisibility():
+        scale = processRuleScale(layer)
+        
+    if scale:
         result["scaleDenominator"] = scale
 
     return result
@@ -462,7 +469,7 @@ def processExpression(expstr):
     try:
         if expstr:
             exp = QgsExpression(expstr)
-            return _expressionConverter.walkExpression(exp.rootNode())
+            return _expressionConverter.convert(exp)
         else:
             return None
     except UnsupportedExpressionException as e:
@@ -471,7 +478,7 @@ def processExpression(expstr):
 
 
 def _cast(v):
-    if isinstance(v, basestring):
+    if isinstance(v, str):
         try:
             return float(v)
         except:
@@ -545,17 +552,25 @@ def _toHexColorQColor(qcolor):
         return qcolor
 
 
-def _toHexColor(color):
+def _rgba(color) -> tuple:
+    """ Returns an R,G,B,A integer tuple from a symbolizer color property. May raise exceptions! """
+    # Color should be a string like '50,95,40,255' (RGBA), but in later QGIS versions, it may be
+    # '50,95,40,255,rgb:0.19607843137254902,0.37254901960784315,0.15686274509803921,1'
+    values = str(color).split(",")
+    return tuple(map(int, values[:4]))
+
+
+def _toHexColor(color) -> str:
     try:
-        r, g, b, a = str(color).split(",")
+        r, g, b, a = _rgba(color)
         return '#%02x%02x%02x' % (int(r), int(g), int(b))
     except:
         return color
 
 
-def _opacity(color):
+def _opacity(color) -> float:
     try:
-        r, g, b, a = str(color).split(",")
+        a = _rgba(color)[-1]
         return float(a) / 255.
     except:
         return 1.0
@@ -594,7 +609,7 @@ def _createSymbolizer(sl, opacity):
         symbolizer = _linePatternFillSymbolizer(sl, opacity)
     elif isinstance(sl, QgsSvgMarkerSymbolLayer):
         symbolizer = _svgMarkerSymbolizer(sl, opacity)
-    elif isinstance(sl, QgsRasterMarkerSymbolLayer):
+    elif type(sl) is QgsRasterMarkerSymbolLayer:  # only support this exact class but no derived classes (e.g. QgsAnimatedMarkerSymbolLayer)
         symbolizer = _rasterImageMarkerSymbolizer(sl, opacity)
     elif isinstance(sl, QgsGeometryGeneratorSymbolLayer):
         symbolizer = _geomGeneratorSymbolizer(sl, opacity)
@@ -653,7 +668,15 @@ def _lineSymbolizer(sl, opacity):
                   "cap": cap,
                   "join": join
                   }
-    if lineStyle != "solid":
+    if lineStyle =='dot':
+        symbolizer["dasharray"] = "3 5"
+    elif lineStyle =='dash':
+        symbolizer["dasharray"] = "8 5"
+    elif lineStyle =='dash dot':
+        symbolizer["dasharray"] = "8 5 3 5"
+    elif lineStyle =='dash dot dot':
+        symbolizer["dasharray"] = "8 5 3 5 3 5"
+    elif lineStyle != "solid":
         symbolizer["dasharray"] = "5 2"
     return symbolizer
 
@@ -739,9 +762,9 @@ def _createSprite(sl):
     newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
 
     sl.setSize(SPRITE_SIZE)
-    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
     sl.setSize(SPRITE_SIZE * 2)
-    img2x = newSymbol.asImage(QSize(sl.size(), sl.size()))
+    img2x = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
 
     return {"image": img, "image2x": img2x}
 
@@ -760,10 +783,10 @@ def _markGraphic(sl):
     spriteName = ""
     try:
         path = sl.path()
-        spriteName = os.path.basename(path)
+        name = os.path.basename(path)
+        spriteName = name.replace(":", "_").replace("/", "_")
         _usedIcons[sl.path()] = sl
         _usedSprites[spriteName] = _createSprite(sl)
-        name = "file://" + os.path.basename(path)
         outlineStyle = "solid"
         size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
     except:
@@ -774,8 +797,6 @@ def _markGraphic(sl):
         if outlineStyle == "no":
             outlineWidth = 0
         spriteName = name.replace(":", "_").replace("/", "_")
-        spriteName = spriteName + "-{0}-{1}-{2}-{3}-{4}" \
-            .format(color, fillOpacity, outlineColor, strokeOpacity, outlineWidth)
         _usedSprites[spriteName] = _createSprite(sl)
 
     mark = {"kind": "Mark",
@@ -790,7 +811,15 @@ def _markGraphic(sl):
     if spriteName != "":
         mark["spriteName"] = spriteName
 
-    if outlineStyle not in ["solid", "no"]:
+    if outlineStyle =='dot':
+        mark["outlineDasharray"] = "3 5"
+    elif outlineStyle =='dash':
+        mark["outlineDasharray"] = "8 5"
+    elif outlineStyle =='dash dot':
+        mark["outlineDasharray"] = "8 5 3 5"
+    elif outlineStyle =='dash dot dot':
+        mark["outlineDasharray"] = "8 5 3 5 3 5"
+    elif outlineStyle not in  ["solid", "no"]:
         mark["outlineDasharray"] = "5 2"
 
     return mark
@@ -888,13 +917,23 @@ def _simpleFillSymbolizer(sl, opacity):
     outlineOpacity = _opacity(props["outline_color"])
     outlineStyle = _symbolProperty(
         sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
+    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.PropertyJoinStyle)
     if outlineStyle != "no":
         outlineWidth = _symbolProperty(
             sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
         symbolizer.update({"outlineColor": outlineColor,
                            "outlineWidth": outlineWidth,
-                           "outlineOpacity": outlineOpacity})
-    if outlineStyle not in ["solid", "no"]:
+                           "outlineOpacity": outlineOpacity,
+                           "join": join})
+    if outlineStyle =='dot':
+        symbolizer["outlineDasharray"] = "3 5"
+    elif outlineStyle =='dash':
+        symbolizer["outlineDasharray"] = "8 5"
+    elif outlineStyle =='dash dot':
+        symbolizer["outlineDasharray"] = "8 5 3 5"
+    elif outlineStyle =='dash dot dot':
+        symbolizer["outlineDasharray"] = "8 5 3 5 3 5"
+    elif outlineStyle not in  ["solid", "no"]:
         symbolizer["outlineDasharray"] = "5 2"
 
     x, y = sl.offset().x(), sl.offset().y()
@@ -919,7 +958,7 @@ def saveSymbolLayerSprite(symbolLayer):
     sl2x = sl.clone()
     try:
         sl.setSize(64)
-        sl2x.setSize(sl.size() * 2)
+        sl2x.setSize(int(sl.size()) * 2)
     except AttributeError:
         return None, None
     newSymbol = QgsMarkerSymbol()
@@ -932,8 +971,8 @@ def saveSymbolLayerSprite(symbolLayer):
     newSymbol2x.deleteSymbolLayer(0)
     newSymbol2x.setSizeUnit(QgsUnitTypes.RenderPixels)
 
-    img = newSymbol.asImage(QSize(sl.size(), sl.size()))
-    img2x = newSymbol2x.asImage(QSize(sl2x.size(), sl2x.size()))
+    img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
+    img2x = newSymbol2x.asImage(QSize(int(sl2x.size()), int(sl2x.size())))
     return img, img2x
 
 

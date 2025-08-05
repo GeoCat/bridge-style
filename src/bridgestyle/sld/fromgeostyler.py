@@ -1,5 +1,5 @@
 import os
-import re
+from re import compile
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -13,7 +13,8 @@ from ..qgis.expressions import (
 from .transformations import processTransformation
 from ..version import __version__
 from ..geostyler.custom_properties import WellKnownText
-from.parsecdata import _serialize_xml
+
+REGEX_NONWORDCHARS = compile(r'\W')
 
 _warnings = []
 
@@ -23,7 +24,7 @@ def convert(geostyler, options=None):
     _warnings = []
     attribs = {
         "version": "1.0.0",
-        "xsi:schemaLocation": "http://www.opengis.net/sld StyledLayerDescriptor.xsd",
+        "xsi:schemaLocation": "http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd",
         "xmlns": "http://www.opengis.net/sld",
         "xmlns:ogc": "http://www.opengis.net/ogc",
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
@@ -88,10 +89,10 @@ def _replaceSpecialCharacters(replacement, text=""):
     """
     Replace all characters that are not matching one of [a-zA-Z0-9_].
     """
-    return re.sub('[^\w]', replacement, text)
+    return REGEX_NONWORDCHARS.sub(replacement, text)
 
 
-def _createSymbolizers(symbolizers):
+def _createSymbolizers(symbolizers) -> list:
     sldSymbolizers = []
     for sl in symbolizers:
         symbolizer = _createSymbolizer(sl)
@@ -454,13 +455,25 @@ def _svgGraphic(sl):
 
 
 def _rasterImageGraphic(sl):
-    path = os.path.basename(sl["image"])
+    path = sl.get("image", "")
+    fmt = sl.get("format")
+
+    if not path.startswith(("http://", "https://")):
+        path = os.path.basename(path)
+
     externalGraphic = Element("ExternalGraphic")
-    attrib = {"xlink:type": "simple", "xlink:href": path}
-    SubElement(externalGraphic, "OnlineResource", attrib=attrib)
-    _addSubElement(
-        externalGraphic, "Format", "image/%s" % os.path.splitext(path)[1][1:]
+    SubElement(
+        externalGraphic,
+        "OnlineResource",
+        attrib={"xlink:type": "simple", "xlink:href": path},
     )
+
+    if fmt:
+        _addSubElement(externalGraphic, "Format", fmt)
+    else:
+        ext = os.path.splitext(path)[1][1:] or "png"
+        _addSubElement(externalGraphic, "Format", f"image/{ext}")
+
     return externalGraphic
 
 
@@ -591,6 +604,9 @@ def handleOperator(exp):
 
 def handleFunction(exp):
     name = operatorToFunction.get(exp[0], exp[0])
+    if name == "to_string" and len(exp) == 2:
+        # Special case: SLD/OGC does not know a "cast to string" function
+        return handleLiteral(exp[1])
     elem = Element("ogc:Function", name=name)
     if len(exp) > 1:
         for arg in exp[1:]:

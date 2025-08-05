@@ -1,0 +1,11 @@
+# Include all necessary files for packaging
+graft src
+graft docs
+include *.md
+
+# Exclude test directories (they do not work)
+prune test
+
+# Exclude byte-compiled code
+prune __pycache__
+recursive-exclude * *.py[co]

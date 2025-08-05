@@ -59,6 +59,9 @@ def processLayer(layer, options=None):
             and renderer.get("classBreakType") in ["GraduatedColor", "GraduatedSymbol"]
         ):
             rules.extend(processClassBreaksRenderer(renderer, options))
+        
+        elif renderer["type"] == "CIMChartRenderer":
+            rules.extend(processChartRenderer(renderer, options))
         else:
             _warnings.append("Unsupported renderer type: %s" % str(renderer))
             return geostyler
@@ -134,6 +137,117 @@ def processClassBreaksRenderer(renderer, options):
         rules.reverse()
         for index, rule in enumerate(rules):
             rule["symbolizers"] = symbolsAscending[index]
+    return rules
+
+
+def processChartRenderer(renderer, options):
+    rules = []
+
+    # Basic setup for chart renderer
+    to_lower = options.get("tolowercase", False)
+    fields = renderer.get("fieldNames", [])
+    norm_fields = [f.lower() if to_lower else f for f in fields]
+
+    if not norm_fields:
+        _warnings.append(
+            "CIMChartRenderer skipped: fieldNames list is empty; "
+            "chart cannot be generated."
+        )
+        return rules
+
+    symbol_layers = renderer.get("chartSymbol", {}).get("symbol", {}).get("symbolLayers", [])
+    chart_layer = next(
+        (
+            ly for ly in symbol_layers
+            if ly.get("type") in {"CIMPieChartMarker", "CIMBarChartMarker", "CIMStackedBarChartMarker"}
+        ),
+        None
+    )
+    if not chart_layer:
+        _warnings.append(
+            "CIMChartRenderer skipped: unsupported symbol layer "
+            "(only CIMPieChartMarker, CIMBarChartMarker, or CIMStackedBarChartMarker are handled)."
+        )
+        return rules
+
+    # Colors & opacities
+    fill_colors = []
+    opacities = []
+
+    for part in chart_layer.get("parts", []):
+        polygon_symbol = part.get("polygonSymbol", {})
+        fill_layer = next(
+            (
+                sl for sl in polygon_symbol.get("symbolLayers", [])
+                if sl.get("type") == "CIMSolidFill" and sl.get("enable", True)
+            ),
+            None,
+        )
+        color = fill_layer.get("color") if fill_layer else None
+        fill_colors.append(_processColor(color).lstrip("#") if color else "000000")
+        opacities.append(_processOpacity(color) if color else 1.0)
+
+    avg_opacity = sum(opacities) / len(opacities) if opacities else 1.0
+
+    # Build Image-Chart expression
+    total_expr = "(" + " + ".join(norm_fields) + ")"
+    expr_list = [f"${{100 * {fld} / {total_expr}}}" for fld in norm_fields]
+
+    if chart_layer["type"] == "CIMPieChartMarker":
+        chart_type = "p3"
+        chart_data = ",".join(expr_list)
+    elif chart_layer["type"] == "CIMBarChartMarker":
+        chart_type = "bvg"
+        chart_data = "|".join(expr_list)
+    else:  # CIMStackedBarChartMarker
+        chart_type = "bvs"
+        chart_data = "|".join(expr_list)
+
+    # Size clamping (Esri → Image‑Charts)
+    base_size = chart_layer.get("size", 40)
+    if chart_type in {"bvg", "bvs"}:
+        default_size = max(min(base_size + 10, 80), 48)
+    else:  # pie
+        default_size = max(min(base_size, 60), 32)
+
+    # Build image‑charts URL
+    chart_url = (
+        f"http://chart?"
+        f"cht={chart_type}"
+        f"&chd=t:{chart_data}"
+        f"&chco={','.join(fill_colors)}"
+        f"&chf=bg,s,FFFFFF00"
+    )
+
+    if chart_type == "p3":
+        # Rotation only on pie charts (chp) → prefer explicit rotation on the layer; else fall back to visual variable
+        rotation_fallback = _getSymbolRotationFromVisualVariables(renderer, to_lower)
+        rotation_deg = chart_layer.get("rotation", rotation_fallback or 0)
+        chp_deg = (rotation_deg + 180) % 360  # chp is clockwise from 3 o’clock, so add 180 deg
+        chp_rad = round(math.radians(chp_deg), 4)
+        chart_url += f"&chp={chp_rad}"
+    elif chart_type in {"bvg", "bvs"}:  # bar charts need bar‑width param
+        chart_url += "&chbh=a,1,2"
+
+    # Final symbolizer & rule
+    chart_symbolizer = {
+        "kind": "Icon",
+        "image": chart_url,
+        "size": default_size,
+        "opacity": round(avg_opacity, 2),
+        "format": "application/chart",
+    }
+
+    # Include base symbolizers if a baseSymbol is present
+    base_symbolizers = []
+    if "baseSymbol" in renderer:
+        base_symbolizers = processSymbolReference(renderer["baseSymbol"], options)
+
+    rules.append({
+        "name": "Chart",
+        "symbolizers": base_symbolizers + [chart_symbolizer],
+    })
+
     return rules
 
 

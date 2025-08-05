@@ -8,12 +8,12 @@ from ..qgis.expressions import (
     OGC_PROPERTYNAME,
     OGC_IS_EQUAL_TO,
     OGC_IS_NULL,
+    OGC_IS_NOT_NULL,
     OGC_SUB
 )
 
 # Globals
 _warnings = []
-_processTextSymbolizer = False
 
 # Constants
 SOURCE_NAME = "vector-source"
@@ -48,6 +48,7 @@ def convertGroup(group, qgis_layers, baseUrl, workspace, name):
     for layername in group["layers"]:
         layer = qgis_layers[layername]
         geostyler, icons, sprites, warnings = qgis2geostyler.convert(layer)
+        allWarnings.extend(warnings)
         allSprites.update(sprites)  # combine/accumulate sprites
         geostylers[layername] = geostyler
         mbox, mbWarnings = convert(geostyler, None)
@@ -71,9 +72,10 @@ def toSpriteSheet(allSprites):
     img, img2x, painter, painter2x, spritesheet, spritesheet2x = qgis2geostyler.initSpriteSheet(width, height)
     x = 0
     for name, _sprites in allSprites.items():
+        name_without_ext = os.path.splitext(name)[0]
         s = _sprites["image"]
         s2x = _sprites["image2x"]
-        qgis2geostyler.drawSpriteSheet(name, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
+        qgis2geostyler.drawSpriteSheet(name_without_ext, painter, painter2x, spritesheet, spritesheet2x, x, s, s2x)
         x += s.width()
     painter.end()
     painter2x.end()
@@ -87,6 +89,8 @@ def convert(geostyler, options=None):
     _warnings = []
     layers = processLayer(geostyler)
     layers.sort(key=lambda l: l["Z"])
+    [l.pop('Z', None) for l in layers]
+    layers.sort(key=lambda l: l["type"]=="symbol")
     obj = {
         "version": 8,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
@@ -195,7 +199,8 @@ func = {
     "PropertyIsGreaterThanOrEqualTo": ">=",
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
-    OGC_IS_NULL: "has",
+    OGC_IS_NULL: "!",
+    OGC_IS_NOT_NULL: "has",
     "Add": "+",
     OGC_SUB: "-",
     "Mul": "*",
@@ -221,8 +226,11 @@ func = {
     "log": "ln",
     "strCapitalize": None,
     "min": "min",
-    "max": "max"
-}  # TODO
+    "max": "max",
+    "parseLong": "to-number",
+    "parseDouble": "to-number",
+    "to_string": "to-string",
+}
 
 
 def convertExpression(exp):
@@ -234,11 +242,16 @@ def convertExpression(exp):
             _warnings.append("Unsupported expression function for mapbox conversion: '%s'" % exp[0])
             return None
         else:
-            convertedExp = [funcName]
-            if funcName == "has" and isinstance(exp[1], list):
+            if funcName == "!" and isinstance(exp[1], list):
                 # Special case to add "is null" support
+                convertedExp = [func.get("Not", None)]
+                convertedExp.append(["has", convertExpression(exp[1][-1])])
+            elif funcName == "has" and isinstance(exp[1], list):
+                # Special case to add "is not null" support
+                convertedExp = [funcName]
                 convertedExp.append(convertExpression(exp[1][-1]))
             else:
+                convertedExp = [funcName]
                 for arg in exp[1:]:
                     convertedExp.append(convertExpression(arg))
             return convertedExp
@@ -284,8 +297,6 @@ def _symbolProperty(sl, name, default=None):
 
 
 def _textSymbolizer(sl):
-    if not _processTextSymbolizer:
-        return None
     layout = {}
     paint = {}
     color = _symbolProperty(sl, "color")
@@ -336,6 +347,7 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
     offset = _symbolProperty(sl, "offset")
 
     paint = {}
+    layout = {}
     if graphicStroke is not None:
         _warnings.append("Marker lines not supported for Mapbox GL conversion")
         # TODO
@@ -346,12 +358,14 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         paint["line-width"] = width
         paint["line-opacity"] = opacity
         paint["line-color"] = color
+        layout["line-cap"] = cap
+        layout["line-join"] = join
     if isinstance(dasharray, str):
         paint["line-dasharray"] = _parseSpaceArray(dasharray)
     if offset is not None:
         paint["line-offset"] = offset
 
-    return {"type": "line", "paint": paint}
+    return {"type": "line", "paint": paint, "layout": layout}
 
 
 def number(string):
@@ -388,49 +402,43 @@ def _iconSymbolizer(sl):
 
 
 def _markSymbolizer(sl):
-    paint = {}
-    paint["icon-image"] = _symbolProperty(sl, "spriteName")
+    shape = sl.get('wellKnownName')
+    if shape != None and shape != "circle":
+        name = os.path.splitext(shape)[0]
+        rotation = _symbolProperty(sl, "rotate")
+        size = _symbolProperty(sl, "size", 16) / 64.0
 
-    rotation = _symbolProperty(sl, "rotate")
-    paint["icon-rotate"] = rotation
+        paint = {}
+        paint["icon-image"] = name
+        paint["icon-rotate"] = rotation
+        paint["icon-size"] = size
 
-    size = _symbolProperty(sl, "size", 16) / 64.0
-    paint["icon-size"] = size
-    return {"type": "symbol", "layout": paint}
-    # if shape.startswith("file://"):
-    #     svgFilename = shape.split("//")[-1]
-    #     name = os.path.splitext(svgFilename)[0]
-    #     paint = {}
-    #     paint["icon-image"] = name
-    #     rotation = _symbolProperty(sl, "rotate")
-    #     paint["icon-rotate"] = rotation
-    #
-    #     size = _symbolProperty(sl, "size", 16)/64.0
-    #     paint["icon-size"] = size
-    #
-    #     #paint["icon-rotate"] = rotation
-    #     return {"type": "symbol", "layout": paint}
-    # else:
-    #     size = _symbolProperty(sl, "size")
-    #     opacity = _symbolProperty(sl, "opacity")
-    #     color = _symbolProperty(sl, "color")
-    #     outlineColor = _symbolProperty(sl, "strokeColor")
-    #     outlineWidth = _symbolProperty(sl, "strokeWidth")
-    #
-    #     paint = {}
-    #     paint["circle-radius"] = ["/", size, 2]
-    #     paint["circle-color"] = color
-    #     paint["circle-opacity"] = opacity
-    #     paint["circle-stroke-width"] = outlineWidth
-    #     paint["circle-stroke-color"] = outlineColor
-    #
-    #     return {"type": "circle", "layout": paint}
+        return {"type": "symbol", "layout": paint}
+    else:
+        size = _symbolProperty(sl, "size")
+        opacity = _symbolProperty(sl, "opacity")
+        color = _symbolProperty(sl, "color")
+        outlineColor = _symbolProperty(sl, "strokeColor")
+        outlineWidth = _symbolProperty(sl, "strokeWidth")
+        dasharray    = _symbolProperty(sl, "dasharray")
+    
+        paint = {}
+        paint["circle-radius"] = ["/", size, 2]
+        paint["circle-color"] = color
+        paint["circle-opacity"] = opacity
+        paint["circle-stroke-width"] = outlineWidth
+        paint["circle-stroke-color"] = outlineColor
+    
+        return {"type": "circle", "paint": paint}
 
 
 def _fillSymbolizer(sl):
     paint = {}
     opacity = _symbolProperty(sl, "opacity")
     color = sl.get("color", None)
+    dasharray = _symbolProperty(sl, "outlineDasharray")
+    join = _symbolProperty(sl, "join")
+    offset = _symbolProperty(sl, "offset")
     graphicFill = sl.get("graphicFill", None)
     if graphicFill is not None:
         _warnings.append("Marker fills not supported for Mapbox GL conversion")
@@ -453,7 +461,14 @@ def _fillSymbolizer(sl):
                     "line-width": _symbolProperty(sl, "outlineWidth") or 1,
                     "line-opacity": (_symbolProperty(sl, "outlineOpacity") or 1) * opacity,
                     "line-color": outlineColor
+                },
+                "layout":{
+                    "line-join": join
                 }}
+        if isinstance(dasharray, str):
+            line['paint']["line-dasharray"] = _parseSpaceArray(dasharray)
+        if offset is not None:
+            line['paint']["line-offset"] = offset
     if line:
         return [fill, line]
     return fill
