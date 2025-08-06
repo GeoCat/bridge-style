@@ -946,6 +946,9 @@ def _processColor(color):
         return "#%02x%02x%02x" % (int(r), int(g), int(b))
     elif color["type"] == "CIMGrayColor":
         return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
+    elif color["type"] == "CIMLABColor":
+        r, g, b = _lab2rgb(values)
+        return "#%02x%02x%02x" % (int(r), int(g), int(b))
     else:
         return "#000000"
 
@@ -989,6 +992,74 @@ def _hsv2rgb(hsv_array):
         return (t, p, v)
     if i == 5:
         return (v, p, q)
+
+
+def _lab2rgb(lab_array):
+    """
+    Convert CIMLABColor values to RGB.
+    LAB values: [L, a, b, opacity] where L=0-100, a and b typically -128 to +127
+    """
+    L = lab_array[0]
+    a = lab_array[1] 
+    b = lab_array[2]
+    
+    # Convert LAB to XYZ
+    # Reference white D65
+    Xn = 95.047
+    Yn = 100.000
+    Zn = 108.883
+    
+    fy = (L + 16) / 116
+    fx = a / 500 + fy
+    fz = fy - b / 200
+    
+    # Convert to XYZ
+    epsilon = 0.008856
+    kappa = 903.3
+    
+    if fy ** 3 > epsilon:
+        Y = Yn * fy ** 3
+    else:
+        Y = Yn * (116 * fy - 16) / kappa
+        
+    if fx ** 3 > epsilon:
+        X = Xn * fx ** 3
+    else:
+        X = Xn * (116 * fx - 16) / kappa
+        
+    if fz ** 3 > epsilon:
+        Z = Zn * fz ** 3
+    else:
+        Z = Zn * (116 * fz - 16) / kappa
+    
+    # Convert XYZ to RGB (sRGB)
+    # Normalize to [0,1] range
+    X /= 100
+    Y /= 100
+    Z /= 100
+    
+    # sRGB matrix transformation
+    R = X * 3.2406 + Y * -1.5372 + Z * -0.4986
+    G = X * -0.9689 + Y * 1.8758 + Z * 0.0415
+    B = X * 0.0557 + Y * -0.2040 + Z * 1.0570
+    
+    # Gamma correction
+    def gamma_correct(c):
+        if c > 0.0031308:
+            return 1.055 * (c ** (1 / 2.4)) - 0.055
+        else:
+            return 12.92 * c
+    
+    R = gamma_correct(R)
+    G = gamma_correct(G)
+    B = gamma_correct(B)
+    
+    # Clamp to 0-255 range
+    R = max(0, min(255, R * 255))
+    G = max(0, min(255, G * 255))
+    B = max(0, min(255, B * 255))
+    
+    return (R, G, B)
 
 
 def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=True) -> Union[float, int]:
