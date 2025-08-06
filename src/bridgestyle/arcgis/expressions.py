@@ -1,5 +1,7 @@
 # For now, this is limited to compound labels using the python, VB or Arcade syntax
+import re
 from ..geostyler.custom_properties import WellKnownText
+from .constants import PROPERTY_NAME_PATTERN
 
 
 def convertExpression(expression, engine, tolowercase):
@@ -15,9 +17,7 @@ def convertExpression(expression, engine, tolowercase):
         addends = []
         for token in tokens:
             if "[" in token:
-                addends.append(
-                    ["PropertyName", processPropertyName(token)]
-                )
+                addends.append(["PropertyName", processPropertyName(token)])
             else:
                 literal = token.replace('"', "")
                 addends.append(replaceSpecialLiteral(literal))
@@ -44,12 +44,16 @@ def convertArcadeExpression(expression):
     return expression.replace("$feature.", "")
 
 
+def isValidPropertyName(token):
+    return bool(PROPERTY_NAME_PATTERN.match(token))
+
+
 def stringToParameter(s, tolowercase):
     s = s.strip()
     if "'" in s or '"' in s:
         return s.strip("'\"")
     else:
-        if s.isalpha():
+        if isValidPropertyName(s):
             if tolowercase:
                 s = s.lower()
             return ["PropertyName", s]
@@ -60,12 +64,12 @@ def stringToParameter(s, tolowercase):
 # For now, limited to = or IN statements
 # There is no formal parsing, just a naive conversion
 def convertWhereClause(clause, tolowercase):
-    clause = clause.replace("(", "").replace(")", "")
+    if clause.startswith("(") and clause.endswith(")"):
+        clause = clause[1:-1]
     if " AND " in clause:
         expression = ["And"]
         subexpressions = [s.strip() for s in clause.split(" AND ")]
-        expression.extend([convertWhereClause(s, tolowercase)
-                          for s in subexpressions])
+        expression.extend([convertWhereClause(s, tolowercase) for s in subexpressions])
         return expression
     if "=" in clause:
         tokens = [t.strip() for t in clause.split("=")]
@@ -122,8 +126,7 @@ def processRotationExpression(expression, rotationType, tolowercase):
         field = convertArcadeExpression(expression)
     else:
         field = processPropertyName(expression)
-    propertyNameExpression = ["PropertyName",
-                              field.lower() if tolowercase else field]
+    propertyNameExpression = ["PropertyName", field.lower() if tolowercase else field]
     if rotationType == "Arithmetic":
         return [
             "Mul",

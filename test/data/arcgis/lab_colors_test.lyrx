@@ -1,0 +1,145 @@
+{
+  "type": "CIMLayerDocument",
+  "version": "3.2.0",
+  "build": 49743,
+  "layers": [
+    "CIMPATH=map/lab_test_layer.json"
+  ],
+  "layerDefinitions": [
+    {
+      "type": "CIMFeatureLayer",
+      "name": "LAB Color Test Layer",
+      "uRI": "CIMPATH=map/lab_test_layer.json",
+      "useSourceMetadata": true,
+      "description": "Test layer for LAB color conversion",
+      "expanded": true,
+      "layerType": "Operational",
+      "showLegends": true,
+      "visibility": true,
+      "featureTable": {
+        "type": "CIMFeatureTable",
+        "displayField": "value",
+        "dataConnection": {
+          "type": "CIMStandardDataConnection",
+          "workspaceConnectionString": "DATABASE=test",
+          "workspaceFactory": "Shapefile",
+          "dataset": "lab_test_data",
+          "datasetType": "esriDTFeatureClass"
+        }
+      },
+      "renderer": {
+        "type": "CIMClassBreaksRenderer",
+        "classBreakType": "GraduatedColor",
+        "field": "temperature",
+        "breaks": [
+          {
+            "type": "CIMClassBreak",
+            "label": "Cold (Dark Green)",
+            "symbol": {
+              "type": "CIMSymbolReference",
+              "symbol": {
+                "type": "CIMPolygonSymbol",
+                "symbolLayers": [
+                  {
+                    "type": "CIMSolidFill",
+                    "enable": true,
+                    "color": {
+                      "type": "CIMLABColor",
+                      "values": [
+                        40.859999999999999,
+                        -51.189999999999998,
+                        41.390000000000001,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "upperBound": -5.0
+          },
+          {
+            "type": "CIMClassBreak", 
+            "label": "Medium (Medium Green)",
+            "symbol": {
+              "type": "CIMSymbolReference",
+              "symbol": {
+                "type": "CIMPolygonSymbol",
+                "symbolLayers": [
+                  {
+                    "type": "CIMSolidFill",
+                    "enable": true,
+                    "color": {
+                      "type": "CIMLABColor",
+                      "values": [
+                        61.159999999999997,
+                        -40.0,
+                        58.109999999999999,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "upperBound": 0.0
+          },
+          {
+            "type": "CIMClassBreak",
+            "label": "Warm (Yellow)",
+            "symbol": {
+              "type": "CIMSymbolReference",
+              "symbol": {
+                "type": "CIMPolygonSymbol",
+                "symbolLayers": [
+                  {
+                    "type": "CIMSolidFill",
+                    "enable": true,
+                    "color": {
+                      "type": "CIMLABColor",
+                      "values": [
+                        86.209999999999994,
+                        4.75,
+                        82.189999999999998,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "upperBound": 5.0
+          },
+          {
+            "type": "CIMClassBreak",
+            "label": "Hot (Red)",
+            "symbol": {
+              "type": "CIMSymbolReference",
+              "symbol": {
+                "type": "CIMPolygonSymbol",
+                "symbolLayers": [
+                  {
+                    "type": "CIMSolidFill", 
+                    "enable": true,
+                    "color": {
+                      "type": "CIMLABColor",
+                      "values": [
+                        58.270000000000003,
+                        71.879999999999995,
+                        68.379999999999995,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "upperBound": 10.0
+          }
+        ],
+        "minimumBreak": -10.0,
+        "showInAscendingOrder": true
+      }
+    }
+  ]
+}

@@ -6,7 +6,10 @@ import uuid
 from typing import Union
 
 
-from .constants import ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, pt_to_px
+from .constants import (
+    ESRI_SYMBOLS_FONT, POLYGON_FILL_RESIZE_FACTOR, OFFSET_FACTOR, MarkerPlacementAngle,
+    MarkerPlacementPosition, pt_to_px
+    )
 from .expressions import convertExpression, convertWhereClause, processRotationExpression
 from .wkt_geometries import to_wkt
 
@@ -73,10 +76,17 @@ def processLayer(layer, options=None):
         if rotation:
             for rule in rules:
                 [symbolizer.update({"rotate": rotation}) for symbolizer in rule["symbolizers"]]
+        scaleDenominator = processScaleDenominator(
+            layer.get("minScale"), layer.get("maxScale")
+        )
+        if scaleDenominator is not {}:
+            for rule in rules:
+                if not rule.get("scaleDenominator"):
+                    rule["scaleDenominator"] = scaleDenominator
 
         geostyler["rules"] = rules
     elif layer["type"] == "CIMRasterLayer":
-        _warnings.append('CIMRasterLayer are not supported yet.')
+        _warnings.append("CIMRasterLayer are not supported yet.")
         # rules = [{"name": layer["name"], "symbolizers": [rasterSymbolizer(layer)]}]
         # geostyler["rules"] = rules
 
@@ -123,7 +133,7 @@ def processClassBreaksRenderer(renderer, options):
         }
         symbolsAscending.append(symbolizers)
         rules.append(ruledef)
-    if not renderer.get('showInAscendingOrder', True):
+    if not renderer.get("showInAscendingOrder", True):
         rules.reverse()
         for index, rule in enumerate(rules):
             rule["symbolizers"] = symbolsAscending[index]
@@ -245,9 +255,9 @@ def processLabelClass(labelClass, tolowercase=False):
     textSymbol = labelClass["textSymbol"]["symbol"]
     expression = convertExpression(labelClass["expression"], labelClass["expressionEngine"], tolowercase)
     fontFamily = textSymbol.get("fontFamilyName", "Arial")
-    fontSize = _ptToPxProp(textSymbol, 'height', 12, True)
+    fontSize = _ptToPxProp(textSymbol, "height", 12, True)
     color = _extractFillColor(textSymbol["symbol"]["symbolLayers"])
-    fontWeight = textSymbol.get("fontStyleName", "Regular")
+    fontWeight = _extractFontWeight(textSymbol)
     rotationProps = labelClass.get("maplexLabelPlacementProperties", {}).get(
         "rotationProperties", {}
     )
@@ -260,6 +270,7 @@ def processLabelClass(labelClass, tolowercase=False):
         "font": fontFamily,
         "label": expression,
         "size": fontSize,
+        "weight": fontWeight,
     }
 
     stdProperties = labelClass.get("standardLabelPlacementProperties", {})
@@ -309,13 +320,7 @@ def processLabelClass(labelClass, tolowercase=False):
 
     rule = {"name": "", "symbolizers": [symbolizer]}
 
-    scaleDenominator = {}
-    minimumScale = labelClass.get("minimumScale")
-    if minimumScale is not None:
-        scaleDenominator = {"max": minimumScale}
-    maximumScale = labelClass.get("maximumScale")
-    if maximumScale is not None:
-        scaleDenominator = {"min": maximumScale}
+    scaleDenominator = processScaleDenominator(labelClass.get("minimumScale"), labelClass.get("maximumScale"))
     if scaleDenominator:
         rule["scaleDenominator"] = scaleDenominator
 
@@ -341,7 +346,7 @@ def processUniqueValueGroup(fields, group, options):
 
     def _or(listConditions):
         orConditions = listConditions
-        orConditions.insert(0, 'Or')
+        orConditions.insert(0, "Or")
         return orConditions
 
     def _equal(name, val):
@@ -361,6 +366,7 @@ def processUniqueValueGroup(fields, group, options):
         rule = {"name": clazz.get("label", "label")}
         values = clazz["values"]
         conditions = []
+        ruleFilter = None
         for v in values:
             if "fieldValues" in v:
                 fieldValues = v["fieldValues"]
@@ -373,7 +379,25 @@ def processUniqueValueGroup(fields, group, options):
 
             rule["filter"] = ruleFilter
             rule["symbolizers"] = processSymbolReference(clazz["symbol"], options)
+            scaleDenominator = processScaleDenominator(
+                clazz["symbol"].get("minScale"),
+                clazz["symbol"].get("maxScale"),
+                )
+            if scaleDenominator:
+                rule["scaleDenominator"] = scaleDenominator
             rules.append(rule)
+        for symbolRef in clazz.get("alternateSymbols", []):
+            altRule = {"name": rule["name"]}
+            if ruleFilter:
+                altRule["filter"] = ruleFilter
+            altRule["symbolizers"] = processSymbolReference(symbolRef, options)
+            scaleDenominator = processScaleDenominator(
+                symbolRef.get("minScale"),
+                symbolRef.get("maxScale"),
+                )
+            if scaleDenominator:
+                altRule["scaleDenominator"] = scaleDenominator
+            rules.append(altRule)
 
     return rules
 
@@ -395,11 +419,14 @@ def processSymbolReference(symbolref, options):
             "CIMCharacterMarker",
         ]:
             if symbol["type"] == "CIMLineSymbol":
-                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
-                    symbolizer = _processOrientedMarkerAtEndOfLine(layer, options)
-                    # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
-                    # so we include this symbol only on the map and not in the legend
-                    symbolizer["inclusion"] = "mapOnly"
+                if layer["type"] == "CIMCharacterMarker":
+                    if _orientedMarkerAtStartOfLine(layer["markerPlacement"]):
+                        symbolizer = _processOrientedMarkerAtEndOfLine(layer, 'start', options)
+                        symbolizers.append(symbolizer)
+                    if _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
+                        symbolizer = _processOrientedMarkerAtEndOfLine(layer, 'end', options)
+                        symbolizers.append(symbolizer)
+                    continue
                 else:
                     symbolizer = _formatLineSymbolizer(symbolizer)
             elif symbol["type"] == "CIMPolygonSymbol":
@@ -442,7 +469,17 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         }
     return symbolizer
 
-def _processOrientedMarkerAtEndOfLine(layer, options):
+def _processOrientedMarkerAtEndOfLine(layer, orientedMarker, options):
+    if orientedMarker == 'start':
+        markerPositionFnc = MarkerPlacementPosition.START.value
+        markerRotationFnc = MarkerPlacementAngle.START.value
+        rotation = layer.get("rotation", 0) + 180
+    elif orientedMarker == 'end':
+        markerPositionFnc = MarkerPlacementPosition.END.value
+        markerRotationFnc = MarkerPlacementAngle.END.value
+        rotation = layer.get("rotation", 0)
+    else:
+        return
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -451,13 +488,11 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         name = _esriFontToStandardSymbols(charindex)
     else:
         name = "ttf://%s#%s" % (fontFamily, hexcode)
-    rotation = layer.get("rotation", 0)
     try:
         symbolLayers = layer["symbol"]["symbolLayers"]
         fillColor = _extractFillColor(symbolLayers)
         fillOpacity = _extractFillOpacity(symbolLayers)
-        strokeOpacity = _extractStrokeOpacity(symbolLayers)
-        strokeColor, strokeWidth = _extractStroke(symbolLayers)
+        strokeColor, strokeWidth, strokeOpacity = _extractStroke(symbolLayers)
     except KeyError:
         fillColor = "#000000"
         fillOpacity = 1.0
@@ -470,33 +505,45 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         "strokeColor": strokeColor,
         "strokeOpacity": strokeOpacity,
         "strokeWidth": strokeWidth,
-        "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+        "rotate": ["Add", [markerRotationFnc, ["PropertyName", "shape"]], rotation],
         "kind": "Mark",
         "color": fillColor,
         "wellKnownName": name,
         "size": _ptToPxProp(layer, "size", 10),
         "Z": 0,
-        "Geometry": ["endPoint", ["PropertyName", "shape"]],
+        "Geometry": [markerPositionFnc, ["PropertyName", "shape"]],
+        # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
+        # so we include this symbol only on the map and not in the legend
+        "inclusion": "mapOnly",
     }
 
 
 def processMarkerPlacementInsidePolygon(symbolizer, markerPlacement):
     # In case of markers in a polygon fill, it seems ArcGIS does some undocumented resizing of the marker.
     # We use an empirical factor to account for this, which works in most cases (but not all)
+    if symbolizer.get("wellKnownName").startswith("wkt://POLYGON"):
+        resize_factor = 1
+    else:
+        resize_factor = POLYGON_FILL_RESIZE_FACTOR
     # Size is already in pixel.
-    size = round(symbolizer.get("size", 0) * POLYGON_FILL_RESIZE_FACTOR)
+    # Avoid null values and force them to 1 px
+    size = round(symbolizer.get("size", 0) * resize_factor) or 1
     symbolizer["size"] = size
     # We use SLD graphic-margin as top, right, bottom, left to mimic the combination of
     # ArcGIS stepX, stepY, offsetX, offsetY
     if symbolizer.get("maxX") and symbolizer.get("maxY"):
         # MaxX and MaxY are a custom property for shapes and already in px.
-        maxX = math.floor(symbolizer["maxX"] * POLYGON_FILL_RESIZE_FACTOR)
-        maxY = math.floor(symbolizer["maxY"] * POLYGON_FILL_RESIZE_FACTOR)
+        maxX = math.floor(symbolizer["maxX"] * resize_factor) or 1
+        maxY = math.floor(symbolizer["maxY"] * resize_factor) or 1
     else:
         maxX = size / 2
         maxY = size / 2
     stepX = _ptToPxProp(markerPlacement, "stepX", 0)
     stepY = _ptToPxProp(markerPlacement, "stepY", 0)
+    if stepX < maxX:
+        stepX += maxX * 2
+    if stepY < maxY:
+        stepY += maxY * 2
     offsetX = _ptToPxProp(markerPlacement, "offsetX", 0)
     offsetY = _ptToPxProp(markerPlacement, "offsetY", 0)
     right = round(stepX / 2 - maxX - offsetX)
@@ -518,12 +565,16 @@ def _processEffect(effect):
     ptToPxAndCeil = lambda v : math.ceil(pt_to_px(v))
     if effect["type"] == "CIMGeometricEffectDashes":
         dasharrayValues = list(map(ptToPxAndCeil, effect.get("dashTemplate",[])))
+        if len(dasharrayValues) > 1:
+            return {
+                "dasharrayValues": dasharrayValues,
+                "dasharray": " ".join(str(v) for v in dasharrayValues)
+            }
+    elif effect["type"] == "CIMGeometricEffectOffset":
         return {
-            "dasharrayValues": dasharrayValues,
-            "dasharray": " ".join(str(v) for v in dasharrayValues)
+            "offset": ptToPxAndCeil(effect.get("offset", 0)) * -1
         }
-    else:
-        return {}
+    return {}
 
 
 def _getStraightHatchMarker():
@@ -593,6 +644,8 @@ def processSymbolLayer(layer, symboltype, options):
             }
             if "dasharray" in effects:
                 stroke["dasharray"] = effects["dasharray"]
+            if "offset" in effects:
+                stroke["perpendicularOffset"] = effects["offset"]
         return stroke
     elif layer["type"] == "CIMSolidFill":
         color = layer.get("color")
@@ -621,8 +674,7 @@ def processSymbolLayer(layer, symboltype, options):
             symbolLayers = layer["symbol"]["symbolLayers"]
             fillColor = _extractFillColor(symbolLayers)
             fillOpacity = _extractFillOpacity(symbolLayers)
-            strokeOpacity = _extractStrokeOpacity(symbolLayers)
-            strokeColor, strokeWidth = _extractStroke(symbolLayers)
+            strokeColor, strokeWidth, strokeOpacity = _extractStroke(symbolLayers)
         except KeyError:
             fillColor = "#000000"
             fillOpacity = 1.0
@@ -645,8 +697,8 @@ def processSymbolLayer(layer, symboltype, options):
         }
 
     elif layer["type"] == "CIMVectorMarker":
-        if layer['size']:
-            layer['size'] = _ptToPxProp(layer, "size", 3)
+        if layer.get("size"):
+            layer["size"] = _ptToPxProp(layer, "size", 3)
         # Default values
         fillColor = "#ff0000"
         strokeColor = "#000000"
@@ -662,8 +714,8 @@ def processSymbolLayer(layer, symboltype, options):
             marker = processSymbolReference(markerGraphic, {})[0]
             sublayers = [sublayer for sublayer in markerGraphic["symbol"]["symbolLayers"] if sublayer["enable"]]
             fillColor = _extractFillColor(sublayers)
-            strokeColor, strokeWidth = _extractStroke(sublayers)
-            size = marker.get("size", 10)
+            strokeColor, strokeWidth, strokeOpacity = _extractStroke(sublayers)
+            markerSize = marker.get("size", layer.get("size", 10))
             if markerGraphic["symbol"]["type"] == "CIMPointSymbol":
                 wellKnownName = marker["wellKnownName"]
             elif markerGraphic["symbol"]["type"] in ["CIMLineSymbol", "CIMPolygonSymbol"]:
@@ -681,7 +733,7 @@ def processSymbolLayer(layer, symboltype, options):
             "size": markerSize,
             "strokeColor": strokeColor,
             "strokeWidth": strokeWidth,
-            "strokeOpacity": 1.0,
+            "strokeOpacity": strokeOpacity,
             "fillOpacity": 1.0,
             "Z": 0,
         }
@@ -702,10 +754,19 @@ def processSymbolLayer(layer, symboltype, options):
 
     elif layer["type"] == "CIMHatchFill":
         rotation = layer.get("rotation", 0)
-        size = _ptToPxProp(layer, "separation", 3)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
-        color, width = _extractStroke(symbolLayers)
+        color, width, opacity = _extractStroke(symbolLayers)
+
+        # Use symbol and not rotation because rotation crops the line.
         wellKnowName = _hatchMarkerForAngle(rotation)
+        if rotation % 45:
+           _warnings.append("Rotation value different than a multiple of 45° is not possible. The nearest value is taken instead.")
+
+        # Geoserver acts weird with tilted lines. Empirically, that's the best result so far:
+        # Takes the double of the raw separation value. Line and dash lines are treated equally and are looking good.
+        rawSeparation = layer.get("separation", 0)
+        separation = pt_to_px(rawSeparation) if wellKnowName in _getStraightHatchMarker() else rawSeparation * 2
+
         fill = {
             "kind": "Fill",
             "opacity": 1.0,
@@ -714,32 +775,34 @@ def processSymbolLayer(layer, symboltype, options):
                     "kind": "Mark",
                     "color": color,
                     "wellKnownName": wellKnowName,
-                    "size": size,
+                    "size": separation,
                     "strokeColor": color,
                     "strokeWidth": width,
-                    "rotate": 0,
+                    "strokeOpacity": opacity,
+                    "rotate": 0, # no rotation, use the symbol.
                 }
             ],
             "Z": 0,
         }
+
         effects = _extractEffect(symbolLayers[0])
         if "dasharray" in effects:
             fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
             # In case of dash array, the size must be at least as long as the dash pattern sum.
-            neededSize = sum(effects["dasharrayValues"])
-            if wellKnowName in _getStraightHatchMarker():
-                # To keep the "original size", we play with a negative margin
-                negativeMargin = (neededSize - size) / 2 * -1
-                if wellKnowName == _getStraightHatchMarker()[0]:
-                    fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
+            if separation > 0:
+                neededSize = sum(effects["dasharrayValues"])
+                if wellKnowName in _getStraightHatchMarker():
+                    # To keep the "original size" given by the separation value, we play with a negative margin.
+                    negativeMargin = (neededSize - separation) / 2 * -1
+                    if wellKnowName == _getStraightHatchMarker()[0]:
+                        fill["graphicFillMargin"] = [negativeMargin, 0, negativeMargin, 0]
+                    else:
+                        fill["graphicFillMargin"] = [0, negativeMargin, 0, negativeMargin]
                 else:
-                    fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
-            else:
-                # In case of slash pattern, the pattern is the hypotenuse, we want the X (or Y) value for the size.
-                neededSize = math.cos(math.radians(45)) * neededSize
-                # The trick with the margin to keep the original size is not possible.
-                _warnings.append('Unable to keep the original size of CIMHatchFill with tilted symbol (slash).')
-            fill["graphicFill"][0]["size"] = neededSize
+                    # In case of tilted lines, the trick with the margin is not possible without cropping the pattern.
+                    neededSize = separation
+                    _warnings.append("Unable to keep the original size of CIMHatchFill for line with rotation")
+                fill["graphicFill"][0]["size"] = neededSize
         return fill
 
     elif layer["type"] in ["CIMPictureFill", "CIMPictureMarker"]:
@@ -792,9 +855,34 @@ def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
     return None
 
 
+def _orientedMarkerAtStartOfLine(markerPlacement):
+    if markerPlacement.get("angleToLine", False):
+        if (
+            markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions"
+            and markerPlacement["positionArray"] == [0]
+            and markerPlacement["flipFirst"]
+            ):
+            return True
+        elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
+            return (
+                markerPlacement["extremityPlacement"] == "Both"
+                or markerPlacement["extremityPlacement"] == "JustBegin"
+            )
+    return False
+
+
 def _orientedMarkerAtEndOfLine(markerPlacement):
-    if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+    if markerPlacement.get("angleToLine", False):
+        if (
+            markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions"
+            and markerPlacement["positionArray"] == [1]
+            ):
+            return True
+        elif markerPlacement["type"] == "CIMMarkerPlacementAtExtremities":
+            return (
+                markerPlacement["extremityPlacement"] == "Both"
+                or markerPlacement["extremityPlacement"] == "JustEnd"
+            )
     return False
 
 
@@ -812,15 +900,9 @@ def _extractStroke(symbolLayers):
         if sl["type"] == "CIMSolidStroke":
             color = _processColor(sl.get("color"))
             width = _ptToPxProp(sl, "width", 0)
-            return color, width
-    return "#000000", 0
-
-
-def _extractStrokeOpacity(symbolLayers):
-    for sl in symbolLayers:
-        if sl["type"] == "CIMSolidStroke":
-            return _processOpacity(sl["color"])
-    return 1.0
+            opacity = _processOpacity(sl.get("color"))
+            return color, width, opacity
+    return "#000000", 0, 0
 
 
 def _extractFillColor(symbolLayers):
@@ -840,9 +922,13 @@ def _extractFillOpacity(symbolLayers):
     return 1.0
 
 
+def _extractFontWeight(textSymbol):
+    return "bold" if textSymbol.get("fontStyleName") == "Bold" else "normal"
+
+
 def _processOpacity(color):
     if color is None:
-        return 1.0
+        return 0
     return color["values"][-1] / 100
 
 
@@ -860,6 +946,9 @@ def _processColor(color):
         return "#%02x%02x%02x" % (int(r), int(g), int(b))
     elif color["type"] == "CIMGrayColor":
         return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
+    elif color["type"] == "CIMLABColor":
+        r, g, b = _lab2rgb(values)
+        return "#%02x%02x%02x" % (int(r), int(g), int(b))
     else:
         return "#000000"
 
@@ -905,6 +994,74 @@ def _hsv2rgb(hsv_array):
         return (v, p, q)
 
 
+def _lab2rgb(lab_array):
+    """
+    Convert CIMLABColor values to RGB.
+    LAB values: [L, a, b, opacity] where L=0-100, a and b typically -128 to +127
+    """
+    L = lab_array[0]
+    a = lab_array[1] 
+    b = lab_array[2]
+    
+    # Convert LAB to XYZ
+    # Reference white D65
+    Xn = 95.047
+    Yn = 100.000
+    Zn = 108.883
+    
+    fy = (L + 16) / 116
+    fx = a / 500 + fy
+    fz = fy - b / 200
+    
+    # Convert to XYZ
+    epsilon = 0.008856
+    kappa = 903.3
+    
+    if fy ** 3 > epsilon:
+        Y = Yn * fy ** 3
+    else:
+        Y = Yn * (116 * fy - 16) / kappa
+        
+    if fx ** 3 > epsilon:
+        X = Xn * fx ** 3
+    else:
+        X = Xn * (116 * fx - 16) / kappa
+        
+    if fz ** 3 > epsilon:
+        Z = Zn * fz ** 3
+    else:
+        Z = Zn * (116 * fz - 16) / kappa
+    
+    # Convert XYZ to RGB (sRGB)
+    # Normalize to [0,1] range
+    X /= 100
+    Y /= 100
+    Z /= 100
+    
+    # sRGB matrix transformation
+    R = X * 3.2406 + Y * -1.5372 + Z * -0.4986
+    G = X * -0.9689 + Y * 1.8758 + Z * 0.0415
+    B = X * 0.0557 + Y * -0.2040 + Z * 1.0570
+    
+    # Gamma correction
+    def gamma_correct(c):
+        if c > 0.0031308:
+            return 1.055 * (c ** (1 / 2.4)) - 0.055
+        else:
+            return 12.92 * c
+    
+    R = gamma_correct(R)
+    G = gamma_correct(G)
+    B = gamma_correct(B)
+    
+    # Clamp to 0-255 range
+    R = max(0, min(255, R * 255))
+    G = max(0, min(255, G * 255))
+    B = max(0, min(255, B * 255))
+    
+    return (R, G, B)
+
+
 def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=True) -> Union[float, int]:
     """
     :return: The property's value in pt transformed into a px value, or the provided defaultValue.
@@ -913,3 +1070,12 @@ def _ptToPxProp(obj: dict, prop: str, defaultValue: Union[float, int], asFloat=T
         return defaultValue
     value = pt_to_px(float(obj.get(prop)))
     return value if asFloat else round(value)
+
+
+def processScaleDenominator(minimumScale, maximumScale):
+    scaleDenominator = {}
+    if isinstance(minimumScale, (int, float)):
+        scaleDenominator["max"] = minimumScale
+    if isinstance(maximumScale, (int, float)):
+        scaleDenominator["min"] = maximumScale
+    return scaleDenominator
