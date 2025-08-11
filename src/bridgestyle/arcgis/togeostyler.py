@@ -398,13 +398,13 @@ def processSymbolReference(symbolref, options):
                 # Functions "xyzPoint" and "xyzAngle" are not supported in the legend in GeoServer,
                 # so we include this symbol only on the map and not in the legend (using inclusion: "mapOnly")
                 if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 1):
-                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "end", options)
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "end", options)
                     symbolizer["inclusion"] = "mapOnly"
                 elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0.5):
-                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "mid", options)
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "mid", options)
                     symbolizer["inclusion"] = "mapOnly"
                 elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0):
-                    symbolizer = _processOrientedMarkerAtFunctionfLine(layer, "start", options)
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "start", options)
                     symbolizer["inclusion"] = "mapOnly"
                 else:
                     symbolizer = _formatLineSymbolizer(symbolizer)
@@ -448,7 +448,7 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         }
     return symbolizer
 
-def _processOrientedMarkerAtFunctionfLine(layer, functionPrefix, options):
+def _processOrientedMarkerAtFunctionOfLine(layer, functionPrefix, options):
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -748,10 +748,10 @@ def processSymbolLayer(layer, symboltype, options):
         size = _ptToPxProp(layer, "separation", 3)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
-        wellKnowName = _hatchMarkerForAngle(rotation)
+        wellKnownName = _hatchMarkerForAngle(rotation)
         # separation is distance between lines, for diagonal lines, it is along the orthogonal axis,
         # so we need to multiply it by sqrt(2) to get the size of the separation
-        if "slash" in wellKnowName:
+        if "slash" in wellKnownName:
             size = size * math.sqrt(2)
         offset = _extractOffset(layer)
         fill = {
@@ -761,7 +761,7 @@ def processSymbolLayer(layer, symboltype, options):
                 {
                     "kind": "Mark",
                     "color": color,
-                    "wellKnownName": wellKnowName,
+                    "wellKnownName": wellKnownName,
                     "size": size,
                     "strokeColor": color,
                     "strokeWidth": width,
@@ -777,10 +777,10 @@ def processSymbolLayer(layer, symboltype, options):
             fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
             # In case of dash array, the size must be at least as long as the dash pattern sum.
             neededSize = sum(effects["dasharrayValues"])
-            if wellKnowName in _getStraightHatchMarker():
+            if wellKnownName in _getStraightHatchMarker():
                 # To keep the "original size", we play with a negative margin
                 negativeMargin = (neededSize - size) / 2 * -1
-                if wellKnowName == _getStraightHatchMarker()[0]:
+                if wellKnownName == _getStraightHatchMarker()[0]:
                     fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
                 else:
                     fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
