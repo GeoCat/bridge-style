@@ -1,10 +1,10 @@
 Bridgestyle Changelog
 =====================
 
-## 0.1.4 (unreleased)
+## 0.1.4 (2025-08-26)
 ---------------------
-
-- Nothing changed yet.
+- ArcGIS: Picture fill support, improved hatch fills, color substitution, marker along line (thanks @aaime) 
+- Fix URLs in README for PyPI (thanks @geraldo)
 
 
 ## 0.1.3 (2025-06-24)
