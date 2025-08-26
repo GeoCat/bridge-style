@@ -1,6 +1,12 @@
 Bridgestyle Changelog
 =====================
 
+## 0.1.5 (unreleased)
+---------------------
+
+- Nothing changed yet.
+
+
 ## 0.1.4 (2025-08-26)
 ---------------------
 - ArcGIS: Picture fill support, improved hatch fills, color substitution, marker along line (thanks @aaime) 
