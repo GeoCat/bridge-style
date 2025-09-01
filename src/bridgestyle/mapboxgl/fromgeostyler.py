@@ -313,7 +313,7 @@ def _textSymbolizer(sl):
         layout["text-offset"] = [offsetx, offsety]
 
     if "haloColor" in sl and "haloSize" in sl:
-        paint["text-halo-width"] = _symbolProperty(sl, "haloSize")
+        paint["text-halo-width"] = float(_symbolProperty(sl, "haloSize"))
         paint["text-halo-color"] = _symbolProperty(sl, "haloColor")
 
     layout["text-field"] = label

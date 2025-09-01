@@ -689,7 +689,7 @@ def _markerLineSymbolizer(sl, opacity):
     subSymbolizers = []
     for subsl in sl.subSymbol().symbolLayers():
         subSymbolizer = _createSymbolizer(subsl, 1)
-        if subSymbolizers is not None:
+        if subSymbolizer is not None:
             subSymbolizers.append(subSymbolizer)
     if subSymbolizers:
         interval = _symbolProperty(
