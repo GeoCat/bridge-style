@@ -21,17 +21,17 @@ if QPainter is None:
     BLEND_MODES = {}
 else:
     BLEND_MODES = {
-        QPainter.CompositionMode_Plus: "addition",
-        QPainter.CompositionMode_Multiply: "multiply",
-        QPainter.CompositionMode_Screen: "screen",
-        QPainter.CompositionMode_Overlay: "overlay",
-        QPainter.CompositionMode_Darken: "darken",
-        QPainter.CompositionMode_Lighten: "lighten",
-        QPainter.CompositionMode_ColorDodge: "dodge",
-        QPainter.CompositionMode_ColorBurn: "color-burn",
-        QPainter.CompositionMode_HardLight: "hard-light",
-        QPainter.CompositionMode_SoftLight: "soft-light",
-        QPainter.CompositionMode_Difference: "difference"
+        QPainter.CompositionMode.CompositionMode_Plus: "addition",
+        QPainter.CompositionMode.CompositionMode_Multiply: "multiply",
+        QPainter.CompositionMode.CompositionMode_Screen: "screen",
+        QPainter.CompositionMode.CompositionMode_Overlay: "overlay",
+        QPainter.CompositionMode.CompositionMode_Darken: "darken",
+        QPainter.CompositionMode.CompositionMode_Lighten: "lighten",
+        QPainter.CompositionMode.CompositionMode_ColorDodge: "dodge",
+        QPainter.CompositionMode.CompositionMode_ColorBurn: "color-burn",
+        QPainter.CompositionMode.CompositionMode_HardLight: "hard-light",
+        QPainter.CompositionMode.CompositionMode_SoftLight: "soft-light",
+        QPainter.CompositionMode.CompositionMode_Difference: "difference"
     }
 PATTERN_NAMES = {
     "horizontal": "shape://horline",
@@ -141,7 +141,7 @@ def heatmapRenderer(renderer):
 
     weightAttr = renderer.weightExpression()
     radius = renderer.radius()
-    if renderer.radiusUnit() != QgsUnitTypes.RenderPixels:
+    if renderer.radiusUnit() != QgsUnitTypes.RenderUnit.RenderPixels:
         _warnings.append(
             "Radius for heatmap renderer can only be expressed in pixels")
 
@@ -201,9 +201,9 @@ def colorMap(renderer):
         shader = renderer.shader().rasterShaderFunction()
         if isinstance(shader, QgsColorRampShader):
             shader_type = shader.colorRampType()
-            if shader_type == QgsColorRampShader.Exact:
+            if shader_type == QgsColorRampShader.Type.Exact:
                 cm_type = "values"
-            elif shader_type == QgsColorRampShader.Discrete:
+            elif shader_type == QgsColorRampShader.Type.Discrete:
                 cm_type = "intervals"
         colMap["type"] = cm_type
         items = shader.colorRampItemList()
@@ -290,30 +290,30 @@ def processLabeling(layer, labeling, name="labeling", filter=None):
     textFormat = settings.format()
 
     size = _labelingProperty(settings, textFormat,
-                             "size", QgsPalLayerSettings.Size)
+                             "size", QgsPalLayerSettings.Property.Size)
     sizeUnits = _labelingProperty(settings, textFormat,
-                                  "sizeUnit", QgsPalLayerSettings.FontSizeUnit)
+                                  "sizeUnit", QgsPalLayerSettings.Property.FontSizeUnit)
     size = str(_handleUnits(size, sizeUnits))
     color = textFormat.color().name()
     font = textFormat.font().family()
     rotation = _labelingProperty(
-        settings, None, "angleOffset", QgsPalLayerSettings.LabelRotation)
+        settings, None, "angleOffset", QgsPalLayerSettings.Property.LabelRotation)
     buff = textFormat.buffer()
     if buff.enabled():
         haloColor = buff.color().name()
         haloSize = _labelingProperty(
-            settings, buff, "size", QgsPalLayerSettings.BufferSize)
+            settings, buff, "size", QgsPalLayerSettings.Property.BufferSize)
         haloSizeUnit = _labelingProperty(
-            settings, buff, "sizeUnit", QgsPalLayerSettings.BufferUnit)
+            settings, buff, "sizeUnit", QgsPalLayerSettings.Property.BufferUnit)
         haloSize = str(_handleUnits(haloSize, haloSizeUnit))
         symbolizer.update({"haloColor": haloColor,
                            "haloSize": haloSize,
                            "haloOpacity": buff.opacity()})
 
-    if layer.geometryType() == QgsWkbTypes.LineGeometry:
+    if layer.geometryType() == QgsWkbTypes.GeometryType.LineGeometry:
         offset = _labelingProperty(settings, None, "dist")
         symbolizer["perpendicularOffset"] = offset
-        if settings.placement == QgsPalLayerSettings.Curved:
+        if settings.placement == QgsPalLayerSettings.Placement.Curved:
             symbolizer["followLine"] = True
     else:
         anchor = quadOffset[settings.quadOffset]
@@ -369,23 +369,23 @@ def addBackground(textFormat, symbolizer):
     background_sizeUnit = background.sizeUnit()
 
     shapeType = "square"
-    if background_type == QgsTextBackgroundSettings.ShapeRectangle:
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeRectangle:
         shapeType = "rectangle"
-    if background_type == QgsTextBackgroundSettings.ShapeSquare:
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeSquare:
         shapeType = "square"
-    if background_type == QgsTextBackgroundSettings.ShapeEllipse:
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeEllipse:
         shapeType = "elipse"
-    if background_type == QgsTextBackgroundSettings.ShapeCircle:
+    if background_type == QgsTextBackgroundSettings.ShapeType.ShapeCircle:
         shapeType = "circle"
 
     sizeType = "buffer"
-    if background_sizeType == QgsTextBackgroundSettings.SizeFixed:
+    if background_sizeType == QgsTextBackgroundSettings.SizeType.SizeFixed:
         sizeType = "fixed"
 
     sizeUnits = "MM"
-    if background_sizeUnit == QgsUnitTypes.RenderPixels:
+    if background_sizeUnit == QgsUnitTypes.RenderUnit.RenderPixels:
         sizeUnits = "Pixel"
-    if background_sizeUnit == QgsUnitTypes.RenderPoints:
+    if background_sizeUnit == QgsUnitTypes.RenderUnit.RenderPoints:
         sizeUnits = "Point"
 
     sizeX = _handleUnits(background_size.width(), sizeUnits)
@@ -488,14 +488,14 @@ def _cast(v):
 
 
 def _handleUnits(value, units, propertyConstant=None):
-    if propertyConstant == QgsSymbolLayer.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
+    if propertyConstant == QgsSymbolLayer.Property.PropertyStrokeWidth and str(value) in ["0", "0.0"]:
         return 1  # hairline width
-    if units in ["Point", QgsUnitTypes.RenderPoints]:
+    if units in ["Point", QgsUnitTypes.RenderUnit.RenderPoints]:
         if isinstance(value, list):
             return ["Mul", POINT2PIXEL, value]
         else:
             return float(value) * POINT2PIXEL
-    if units in ["MM", QgsUnitTypes.RenderMillimeters]:
+    if units in ["MM", QgsUnitTypes.RenderUnit.RenderMillimeters]:
         if isinstance(value, list):
             return ["Mul", MM2PIXEL, value]
         else:
@@ -507,7 +507,7 @@ def _handleUnits(value, units, propertyConstant=None):
             return value
         else:
             return str(value) + "m"
-    elif units in ["Pixel", QgsUnitTypes.RenderMillimeters]:
+    elif units in ["Pixel", QgsUnitTypes.RenderUnit.RenderMillimeters]:
         return value
     else:
         _warnings.append("Unsupported units: '%s'" % units)
@@ -627,8 +627,8 @@ def _fontMarkerSymbolizer(sl, opacity):
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = str(_symbolProperty(
-        sl, "chr", QgsSymbolLayer.PropertyCharacter))
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
+        sl, "chr", QgsSymbolLayer.Property.PropertyCharacter))
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.Property.PropertySize)
     if len(character) == 1:
         hexcode = hex(ord(character))
         name = "ttf://%s#%s" % (fontFamily, hexcode)
@@ -653,13 +653,13 @@ def _lineSymbolizer(sl, opacity):
     color = _toHexColor(props["line_color"])
     strokeOpacity = _opacity(props["line_color"])
     width = _symbolProperty(
-        sl, "line_width", QgsSymbolLayer.PropertyStrokeWidth)
+        sl, "line_width", QgsSymbolLayer.Property.PropertyStrokeWidth)
     lineStyle = _symbolProperty(
-        sl, "line_style", QgsSymbolLayer.PropertyStrokeStyle)
-    cap = _symbolProperty(sl, "capstyle", QgsSymbolLayer.PropertyCapStyle)
+        sl, "line_style", QgsSymbolLayer.Property.PropertyStrokeStyle)
+    cap = _symbolProperty(sl, "capstyle", QgsSymbolLayer.Property.PropertyCapStyle)
     cap = "butt" if cap == "flat" else cap
-    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.PropertyJoinStyle)
-    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)
+    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.Property.PropertyJoinStyle)
+    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.Property.PropertyOffset)
     symbolizer = {"kind": "Line",
                   "color": color,
                   "opacity": opacity * strokeOpacity,
@@ -682,7 +682,7 @@ def _lineSymbolizer(sl, opacity):
 
 
 def _markerLineSymbolizer(sl, opacity):
-    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.PropertyOffset)
+    offset = _symbolProperty(sl, "offset", QgsSymbolLayer.Property.PropertyOffset)
     symbolizer = {"kind": "Line",
                   "opacity": opacity,
                   "perpendicularOffset": offset}
@@ -693,9 +693,9 @@ def _markerLineSymbolizer(sl, opacity):
             subSymbolizers.append(subSymbolizer)
     if subSymbolizers:
         interval = _symbolProperty(
-            sl, "interval", QgsSymbolLayer.PropertyInterval)
+            sl, "interval", QgsSymbolLayer.Property.PropertyInterval)
         offsetAlong = _symbolProperty(
-            sl, "offset_along_line", QgsSymbolLayer.PropertyOffsetAlongLine)
+            sl, "offset_along_line", QgsSymbolLayer.Property.PropertyOffsetAlongLine)
         symbolizer["graphicStroke"] = subSymbolizers
         symbolizer["graphicStrokeInterval"] = interval
         symbolizer["graphicStrokeOffset"] = offsetAlong
@@ -738,7 +738,7 @@ def _simpleMarkerSymbolizer(sl, opacity):
 
 def _basePointSimbolizer(sl, opacity):
     props = sl.properties()
-    rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyAngle)
+    rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.Property.PropertyAngle)
     x, y = sl.offset().x(), sl.offset().y()
 
     symbolizer = {
@@ -759,7 +759,7 @@ def _createSprite(sl):
     newSymbol = QgsMarkerSymbol()
     newSymbol.appendSymbolLayer(sl)
     newSymbol.deleteSymbolLayer(0)
-    newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
+    newSymbol.setSizeUnit(QgsUnitTypes.RenderUnit.RenderPixels)
 
     sl.setSize(SPRITE_SIZE)
     img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
@@ -773,11 +773,11 @@ def _markGraphic(sl):
     global _usedIcons, _usedSprites
 
     props = sl.properties()
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.Property.PropertySize)
     color = _toHexColor(props["color"])
     outlineColor = _toHexColor(props["outline_color"])
     outlineWidth = _symbolProperty(
-        sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
+        sl, "outline_width", QgsSymbolLayer.Property.PropertyStrokeWidth)
     fillOpacity = _opacity(props["color"])
     strokeOpacity = _opacity(props["outline_color"])
     spriteName = ""
@@ -788,12 +788,12 @@ def _markGraphic(sl):
         _usedIcons[sl.path()] = sl
         _usedSprites[spriteName] = _createSprite(sl)
         outlineStyle = "solid"
-        size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertyWidth)
+        size = _symbolProperty(sl, "size", QgsSymbolLayer.Property.PropertyWidth)
     except:
         name = props["name"]
         name = SHAPE_NAMES.get(name, name.replace("_", ""))
         outlineStyle = _symbolProperty(
-            sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
+            sl, "outline_style", QgsSymbolLayer.Property.PropertyStrokeStyle)
         if outlineStyle == "no":
             outlineWidth = 0
         spriteName = name.replace(":", "_").replace("/", "_")
@@ -841,7 +841,7 @@ def _iconGraphic(sl, color=None):
     global _usedIcons
     _usedIcons[sl.path()] = sl
     path = os.path.basename(sl.path())
-    size = _symbolProperty(sl, "size", QgsSymbolLayer.PropertySize)
+    size = _symbolProperty(sl, "size", QgsSymbolLayer.Property.PropertySize)
     return {"kind": "Icon",
             "color": color,
             "image": path,
@@ -858,8 +858,8 @@ def _linePatternFillSymbolizer(sl, opacity):
     symbolizer = _baseFillSymbolizer(sl, opacity)
     color = sl.color().name()
     strokeWidth = _symbolProperty(sl, "line_width")
-    size = _symbolProperty(sl, "distance", QgsSymbolLayer.PropertyLineDistance)
-    rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.PropertyLineAngle)
+    size = _symbolProperty(sl, "distance", QgsSymbolLayer.Property.PropertyLineDistance)
+    rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.Property.PropertyLineAngle)
     marker = _hatchMarkerForAngle(rotation)
     subSymbolizer = _markFillPattern(marker, color, size, strokeWidth, 0)
     symbolizer["graphicFill"] = [subSymbolizer]
@@ -880,9 +880,9 @@ def _pointPatternFillSymbolizer(sl, opacity):
             subSymbolizers.append(subSymbolizer)
     if subSymbolizers:
         distancex = _symbolProperty(
-            sl, "distance_x", QgsSymbolLayer.PropertyDistanceX)
+            sl, "distance_x", QgsSymbolLayer.Property.PropertyDistanceX)
         distancey = _symbolProperty(
-            sl, "distance_y", QgsSymbolLayer.PropertyDistanceY)
+            sl, "distance_y", QgsSymbolLayer.Property.PropertyDistanceY)
         symbolizer["graphicFill"] = subSymbolizers
         distancex = ["Div", distancex, 2] if isinstance(
             distancex, list) else distancex / 2.0
@@ -916,11 +916,11 @@ def _simpleFillSymbolizer(sl, opacity):
     outlineColor = _toHexColor(props["outline_color"])
     outlineOpacity = _opacity(props["outline_color"])
     outlineStyle = _symbolProperty(
-        sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
-    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.PropertyJoinStyle)
+        sl, "outline_style", QgsSymbolLayer.Property.PropertyStrokeStyle)
+    join = _symbolProperty(sl, "joinstyle", QgsSymbolLayer.Property.PropertyJoinStyle)
     if outlineStyle != "no":
         outlineWidth = _symbolProperty(
-            sl, "outline_width", QgsSymbolLayer.PropertyStrokeWidth)
+            sl, "outline_width", QgsSymbolLayer.Property.PropertyStrokeWidth)
         symbolizer.update({"outlineColor": outlineColor,
                            "outlineWidth": outlineWidth,
                            "outlineOpacity": outlineOpacity,
@@ -964,12 +964,12 @@ def saveSymbolLayerSprite(symbolLayer):
     newSymbol = QgsMarkerSymbol()
     newSymbol.appendSymbolLayer(sl)
     newSymbol.deleteSymbolLayer(0)
-    newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
+    newSymbol.setSizeUnit(QgsUnitTypes.RenderUnit.RenderPixels)
 
     newSymbol2x = QgsMarkerSymbol()
     newSymbol2x.appendSymbolLayer(sl2x)
     newSymbol2x.deleteSymbolLayer(0)
-    newSymbol2x.setSizeUnit(QgsUnitTypes.RenderPixels)
+    newSymbol2x.setSizeUnit(QgsUnitTypes.RenderUnit.RenderPixels)
 
     img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
     img2x = newSymbol2x.asImage(QSize(int(sl2x.size()), int(sl2x.size())))
@@ -977,10 +977,10 @@ def saveSymbolLayerSprite(symbolLayer):
 
 
 def initSpriteSheet(width, height):
-    img = QImage(width, height, QImage.Format_ARGB32)
-    img.fill(QColor(Qt.transparent))
-    img2x = QImage(width * 2, height * 2, QImage.Format_ARGB32)
-    img2x.fill(QColor(Qt.transparent))
+    img = QImage(width, height, QImage.Format.Format_ARGB32)
+    img.fill(QColor(Qt.GlobalColor.transparent))
+    img2x = QImage(width * 2, height * 2, QImage.Format.Format_ARGB32)
+    img2x.fill(QColor(Qt.GlobalColor.transparent))
     painter = QPainter(img)
     painter.begin(img)
     painter2x = QPainter(img2x)
