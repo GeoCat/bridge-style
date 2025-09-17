@@ -395,10 +395,16 @@ def processSymbolReference(symbolref, options):
             "CIMCharacterMarker",
         ]:
             if symbol["type"] == "CIMLineSymbol":
-                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtEndOfLine(layer["markerPlacement"]):
-                    symbolizer = _processOrientedMarkerAtEndOfLine(layer, options)
-                    # Functions "endPoint" and "endAngle" are not supported in the legend in GeoServer,
-                    # so we include this symbol only on the map and not in the legend
+                # Functions "xyzPoint" and "xyzAngle" are not supported in the legend in GeoServer,
+                # so we include this symbol only on the map and not in the legend (using inclusion: "mapOnly")
+                if layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 1):
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "end", options)
+                    symbolizer["inclusion"] = "mapOnly"
+                elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0.5):
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "mid", options)
+                    symbolizer["inclusion"] = "mapOnly"
+                elif layer["type"] == "CIMCharacterMarker" and _orientedMarkerAtRatioOfLine(layer["markerPlacement"], 0):
+                    symbolizer = _processOrientedMarkerAtFunctionOfLine(layer, "start", options)
                     symbolizer["inclusion"] = "mapOnly"
                 else:
                     symbolizer = _formatLineSymbolizer(symbolizer)
@@ -442,7 +448,7 @@ def _formatPolygonSymbolizer(symbolizer, markerPlacement):
         }
     return symbolizer
 
-def _processOrientedMarkerAtEndOfLine(layer, options):
+def _processOrientedMarkerAtFunctionOfLine(layer, functionPrefix, options):
     replaceesri = options.get("replaceesri", False)
     fontFamily = layer["fontFamilyName"]
     charindex = layer["characterIndex"]
@@ -470,13 +476,13 @@ def _processOrientedMarkerAtEndOfLine(layer, options):
         "strokeColor": strokeColor,
         "strokeOpacity": strokeOpacity,
         "strokeWidth": strokeWidth,
-        "rotate": ["Add", ["endAngle", ["PropertyName", "shape"]], rotation],
+        "rotate": ["Add", [f"{functionPrefix}Angle", ["geometry"]], rotation],
         "kind": "Mark",
         "color": fillColor,
         "wellKnownName": name,
         "size": _ptToPxProp(layer, "size", 10),
         "Z": 0,
-        "Geometry": ["endPoint", ["PropertyName", "shape"]],
+        "Geometry": [f"{functionPrefix}Point", ["geometry"]],
     }
 
 
@@ -567,6 +573,43 @@ def _esriFontToStandardSymbols(charindex):
         )
         return "circle"
 
+
+def apply_color_substitution(image_data, substitutions):
+    try:
+        from PIL import Image
+        from io import BytesIO
+    except ImportError:
+        # Optional: emit logging warning instead of print
+        print("Warning: Pillow is not installed. Skipping color substitution.")
+        return image_data
+
+    try:
+        original_image = Image.open(BytesIO(image_data))
+        image = original_image.convert("RGBA")
+        pixels = image.load()
+
+        color_map = {}
+        for sub in substitutions:
+            old = _hexToRGB(_processColor(sub["oldColor"]))
+            new = _hexToRGB(_processColor(sub["newColor"]))
+            color_map[old] = new
+
+        width, height = image.size
+        for x in range(width):
+            for y in range(height):
+                r, g, b, a = pixels[x, y]
+                if (r, g, b) in color_map:
+                    nr, ng, nb = color_map[(r, g, b)]
+                    pixels[x, y] = (nr, ng, nb, a)
+
+        output = BytesIO()
+        # Use PNG as Python writes in BGR order, but Java cannot read it
+        image.save(output, format="PNG")
+        return output.getvalue()
+
+    except Exception as e:
+        print(f"Warning: Failed to apply color substitution: {e}")
+        return None
 
 def processSymbolLayer(layer, symboltype, options):
     replaceesri = options.get("replaceesri", False)
@@ -705,7 +748,12 @@ def processSymbolLayer(layer, symboltype, options):
         size = _ptToPxProp(layer, "separation", 3)
         symbolLayers = layer["lineSymbol"]["symbolLayers"]
         color, width = _extractStroke(symbolLayers)
-        wellKnowName = _hatchMarkerForAngle(rotation)
+        wellKnownName = _hatchMarkerForAngle(rotation)
+        # separation is distance between lines, for diagonal lines, it is along the orthogonal axis,
+        # so we need to multiply it by sqrt(2) to get the size of the separation
+        if "slash" in wellKnownName:
+            size = size * math.sqrt(2)
+        offset = _extractOffset(layer)
         fill = {
             "kind": "Fill",
             "opacity": 1.0,
@@ -713,11 +761,13 @@ def processSymbolLayer(layer, symboltype, options):
                 {
                     "kind": "Mark",
                     "color": color,
-                    "wellKnownName": wellKnowName,
+                    "wellKnownName": wellKnownName,
                     "size": size,
                     "strokeColor": color,
                     "strokeWidth": width,
+                    "cap": "round",
                     "rotate": 0,
+                    "offset": offset
                 }
             ],
             "Z": 0,
@@ -727,10 +777,10 @@ def processSymbolLayer(layer, symboltype, options):
             fill["graphicFill"][0]["outlineDasharray"] = effects["dasharray"]
             # In case of dash array, the size must be at least as long as the dash pattern sum.
             neededSize = sum(effects["dasharrayValues"])
-            if wellKnowName in _getStraightHatchMarker():
+            if wellKnownName in _getStraightHatchMarker():
                 # To keep the "original size", we play with a negative margin
                 negativeMargin = (neededSize - size) / 2 * -1
-                if wellKnowName == _getStraightHatchMarker()[0]:
+                if wellKnownName == _getStraightHatchMarker()[0]:
                     fill['graphicFillMargin'] = [negativeMargin, 0, negativeMargin, 0]
                 else:
                     fill['graphicFillMargin'] = [0, negativeMargin, 0, negativeMargin]
@@ -754,25 +804,48 @@ def processSymbolLayer(layer, symboltype, options):
                     "bridgestyle",
                     str(uuid.uuid4()).replace("-", ""),
                 )
+                image = base64.decodebytes(data.encode())
+                colorSubstitutions = layer.get("colorSubstitutions")
+                if colorSubstitutions:
+                    image = apply_color_substitution(image, colorSubstitutions)
+                    ext = "png" # Color substitution requires PNG format
                 iconName = f"{str(uuid.uuid4())}.{ext}"
                 iconFile = os.path.join(path, iconName)
                 os.makedirs(path, exist_ok=True)
                 with open(iconFile, "wb") as f:
-                    f.write(base64.decodebytes(data.encode()))
+                    f.write(image)
                     _usedIcons.append(iconFile)
                 url = iconFile
 
         rotate = layer.get("rotation", 0)
         size = _ptToPxProp(layer, "height", _ptToPxProp(layer, "size", 0))
-        return {
-            "opacity": 1.0,
-            "rotate": 0.0,
-            "kind": "Icon",
-            "color": None,
-            "image": url,
-            "size": size,
-            "Z": 0,
-        }
+        if layer["type"] == "CIMPictureFill":
+            return {
+                "kind": "Fill",
+                "opacity": 1.0,
+                "graphicFill": [
+                    {
+                        "opacity": 1.0,
+                        "rotate": 0.0,
+                        "kind": "Icon",
+                        "color": None,
+                        "image": url,
+                        "size": size,
+                        "Z": 0,
+                    }
+                ],
+                "Z": 0,
+                }
+        else:
+            return {
+                "opacity": 1.0,
+                "rotate": 0.0,
+                "kind": "Icon",
+                "color": None,
+                "image": url,
+                "size": size,
+                "Z": 0,
+            }
     else:
         return None
 
@@ -792,17 +865,18 @@ def _getSymbolRotationFromVisualVariables(renderer, tolowercase):
     return None
 
 
-def _orientedMarkerAtEndOfLine(markerPlacement):
+def _orientedMarkerAtRatioOfLine(markerPlacement, ratio):
     if markerPlacement["type"] == "CIMMarkerPlacementAtRatioPositions":
-        return markerPlacement["positionArray"] == [1] and markerPlacement["angleToLine"]
+        return markerPlacement["positionArray"] == [ratio] and markerPlacement["angleToLine"]
     return False
 
 
 def _extractOffset(symbolLayer):
-    # Arcgis looks to apply a strange factor.
+    # Offsets in ArcGIS are in points, but we need them in pixels. Also, they are orientated same as in SLD
+    # (x points to the right, y points up). Finally, Arcgis looks to apply a strange factor.
     offset_x = _ptToPxProp(symbolLayer, "offsetX", 0) * OFFSET_FACTOR
-    offset_y = _ptToPxProp(symbolLayer, "offsetY", 0) * OFFSET_FACTOR * -1
-    if offset_x == 0 and offset_y != 0:
+    offset_y = _ptToPxProp(symbolLayer, "offsetY", 0) * OFFSET_FACTOR
+    if offset_x == 0 and offset_y == 0:
         return None
     return [offset_x, offset_y]
 
@@ -862,7 +936,11 @@ def _processColor(color):
         return "#%02x%02x%02x" % (int(values[0]), int(values[0]), int(values[0]))
     else:
         return "#000000"
-
+    
+def _hexToRGB(hex_string):
+    """Convert '#rrggbb' to (r, g, b) tuple."""
+    hex_string = hex_string.lstrip("#")
+    return tuple(int(hex_string[i:i+2], 16) for i in (0, 2, 4))    
 
 def _cmyk2Rgb(cmyk_array):
     c = cmyk_array[0]

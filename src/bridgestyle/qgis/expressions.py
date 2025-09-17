@@ -287,13 +287,20 @@ class ExpressionConverter:
                 # Field has been found, get its type
                 castTo = fields[0].typeName()
         retRight = self._walk(right, parent, True, castTo)
-        if retOp is retRight is None:
+        if retOp is None and retRight is None:
             if op == _qbo.boIs:
                 # Special case for IS NULL
                 retOp = OGC_IS_NULL
             elif op == _qbo.boIsNot:
                 # Special case for IS NOT NULL
                 retOp = OGC_IS_NOT_NULL
+        elif retOp is None and isinstance(retRight, bool):
+            if op == _qbo.boIs:
+                # Special case for IS TRUE/FALSE
+                retOp = OGC_IS_EQUAL_TO
+            elif op == _qbo.boIsNot:
+                # Special case for IS NOT TRUE/FALSE
+                retOp = "PropertyIsNotEqualTo"
         return [retOp, retLeft, retRight]
 
     def _handle_unary_op(self, node, parent):
