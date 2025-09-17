@@ -150,16 +150,20 @@ def processLayer(layer):
     allLayers = []
 
     ruleNumber = 0
-    for rule in layer.get("rules", []):
-        layers = processRule(rule, layer["name"], ruleNumber)
+    rules = layer.get("rules", [])
+    for rule in rules:
+        layers = processRule(rule, layer["name"], ruleNumber, rules)
         ruleNumber += 1
         allLayers += layers
 
     return allLayers
 
 
-def processRule(rule, source, ruleNumber):
+def processRule(rule, source, ruleNumber, rules):
     filt = convertExpression(rule.get("filter", None))
+    if filt == "ELSE":  # None of the other filters apply
+        filt = _processElseFilter(rule, ruleNumber, rules)
+
     minzoom = None
     maxzoom = None
     if "scaleDenominator" in rule:
@@ -188,6 +192,18 @@ def processRule(rule, source, ruleNumber):
             _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
     return layers
 
+def _processElseFilter(elseRule, ruleNumber, rules):
+    # Wrap the other rules in a NOT ( ANY (rule1, rule2...)) to construct an explicit ELSE filter
+    otherFilters = ["any"]
+    for idx, rule in enumerate(rules):
+        if idx == ruleNumber:  # This is the ElseFilter
+            continue
+        filt = convertExpression(rule.get("filter", None))
+        if filt:
+            otherFilters.append(filt)
+
+    elseFilter = ["!", otherFilters]
+    return elseFilter
 
 func = {
     OGC_PROPERTYNAME: "get",
