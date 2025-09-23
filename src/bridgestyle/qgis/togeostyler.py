@@ -756,17 +756,54 @@ def _basePointSimbolizer(sl, opacity):
 
 def _createSprite(sl):
     sl = sl.clone()
-    newSymbol = QgsMarkerSymbol()
-    newSymbol.appendSymbolLayer(sl)
-    newSymbol.deleteSymbolLayer(0)
-    newSymbol.setSizeUnit(QgsUnitTypes.RenderUnit.RenderPixels)
+    if hasattr(sl, "setSize"):
+        newSymbol = QgsMarkerSymbol()
+        newSymbol.appendSymbolLayer(sl)
+        newSymbol.deleteSymbolLayer(0)
+        newSymbol.setSizeUnit(QgsUnitTypes.RenderPixels)
 
-    sl.setSize(SPRITE_SIZE)
-    img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
-    sl.setSize(SPRITE_SIZE * 2)
-    img2x = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
+        sl.setSize(SPRITE_SIZE)
+        img = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
+        sl.setSize(SPRITE_SIZE * 2)
+        img2x = newSymbol.asImage(QSize(int(sl.size()), int(sl.size())))
+    elif hasattr(sl, "toTiledPatternImage"):  # QgsFillSymbolLayer
+        img = sl.toTiledPatternImage()
+        img2x = sl.toTiledPatternImage().scaled(img.width()*2, img.height()*2)
 
     return {"image": img, "image2x": img2x}
+
+def _markLineFillGraphic(sl):
+    global _usedSprites
+    
+    props = sl.properties()
+    opacity = _opacity(props["color"])
+    spriteName = ""
+    name = SHAPE_NAMES["line"]
+    outlineStyle = _symbolProperty(
+        sl, "outline_style", QgsSymbolLayer.PropertyStrokeStyle)
+    spriteName = name.replace(":", "_").replace("/", "_")
+    # We might need to generate the same sprite in multiple colors, append color to spritename
+    col = sl.color()
+    spriteName += f"{col.red()}_{col.green()}_{col.blue()}_{col.alpha()}"
+   
+    _usedSprites[spriteName] = _createSprite(sl)
+
+    linefill = {"strokeOpacity": opacity}
+    if spriteName != "":
+        linefill["spriteName"] = spriteName
+
+    if outlineStyle =='dot':
+        linefill["outlineDasharray"] = "3 5"
+    elif outlineStyle =='dash':
+        linefill["outlineDasharray"] = "8 5"
+    elif outlineStyle =='dash dot':
+        linefill["outlineDasharray"] = "8 5 3 5"
+    elif outlineStyle =='dash dot dot':
+        linefill["outlineDasharray"] = "8 5 3 5 3 5"
+    elif outlineStyle not in  ["solid", "no"]:
+        linefill["outlineDasharray"] = "5 2"
+
+    return linefill
 
 
 def _markGraphic(sl):
@@ -862,6 +899,7 @@ def _linePatternFillSymbolizer(sl, opacity):
     rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.Property.PropertyLineAngle)
     marker = _hatchMarkerForAngle(rotation)
     subSymbolizer = _markFillPattern(marker, color, size, strokeWidth, 0)
+    subSymbolizer.update(_markLineFillGraphic(sl))
     symbolizer["graphicFill"] = [subSymbolizer]
     return symbolizer
 

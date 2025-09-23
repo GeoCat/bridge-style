@@ -455,15 +455,17 @@ def _fillSymbolizer(sl):
     dasharray = _symbolProperty(sl, "outlineDasharray")
     join = _symbolProperty(sl, "join")
     offset = _symbolProperty(sl, "offset")
-    graphicFill = sl.get("graphicFill", None)
-    if graphicFill is not None:
-        _warnings.append("Marker fills not supported for Mapbox GL conversion")
-        # TODO
-        # fill = {"type": "fill", "paint": {
-        #     "fill-color":   _symbolProperty(graphicFill[0], "color"),
-        #     "fill-opacity": opacity
-        # }}
-        fill = None  # don't fill -- this causes issues either way...
+    graphicFills = sl.get("graphicFill", None)
+    if graphicFills is not None:
+        fill = []
+        for graphicFill in graphicFills:
+            fill.append({
+                    "type": "fill", 
+                    "paint": {
+                        "fill-opacity": graphicFill.get("fillOpacity", 1.0),
+                        "fill-pattern": graphicFill["spriteName"],
+                     }
+            })
     else:
         paint["fill-opacity"] = opacity * _symbolProperty(sl, "fillOpacity", 1)
         if color is not None:
