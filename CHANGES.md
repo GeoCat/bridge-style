@@ -1,10 +1,14 @@
 Bridgestyle Changelog
 =====================
 
-## 0.1.5 (unreleased)
+## 0.1.5 (2025-09-24)
 ---------------------
-
-- Nothing changed yet.
+- QGIS: support IS TRUE and IS NOT TRUE operators in expressions (thanks @benvanbasten-ns)
+- MapLibre (thanks @benvanbasten-ns): 
+  - fix conversion to float for text-halo-width 
+  - add support for ELSE filter
+  - basic support for QgsLinePatternFillSymbolLayer
+- Upgrade for QGIS 4 / Qt6 (thanks @benvanbasten-ns)
 
 
 ## 0.1.4 (2025-08-26)
