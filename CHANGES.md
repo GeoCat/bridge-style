@@ -1,6 +1,12 @@
 Bridgestyle Changelog
 =====================
 
+## 0.1.6 (unreleased)
+---------------------
+
+- Nothing changed yet.
+
+
 ## 0.1.5 (2025-09-24)
 ---------------------
 - QGIS: support IS TRUE and IS NOT TRUE operators in expressions (thanks @benvanbasten-ns)
