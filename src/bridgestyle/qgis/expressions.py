@@ -132,6 +132,7 @@ FUNCTION_MAP = {
     "to_int": "parseLong",
     "to_real": "parseDouble",
     "to_string": "to_string",  # Not mapped to function, but required by MapBox GL
+    "sqrt": "sqrt",
 }  # TODO: test/improve
 
 
