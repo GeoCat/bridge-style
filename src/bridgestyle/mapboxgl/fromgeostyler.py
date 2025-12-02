@@ -246,6 +246,7 @@ func = {
     "parseLong": "to-number",
     "parseDouble": "to-number",
     "to_string": "to-string",
+    "sqrt": "sqrt",
 }
 
 

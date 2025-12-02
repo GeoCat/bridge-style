@@ -533,7 +533,7 @@ def _labelingProperty(settings, obj, name, propertyConstant=-1):
 
 def _symbolProperty(symbolLayer, name, propertyConstant=-1, default=0):
     ddProps = symbolLayer.dataDefinedProperties()
-    if propertyConstant in ddProps.propertyKeys():
+    if propertyConstant in ddProps.propertyKeys() and ddProps.isActive(propertyConstant):
         v = processExpression(ddProps.property(
             propertyConstant).asExpression()) or ""
     else:
