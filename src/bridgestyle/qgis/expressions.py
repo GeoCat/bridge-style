@@ -96,6 +96,7 @@ FUNCTION_MAP = {
     "if": "if_then_else",
     "bounds": "envelope",
     "distance": "distance",
+    "exp": "exp",
     "convex_hull": "convexHull",
     "end_point": "endPoint",
     "start_point": "startPoint",

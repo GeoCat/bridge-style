@@ -237,6 +237,7 @@ func = {
     "atan": "atan",
     "atan2": "atan2",
     "sin": "sin",
+    "exp": "exp",
     "cos": "cos",
     "tan": "tan",
     "log": "ln",
@@ -267,6 +268,9 @@ def convertExpression(exp):
                 # Special case to add "is not null" support
                 convertedExp = [funcName]
                 convertedExp.append(convertExpression(exp[1][-1]))
+            elif funcName == "exp":
+                # Special case to add "exp" support: replace with e^(x)
+                convertedExp = ["^", ["e"], convertExpression(exp[1])]
             else:
                 convertedExp = [funcName]
                 for arg in exp[1:]:
