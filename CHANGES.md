@@ -3,8 +3,7 @@ Bridgestyle Changelog
 
 ## 0.1.6 (unreleased)
 ---------------------
-
-- Nothing changed yet.
+- QGIS/MapLibre: add support for sqrt() and exp() expressions (thanks @benvanbasten-ns)
 
 
 ## 0.1.5 (2025-09-24)
