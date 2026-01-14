@@ -9,7 +9,8 @@ from ..qgis.expressions import (
     OGC_IS_EQUAL_TO,
     OGC_IS_NULL,
     OGC_IS_NOT_NULL,
-    OGC_SUB
+    OGC_SUB,
+    OGC_IS_LIKE
 )
 
 # Globals
@@ -215,6 +216,7 @@ func = {
     "PropertyIsGreaterThanOrEqualTo": ">=",
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
+    OGC_IS_LIKE: "in", # we only support LIKE %substring% filters (full substring matching)
     OGC_IS_NULL: "!",
     OGC_IS_NOT_NULL: "has",
     "Add": "+",
@@ -271,6 +273,29 @@ def convertExpression(exp):
             elif funcName == "exp":
                 # Special case to add "exp" support: replace with e^(x)
                 convertedExp = ["^", ["e"], convertExpression(exp[1])]
+            elif funcName == "in":
+                # Special case to add "LIKE %substring%" support"
+                if type(exp[2]) is not str:
+                    _warnings.append(f"LIKE Substring {exp[2]} expected to be a string literal.")
+                    return None
+                # Check whether the %-wildcards are on both ends, or none at all.
+                if (exp[2].startswith("%") and not exp[2].endswith("%")) or (exp[2].endswith("%") and not exp[2].startswith("%")):
+                    _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}")
+                    return None
+                # Check whether there are no in-between % wildcards
+                if exp[2][1:-1].find("%") != -1:
+                    _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}, no inbetweens")
+                    return None
+                # Check whether the other unsupported wildcards (_) or not present
+                if exp[2].find("_") != -1:
+                    _warnings.append(f"_ wildcards are supported in LIKE Substring {exp[2]} are not supported")
+                    return None
+                
+                if exp[2].startswith("%") and exp[2].endswith("%"):
+                    # Remove the enclosing % wildcards
+                    exp[2] = exp[2][1:-1]
+                
+                convertedExp = ["in", exp[2], convertExpression(exp[1])]
             else:
                 convertedExp = [funcName]
                 for arg in exp[1:]:
