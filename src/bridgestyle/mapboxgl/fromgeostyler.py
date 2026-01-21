@@ -274,28 +274,8 @@ def convertExpression(exp):
                 # Special case to add "exp" support: replace with e^(x)
                 convertedExp = ["^", ["e"], convertExpression(exp[1])]
             elif funcName == "in":
-                # Special case to add "LIKE %substring%" support"
-                if type(exp[2]) is not str:
-                    _warnings.append(f"LIKE Substring {exp[2]} expected to be a string literal.")
-                    return None
-                # Check whether the %-wildcards are on both ends, or none at all.
-                if (exp[2].startswith("%") and not exp[2].endswith("%")) or (exp[2].endswith("%") and not exp[2].startswith("%")):
-                    _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}")
-                    return None
-                # Check whether there are no in-between % wildcards
-                if exp[2][1:-1].find("%") != -1:
-                    _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}, no inbetweens")
-                    return None
-                # Check whether the other unsupported wildcards (_) or not present
-                if exp[2].find("_") != -1:
-                    _warnings.append(f"_ wildcards are supported in LIKE Substring {exp[2]} are not supported")
-                    return None
-                
-                if exp[2].startswith("%") and exp[2].endswith("%"):
-                    # Remove the enclosing % wildcards
-                    exp[2] = exp[2][1:-1]
-                
-                convertedExp = ["in", exp[2], convertExpression(exp[1])]
+                # Special case to add "LIKE %substring%" support
+                convertedExp = convertLikeExpression(exp)
             else:
                 convertedExp = [funcName]
                 for arg in exp[1:]:
@@ -304,6 +284,20 @@ def convertExpression(exp):
     else:
         return exp
 
+def convertLikeExpression(exp):
+    # Special case to add "LIKE %substring%" support
+    if not isinstance(exp[2], str):
+        _warnings.append(f"LIKE Substring {exp[2]} expected to be a string literal.")
+        return None
+
+    if not (exp[2].startswith('%') and exp[2].endswith('%')):                
+        _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}")
+        return None                    
+    val = exp[2].strip('%')  # remove trailing %
+    if '%' in val or '_' in val:
+        _warnings.append(f"Non-enclosing _ or % wildcards in LIKE Substring {exp[2]} are not supported")
+        return None               
+    return ["in", val, convertExpression(exp[1])]
 
 def processSymbolizer(sl):
     sl_type = sl.get('kind')
