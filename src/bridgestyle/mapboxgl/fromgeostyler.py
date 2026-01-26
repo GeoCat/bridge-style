@@ -91,7 +91,7 @@ def convert(geostyler, options=None):
     layers = processLayer(geostyler)
     layers.sort(key=lambda l: l["Z"])
     [l.pop('Z', None) for l in layers]
-    layers.sort(key=lambda l: l["type"]=="symbol")
+    layers.sort(key=lambda l: l["type"] == "symbol")
     obj = {
         "version": 8,
         "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
@@ -193,6 +193,7 @@ def processRule(rule, source, ruleNumber, rules):
             _warnings.append("Empty style rule: '%s'" % (name + ":" + str(i)))
     return layers
 
+
 def _processElseFilter(elseRule, ruleNumber, rules):
     # Wrap the other rules in a NOT ( ANY (rule1, rule2...)) to construct an explicit ELSE filter
     otherFilters = ["any"]
@@ -206,6 +207,7 @@ def _processElseFilter(elseRule, ruleNumber, rules):
     elseFilter = ["!", otherFilters]
     return elseFilter
 
+
 func = {
     OGC_PROPERTYNAME: "get",
     "Or": "any",
@@ -216,7 +218,7 @@ func = {
     "PropertyIsGreaterThanOrEqualTo": ">=",
     "PropertyIsLessThan": "<",
     "PropertyIsGreaterThan": ">",
-    OGC_IS_LIKE: "in", # we only support LIKE %substring% filters (full substring matching)
+    OGC_IS_LIKE: "in",  # we only support LIKE %substring% filters (full substring matching)
     OGC_IS_NULL: "!",
     OGC_IS_NOT_NULL: "has",
     "Add": "+",
@@ -264,12 +266,10 @@ def convertExpression(exp):
         else:
             if funcName == "!" and isinstance(exp[1], list):
                 # Special case to add "is null" support
-                convertedExp = [func.get("Not", None)]
-                convertedExp.append(["has", convertExpression(exp[1][-1])])
+                convertedExp = [func.get("Not", None), ["has", convertExpression(exp[1][-1])]]
             elif funcName == "has" and isinstance(exp[1], list):
                 # Special case to add "is not null" support
-                convertedExp = [funcName]
-                convertedExp.append(convertExpression(exp[1][-1]))
+                convertedExp = [funcName, convertExpression(exp[1][-1])]
             elif funcName == "exp":
                 # Special case to add "exp" support: replace with e^(x)
                 convertedExp = ["^", ["e"], convertExpression(exp[1])]
@@ -284,20 +284,21 @@ def convertExpression(exp):
     else:
         return exp
 
+
 def convertLikeExpression(exp):
     # Special case to add "LIKE %substring%" support
     if not isinstance(exp[2], str):
         _warnings.append(f"LIKE Substring {exp[2]} expected to be a string literal.")
         return None
-
-    if not (exp[2].startswith('%') and exp[2].endswith('%')):                
+    if not (exp[2].startswith('%') and exp[2].endswith('%')):
         _warnings.append(f"Only enclosing % wildcards are supported in LIKE Substring {exp[2]}")
-        return None                    
+        return None
     val = exp[2].strip('%')  # remove trailing %
     if '%' in val or '_' in val:
         _warnings.append(f"Non-enclosing _ or % wildcards in LIKE Substring {exp[2]} are not supported")
-        return None               
+        return None
     return ["in", val, convertExpression(exp[1])]
+
 
 def processSymbolizer(sl):
     sl_type = sl.get('kind')
@@ -405,7 +406,11 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
     if offset is not None:
         paint["line-offset"] = offset
 
-    return {"type": "line", "paint": paint, "layout": layout}
+    return {
+        "type": "line",
+        "paint": paint,
+        "layout": layout
+    }
 
 
 def number(string):
@@ -433,43 +438,51 @@ def _iconSymbolizer(sl):
     path = os.path.splitext(os.path.basename(image)[0])
     rotation = _symbolProperty(sl, "rotate")
 
-    paint = {}
-    paint["icon-image"] = path
-    paint["icon-rotate"] = rotation
-    size = _symbolProperty(sl, "size", 16) / 64.0
-    paint["icon-size"] = size
-    return {"type": "symbol", "paint": paint}
+    paint = {
+        "icon-image": path,
+        "icon-size": _symbolProperty(sl, "size", 16) / 64.0,
+        "icon-rotate": rotation
+    }
+    return {
+        "type": "symbol",
+        "paint": paint
+    }
 
 
 def _markSymbolizer(sl):
     shape = sl.get('wellKnownName')
-    if shape != None and shape != "circle":
+    if shape is not None and shape != "circle":
         name = os.path.splitext(shape)[0]
         rotation = _symbolProperty(sl, "rotate")
         size = _symbolProperty(sl, "size", 16) / 64.0
 
-        paint = {}
-        paint["icon-image"] = name
-        paint["icon-rotate"] = rotation
-        paint["icon-size"] = size
-
+        paint = {
+            "icon-image": name,
+            "icon-rotate": rotation,
+            "icon-size": size
+        }
         return {"type": "symbol", "layout": paint}
-    else:
-        size = _symbolProperty(sl, "size")
-        opacity = _symbolProperty(sl, "opacity")
-        color = _symbolProperty(sl, "color")
-        outlineColor = _symbolProperty(sl, "strokeColor")
-        outlineWidth = _symbolProperty(sl, "strokeWidth")
-        dasharray    = _symbolProperty(sl, "dasharray")
-    
-        paint = {}
-        paint["circle-radius"] = ["/", size, 2]
-        paint["circle-color"] = color
-        paint["circle-opacity"] = opacity
-        paint["circle-stroke-width"] = outlineWidth
-        paint["circle-stroke-color"] = outlineColor
-    
-        return {"type": "circle", "paint": paint}
+
+    # Shape is a circle (or symbol should be rendered like that)
+    size = _symbolProperty(sl, "size")
+    opacity = _symbolProperty(sl, "opacity")
+    color = _symbolProperty(sl, "color")
+    outlineColor = _symbolProperty(sl, "strokeColor")
+    outlineWidth = _symbolProperty(sl, "strokeWidth")
+    dasharray = _symbolProperty(sl, "dasharray")
+
+    paint = {
+        "circle-radius": ["/", size, 2],
+        "circle-color": color,
+        "circle-opacity": opacity,
+        "circle-stroke-width": outlineWidth,
+        "circle-stroke-color": outlineColor
+    }
+
+    return {
+        "type": "circle",
+        "paint": paint
+    }
 
 
 def _fillSymbolizer(sl):
@@ -484,11 +497,11 @@ def _fillSymbolizer(sl):
         fill = []
         for graphicFill in graphicFills:
             fill.append({
-                    "type": "fill", 
-                    "paint": {
-                        "fill-opacity": graphicFill.get("fillOpacity", 1.0),
-                        "fill-pattern": graphicFill["spriteName"],
-                     }
+                "type": "fill",
+                "paint": {
+                    "fill-opacity": graphicFill.get("fillOpacity", 1.0),
+                    "fill-pattern": graphicFill["spriteName"],
+                }
             })
     else:
         paint["fill-opacity"] = opacity * _symbolProperty(sl, "fillOpacity", 1)
@@ -504,7 +517,7 @@ def _fillSymbolizer(sl):
                     "line-opacity": (_symbolProperty(sl, "outlineOpacity") or 1) * opacity,
                     "line-color": outlineColor
                 },
-                "layout":{
+                "layout": {
                     "line-join": join
                 }}
         if isinstance(dasharray, str):
