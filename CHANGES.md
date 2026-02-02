@@ -1,10 +1,10 @@
 Bridgestyle Changelog
 =====================
 
-## 0.1.7 (unreleased)
+## 0.1.7 (2026-02-02)
 ---------------------
 
-- Nothing changed yet.
+- QGIS/MapLibre: add support for basic LIKE expressions (thanks @benvanbasten-ns)
 
 
 ## 0.1.6 (2025-12-10)
