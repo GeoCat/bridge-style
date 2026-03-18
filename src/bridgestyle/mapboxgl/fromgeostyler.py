@@ -17,6 +17,7 @@ _warnings = []
 
 # Constants
 SOURCE_NAME = "vector-source"
+PI = 3.141592653589793
 
 
 def convertGroup(group, qgis_layers, baseUrl, workspace, name):
@@ -271,6 +272,9 @@ def convertExpression(exp):
             elif funcName == "exp":
                 # Special case to add "exp" support: replace with e^(x)
                 convertedExp = ["^", ["e"], convertExpression(exp[1])]
+            elif funcName == "atan2":
+                # Special case to replace atan2 with a piecewise function using atan.
+                convertedExp = _convertAtan2(exp)
             else:
                 convertedExp = [funcName]
                 for arg in exp[1:]:
@@ -279,6 +283,27 @@ def convertExpression(exp):
     else:
         return exp
 
+def _convertAtan2(exp):
+    # See https://en.wikipedia.org/wiki/Atan2#Definition%20and%20computation
+    # Note that the order of x and y is reversed in the definition above
+    exp_x = convertExpression(exp[2])
+    exp_y = convertExpression(exp[1])
+
+    convertedExpression = [
+        "case",
+            [">", exp_x, 0],
+                ["atan", ["/", exp_y, exp_x]],
+            ["all", ["<", exp_x, 0], [">=", exp_y, 0]],
+                ["+", ["atan", ["/", exp_y, exp_x]], PI],
+            ["all", ["<", exp_x, 0], ["<", exp_y, 0]],
+                ["-", ["atan", ["/", exp_y, exp_x]], PI],
+            ["all", ["==", exp_x, 0], [">", exp_y, 0]],
+                (PI / 2.0),
+            ["all", ["==", exp_x, 0], ["<", exp_y, 0]],
+                -(PI / 2.0),
+            0  # undefined, but we have to return something - we'll return 0
+    ]
+    return convertedExpression
 
 def processSymbolizer(sl):
     sl_type = sl.get('kind')
