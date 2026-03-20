@@ -18,7 +18,6 @@ _warnings = []
 
 # Constants
 SOURCE_NAME = "vector-source"
-PI = 3.141592653589793
 
 
 def convertGroup(group, qgis_layers, baseUrl, workspace, name):
@@ -299,13 +298,13 @@ def _convertAtan2(exp):
             [">", exp_x, 0],
                 ["atan", ["/", exp_y, exp_x]],
             ["all", ["<", exp_x, 0], [">=", exp_y, 0]],
-                ["+", ["atan", ["/", exp_y, exp_x]], PI],
+                ["+", ["atan", ["/", exp_y, exp_x]], math.pi],
             ["all", ["<", exp_x, 0], ["<", exp_y, 0]],
-                ["-", ["atan", ["/", exp_y, exp_x]], PI],
+                ["-", ["atan", ["/", exp_y, exp_x]], math.pi],
             ["all", ["==", exp_x, 0], [">", exp_y, 0]],
-                (PI / 2.0),
+                (math.pi / 2.0),
             ["all", ["==", exp_x, 0], ["<", exp_y, 0]],
-                -(PI / 2.0),
+                -(math.pi / 2.0),
             0  # undefined, but we have to return something - we'll return 0
     ]
     return convertedExpression
