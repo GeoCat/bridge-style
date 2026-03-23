@@ -273,6 +273,9 @@ def convertExpression(exp):
             elif funcName == "exp":
                 # Special case to add "exp" support: replace with e^(x)
                 convertedExp = ["^", ["e"], convertExpression(exp[1])]
+            elif funcName == "atan2":
+                # Special case to replace atan2 with a piecewise function using atan.
+                convertedExp = _convertAtan2(exp)
             elif funcName == "in":
                 # Special case to add "LIKE %substring%" support
                 convertedExp = convertLikeExpression(exp)
@@ -284,6 +287,27 @@ def convertExpression(exp):
     else:
         return exp
 
+def _convertAtan2(exp):
+    # See https://en.wikipedia.org/wiki/Atan2#Definition%20and%20computation
+    # Note that the order of x and y is reversed in the definition above
+    exp_x = convertExpression(exp[2])
+    exp_y = convertExpression(exp[1])
+
+    convertedExpression = [
+        "case",
+            [">", exp_x, 0],
+                ["atan", ["/", exp_y, exp_x]],
+            ["all", ["<", exp_x, 0], [">=", exp_y, 0]],
+                ["+", ["atan", ["/", exp_y, exp_x]], math.pi],
+            ["all", ["<", exp_x, 0], ["<", exp_y, 0]],
+                ["-", ["atan", ["/", exp_y, exp_x]], math.pi],
+            ["all", ["==", exp_x, 0], [">", exp_y, 0]],
+                (math.pi / 2.0),
+            ["all", ["==", exp_x, 0], ["<", exp_y, 0]],
+                -(math.pi / 2.0),
+            0  # undefined, but we have to return something - we'll return 0
+    ]
+    return convertedExpression
 
 def convertLikeExpression(exp):
     # Special case to add "LIKE %substring%" support
