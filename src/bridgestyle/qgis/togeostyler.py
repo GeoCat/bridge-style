@@ -623,7 +623,7 @@ def _createSymbolizer(sl, opacity):
 
 
 def _fontMarkerSymbolizer(sl, opacity):
-    symbolizer = _basePointSimbolizer(sl, opacity)
+    symbolizer = _basePointSymbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     fontFamily = _symbolProperty(sl, "font")
     character = str(_symbolProperty(
@@ -714,7 +714,7 @@ def _geomGeneratorSymbolizer(sl, opacity):
 
 
 def _svgMarkerSymbolizer(sl, opacity):
-    marker = _basePointSimbolizer(sl, opacity)
+    marker = _basePointSymbolizer(sl, opacity)
     color = _toHexColor(sl.properties()["color"])
     marker["color"] = color
     svg = _markGraphic(sl)
@@ -723,20 +723,20 @@ def _svgMarkerSymbolizer(sl, opacity):
 
 
 def _rasterImageMarkerSymbolizer(sl, opacity):
-    marker = _basePointSimbolizer(sl, opacity)
+    marker = _basePointSymbolizer(sl, opacity)
     img = _iconGraphic(sl)
     marker.update(img)
     return marker
 
 
 def _simpleMarkerSymbolizer(sl, opacity):
-    marker = _basePointSimbolizer(sl, opacity)
+    marker = _basePointSymbolizer(sl, opacity)
     mark = _markGraphic(sl)
     marker.update(mark)
     return marker
 
 
-def _basePointSimbolizer(sl, opacity):
+def _basePointSymbolizer(sl, opacity):
     props = sl.properties()
     rotation = _symbolProperty(sl, "angle", QgsSymbolLayer.Property.PropertyAngle)
     x, y = sl.offset().x(), sl.offset().y()
