@@ -1,10 +1,11 @@
 Bridgestyle Changelog
 =====================
 
-## 0.1.8 (unreleased)
+## 0.1.8 (2026-03-24)
 ---------------------
 
-- Nothing changed yet.
+- MapLibre: add support for atan2() expression using regular atan() (thanks @benvanbasten-ns)
+- SLD: fix SVG marker symbolizer
 
 
 ## 0.1.7 (2026-02-02)
