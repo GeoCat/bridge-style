@@ -479,7 +479,7 @@ def _markSymbolizer(sl):
         paint = {
             "icon-image": name,
             "icon-rotate": rotation,
-            "icon-size": size,
+            "icon-size": size
         }
         return {"type": "symbol", "layout": paint}
 
