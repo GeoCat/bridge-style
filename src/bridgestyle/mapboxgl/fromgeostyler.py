@@ -475,16 +475,13 @@ def _markSymbolizer(sl):
         name = os.path.splitext(shape)[0]
         rotation = _symbolProperty(sl, "rotate")
         size = _symbolProperty(sl, "size", 16) / 64.0
-        color = _symbolProperty(sl, "color")
 
-        layout = {
+        paint = {
             "icon-image": name,
             "icon-rotate": rotation,
             "icon-size": size,
-            
         }
-        paint = {"icon-color": color}
-        return {"type": "symbol", "layout": layout, "paint": paint}
+        return {"type": "symbol", "layout": paint}
 
     # Shape is a circle (or symbol should be rendered like that)
     size = _symbolProperty(sl, "size")
