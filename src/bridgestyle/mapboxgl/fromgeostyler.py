@@ -413,9 +413,25 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
 
     paint = {}
     layout = {}
+    graphicStrokeLayers = []
     if graphicStroke is not None:
-        _warnings.append("Marker lines not supported for Mapbox GL conversion")
-        # TODO
+        for marker in graphicStroke:
+            markerPaint = {}
+            markerLayout = {}
+            kind = marker.get("kind")
+            if kind == "Mark":
+                markerLayout["symbol-placement"] = "line-center"
+                markerLayout["icon-image"] = marker.get("spriteName")
+                markerLayout["icon-size"] = marker.get("size", 1) / 64
+                markerLayout["icon-rotate"] = marker.get("rotate", 0.0)
+                markerLayout["icon-rotation-alignment"] = "viewport"
+                markerLayout["icon-allow-overlap"] = True
+                markerPaint["icon-color"] = marker.get("color")
+                markerPaint["icon-opacity"] = marker.get("opacity", 1)
+            else:
+                _warnings.append(f"Unsupported graphicStroke marker kind '{kind}'")
+                continue
+            graphicStrokeLayers.append({"type": "symbol", "layout": markerLayout, "paint": markerPaint})
 
     if color is None:
         paint["visibility"] = "none"
@@ -430,11 +446,15 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
     if offset is not None:
         paint["line-offset"] = offset
 
-    return {
+    lineLayer = {
         "type": "line",
         "paint": paint,
         "layout": layout
     }
+
+    if graphicStrokeLayers:
+        return [lineLayer] + graphicStrokeLayers
+    return lineLayer
 
 
 def number(string):
