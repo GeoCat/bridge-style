@@ -1,10 +1,10 @@
 Bridgestyle Changelog
 =====================
 
-## 0.1.9 (unreleased)
+## 0.1.9 (2026-06-19)
 ---------------------
 
-- Nothing changed yet.
+- MapLibre: add basic support for marker lines (thanks @benvanbasten-ns)
 
 
 ## 0.1.8 (2026-03-24)

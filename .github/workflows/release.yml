@@ -1,17 +1,21 @@
 name: Build and publish
 
-# Run on PR requests. And on master itself.
+# Run on PR requests. And on master itself
 on:
   push:
     branches:
-      - main  # just build the sdist skip release
+      - master  # just build the sdist, skip release
     tags:
-      - "*"
+      - "[0-9]+.[0-9]+.[0-9]+"  # build on semantic version tags
   pull_request:  # also build on PRs touching some files
     paths:
       - ".github/workflows/release.yml"
       - "MANIFEST.in"
       - "pyproject.toml"
+
+# Default permissions for all jobs
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -20,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -32,8 +36,9 @@ jobs:
           python -m pip install build
           python -m build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
+          name: dist-packages
           path: ./dist/*
           retention-days: 5
 
@@ -41,19 +46,22 @@ jobs:
     name: Publish on GitHub and PyPI
     needs: [build]
     runs-on: ubuntu-latest
-    # release on every tag
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+    environment:
+      name: "pypi"
+      url: "https://pypi.org/project/bridgestyle/"
+    permissions:
+      contents: write   # needed for GitHub release
+      id-token: write   # needed for OIDC trusted publishing
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')  # release on every tag
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
-          name: artifact
+          name: dist-packages
           path: dist
 
       - name: Upload Github release
         id: upload-release-asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
 
       - name: Upload Release Assets to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_UPLOAD_TOKEN }}
