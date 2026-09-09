@@ -1,0 +1,27 @@
+{
+    "name": "roads",
+    "rules": [
+        {
+            "name": "dashed road with a name",
+            "symbolizers": [
+                {
+                    "kind": "Line",
+                    "color": "#232323",
+                    "opacity": 1.0,
+                    "width": 2,
+                    "dasharray": "8 5",
+                    "cap": "square",
+                    "join": "bevel"
+                },
+                {
+                    "kind": "Text",
+                    "color": "#000000",
+                    "font": "Arial",
+                    "label": ["PropertyName", "name"],
+                    "size": 12,
+                    "offset": [0, 0]
+                }
+            ]
+        }
+    ]
+}

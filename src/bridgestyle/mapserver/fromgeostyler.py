@@ -26,12 +26,27 @@ def convert(geostyler, options=None):
     return mapfile, symbols, _warnings
 
 
+class _Block(object):
+    """A value that MapServer expects as a block: the keyword, the values, END.
+
+    Used for keywords such as PATTERN, which is written as "PATTERN 8 5 END"
+    and is rejected when written as a single "PATTERN" line.
+    """
+
+    def __init__(self, value):
+        self.value = value
+
+
 def convertDictToMapfile(d):
     def _toString(element, indent):
         s = ""
         INDENT = "  " * indent
         for k, v in element.items():
-            if isinstance(v, dict):
+            if isinstance(v, _Block):
+                s += "%s%s\n" % (INDENT, k)
+                s += "%s%s\n" % ("  " * (indent + 1), v.value)
+                s += INDENT + "END\n"
+            elif isinstance(v, dict):
                 s += "%s%s\n" % (INDENT, k)
                 s += _toString(v, indent + 1)
                 s += INDENT + "END\n"
@@ -74,7 +89,16 @@ def processRule(rule):
     if expression is not None:
         d["EXPRESSION"] = expression
 
-    styles = [{"STYLE": processSymbolizer(s)} for s in rule["symbolizers"]]
+    styles = []
+    for s in rule["symbolizers"]:
+        symbolizer = processSymbolizer(s)
+        if symbolizer is None:
+            continue
+        if "LABEL" in symbolizer:
+            # a LABEL is a member of CLASS, not of STYLE
+            styles.append(symbolizer)
+        else:
+            styles.append({"STYLE": symbolizer})
 
     if "scaleDenominator" in rule:
         scale = rule["scaleDenominator"]
@@ -205,9 +229,12 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
     color = _symbolProperty(sl, "color")
     graphicStroke = sl.get("graphicStroke", None)
     width = _symbolProperty(sl, "width")
-    dasharray = _symbolProperty(sl, "dasharray")
-    cap = _symbolProperty(sl, "cap")
-    join = _symbolProperty(sl, "join")
+    # PATTERN, LINECAP and LINEJOIN take bare values, so these are read
+    # straight from the symbolizer instead of through convertExpression,
+    # which quotes anything that is not a number
+    dasharray = sl.get("dasharray", None)
+    cap = sl.get("cap", None)
+    join = sl.get("join", None)
     offset = _symbolProperty(sl, "offset")
 
     style = {}
@@ -218,10 +245,12 @@ def _lineSymbolizer(sl, graphicStrokeLayer=0):
         style["WIDTH"] = width
         style["OPACITY"] = opacity
         style["COLOR"] = color
-        style["LINECAP"] = cap
-        style["LINEJOIN"] = join
+        if cap is not None:
+            style["LINECAP"] = cap
+        if join is not None:
+            style["LINEJOIN"] = join
     if dasharray is not None:
-        style["PATTERN"] = dasharray
+        style["PATTERN"] = _Block(dasharray)
     if offset is not None:
         style["OFFSET"] = "%s -99" % str(offset)
 
