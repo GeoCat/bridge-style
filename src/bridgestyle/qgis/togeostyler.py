@@ -78,47 +78,54 @@ def processLayer(layer):
     global _expressionConverter
 
     _expressionConverter = ExpressionConverter(layer)
-
-    geostyler = {"name": layer.name()}
-    if layer.type() == layer.VectorLayer:
-        rules = []
-        renderer = layer.renderer()
-        if renderer is None:
-            _warnings.append("No renderer found for layer: %s" % layer.name())
-            return
-        if isinstance(renderer, QgsHeatmapRenderer):
-            symbolizer, transformation = heatmapRenderer(renderer)
-            if symbolizer and transformation:
-                rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
+    try:
+        geostyler = {"name": layer.name()}
+        if layer.type() == layer.VectorLayer:
+            rules = []
+            renderer = layer.renderer()
+            if renderer is None:
+                _warnings.append("No renderer found for layer: %s" % layer.name())
+                return
+            if isinstance(renderer, QgsHeatmapRenderer):
+                symbolizer, transformation = heatmapRenderer(renderer)
+                if symbolizer and transformation:
+                    rules = [{"name": layer.name(), "symbolizers": [symbolizer]}]
+                    geostyler["rules"] = rules
+                    geostyler["transformation"] = transformation
+            else:
+                if not isinstance(renderer, QgsNullSymbolRenderer):
+                    if not isinstance(renderer, QgsRuleBasedRenderer):
+                        ruleRenderer = QgsRuleBasedRenderer.convertFromRenderer(
+                            renderer)
+                    else:
+                        ruleRenderer = renderer
+                    if ruleRenderer is None:
+                        _warnings.append(
+                            "Unsupported renderer type: %s" % str(renderer))
+                        return
+                    for rule in ruleRenderer.rootRule().children():
+                        if rule.active():
+                            rules.extend(processRule(rule, None, layer.opacity(), layer))
+                labelingRules = processLabelingLayer(layer)
+                if labelingRules:
+                    rules = rules + labelingRules
                 geostyler["rules"] = rules
-                geostyler["transformation"] = transformation
-        else:
-            if not isinstance(renderer, QgsNullSymbolRenderer):
-                if not isinstance(renderer, QgsRuleBasedRenderer):
-                    ruleRenderer = QgsRuleBasedRenderer.convertFromRenderer(
-                        renderer)
-                else:
-                    ruleRenderer = renderer
-                if ruleRenderer is None:
-                    _warnings.append(
-                        "Unsupported renderer type: %s" % str(renderer))
-                    return
-                for rule in ruleRenderer.rootRule().children():
-                    if rule.active():
-                        rules.extend(processRule(rule, None, layer.opacity(), layer))
-            labelingRules = processLabelingLayer(layer)
-            if labelingRules:
-                rules = rules + labelingRules
+        elif layer.type() == layer.RasterLayer:
+            rules = [{"name": layer.name(), "symbolizers": [
+                rasterSymbolizer(layer)]}]
             geostyler["rules"] = rules
-    elif layer.type() == layer.RasterLayer:
-        rules = [{"name": layer.name(), "symbolizers": [
-            rasterSymbolizer(layer)]}]
-        geostyler["rules"] = rules
 
-    if layer.blendMode() in BLEND_MODES:
-        geostyler["blendMode"] = BLEND_MODES[layer.blendMode()]
+        if layer.blendMode() in BLEND_MODES:
+            geostyler["blendMode"] = BLEND_MODES[layer.blendMode()]
 
-    return geostyler
+        return geostyler
+    finally:
+        # The converter samples a feature from the layer and keeps a reference to the layer
+        # itself, and nothing outside the call tree above ever reads it again. Left set, it
+        # kept the last converted layer alive for the rest of the process. For a file-backed
+        # layer that also keeps a GDAL dataset open, which in QGIS was then closed at
+        # interpreter exit, after the driver registry had already been torn down.
+        _expressionConverter = None
 
 
 def heatmapRenderer(renderer):
